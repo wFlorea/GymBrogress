@@ -3,15 +3,15 @@
 @theme {
   --color-background: #121212;
   --color-foreground: #ffffff;
-  
+
   /* 30% - Secondary/Cards */
   --color-surface: #252525;
   --color-surface-hover: #333333;
-  
+
   /* 10% - Accent */
   --color-primary: #FF4500;
   --color-primary-hover: #e63e00;
-  
+
   /* Utilities */
   --color-muted: #888888;
   --color-border: #333333;
