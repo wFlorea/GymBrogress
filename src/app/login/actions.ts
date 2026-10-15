@@ -25,12 +25,22 @@ export async function login(formData: FormData) {
 export async function signup(formData: FormData) {
   const supabase = await createClient()
 
-  const data = {
-    email: (formData.get('email') as string).trim(),
-    password: formData.get('password') as string,
+  const email = (formData.get('email') as string).trim()
+  const password = formData.get('password') as string
+  const confirmPassword = formData.get('confirmPassword') as string
+
+  if (confirmPassword !== undefined && password !== confirmPassword) {
+    return redirect('/login?message=Parolele nu coincid!')
   }
 
-  const { error } = await supabase.auth.signUp(data)
+  if (!password || password.length < 6) {
+    return redirect('/login?message=Parola trebuie să aibă cel puțin 6 caractere!')
+  }
+
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+  })
 
   if (error) {
     return redirect('/login?message=Eroare la înregistrare: ' + error.message)
