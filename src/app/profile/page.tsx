@@ -18,11 +18,11 @@ export default async function ProfilePage() {
 
       {/* User Card */}
       <div className="bg-[var(--color-surface)] p-4 rounded-xl border border-[var(--color-border)] mb-6 flex items-center gap-4">
-        <div className="w-12 h-12 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white font-bold text-xl">
-          {user?.email?.charAt(0).toUpperCase() || 'U'}
+        <div className="w-12 h-12 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md shadow-[#FF4500]/20">
+          {(user?.user_metadata?.name || user?.email || 'U').charAt(0).toUpperCase()}
         </div>
         <div>
-          <h2 className="font-bold">Brogresser</h2>
+          <h2 className="font-bold text-lg">{user?.user_metadata?.name || 'Brogresser'}</h2>
           <p className="text-[var(--color-muted)] text-sm">{user?.email}</p>
         </div>
       </div>

@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import { login, signup } from './actions'
-import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2, UserPlus, LogIn } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2, UserPlus, LogIn, User } from 'lucide-react'
 
 export function LoginForm({ serverMessage }: { serverMessage?: string }) {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -26,6 +27,12 @@ export function LoginForm({ serverMessage }: { serverMessage?: string }) {
     setClientError(null)
 
     if (mode === 'signup') {
+      if (!name.trim()) {
+        e.preventDefault()
+        setClientError('Te rugăm să introduci un nume sau nickname.')
+        return
+      }
+
       if (password.length < 6) {
         e.preventDefault()
         setClientError('Parola trebuie să aibă cel puțin 6 caractere.')
@@ -84,6 +91,28 @@ export function LoginForm({ serverMessage }: { serverMessage?: string }) {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {/* Name / Nickname (Only in Signup Mode) */}
+          {mode === 'signup' && (
+            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]" htmlFor="name">
+                Nume / Nickname
+              </label>
+              <div className="relative">
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="ex: Alex sau Champ"
+                  required
+                  className="w-full rounded-xl pl-10 pr-4 py-3 bg-[#121212] border border-[var(--color-border)] text-white placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-primary)] transition-colors text-sm"
+                />
+                <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
+              </div>
+            </div>
+          )}
+
           {/* Email */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]" htmlFor="email">
@@ -207,9 +236,9 @@ export function LoginForm({ serverMessage }: { serverMessage?: string }) {
           ) : (
             <button
               formAction={signup}
-              disabled={isPasswordMismatch || password.length < 6}
+              disabled={isPasswordMismatch || password.length < 6 || !name.trim()}
               className={`mt-2 w-full rounded-xl py-3.5 font-bold transition-all shadow-lg text-sm flex items-center justify-center gap-2 ${
-                isPasswordMismatch || password.length < 6
+                isPasswordMismatch || password.length < 6 || !name.trim()
                   ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-700'
                   : 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] shadow-[#FF4500]/25 active:scale-[0.98]'
               }`}
@@ -218,33 +247,6 @@ export function LoginForm({ serverMessage }: { serverMessage?: string }) {
             </button>
           )}
         </form>
-
-        {/* Footer Toggle Link */}
-        <div className="mt-6 text-center border-t border-[var(--color-border)]/60 pt-4">
-          {mode === 'login' ? (
-            <p className="text-xs text-[var(--color-muted)]">
-              Nu ai încă un cont?{' '}
-              <button
-                type="button"
-                onClick={() => handleModeChange('signup')}
-                className="text-[var(--color-primary)] font-bold hover:underline ml-1"
-              >
-                Creează cont acum
-              </button>
-            </p>
-          ) : (
-            <p className="text-xs text-[var(--color-muted)]">
-              Ai deja un cont?{' '}
-              <button
-                type="button"
-                onClick={() => handleModeChange('login')}
-                className="text-[var(--color-primary)] font-bold hover:underline ml-1"
-              >
-                Autentifică-te
-              </button>
-            </p>
-          )}
-        </div>
       </div>
     </div>
   )
