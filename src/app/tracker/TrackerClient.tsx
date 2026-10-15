@@ -43,7 +43,7 @@ export function TrackerClient({ logId, initialSets }: { logId: string, initialSe
   }
 
   const handleUpdateSet = (setId: string, field: 'actual_reps' | 'actual_weight', value: string) => {
-    const numValue = parseInt(value) || 0
+    const numValue = field === 'actual_weight' ? (parseFloat(value) || 0) : (parseInt(value, 10) || 0)
     
     // Optimistic UI update
     setSets(sets.map(s => s.id === setId ? { ...s, [field]: numValue } : s))
@@ -86,6 +86,7 @@ export function TrackerClient({ logId, initialSets }: { logId: string, initialSe
                 <div className="col-span-3">
                   <input 
                     type="number" 
+                    step="any"
                     value={set.actual_weight || ''}
                     onChange={(e) => handleUpdateSet(set.id, 'actual_weight', e.target.value)}
                     className="w-full bg-transparent border-b border-[var(--color-border)] text-center focus:outline-none focus:border-[var(--color-primary)]"
