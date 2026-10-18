@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
-import { DAYS_OF_WEEK } from '@/lib/types'
+import { DAYS_OF_WEEK, parseWeeklyPlan } from '@/lib/types'
 import { Dumbbell, Flame, CheckCircle2, Calendar, ArrowRight, Coffee, Trophy } from 'lucide-react'
 
 export default async function DashboardPage() {
@@ -30,6 +30,8 @@ export default async function DashboardPage() {
     .eq('user_id', user?.id)
     .eq('day_of_week', dayOfWeek)
     .maybeSingle()
+
+  const { split: plannedSplit, exercises: plannedExercises } = parseWeeklyPlan(planned?.workout_name)
 
   // 2. Fetch today's workout log (if already started)
   const { data: todayLog } = await supabase
@@ -82,10 +84,10 @@ export default async function DashboardPage() {
     .select('*', { count: 'exact', head: true })
     .eq('is_completed', true)
 
-  const plannedWorkoutName = todayLog?.workout_name || planned?.workout_name || ''
+  const plannedWorkoutName = todayLog?.workout_name || plannedSplit || ''
   const isRestDay = plannedWorkoutName.toLowerCase().includes('rest') || 
                     plannedWorkoutName.toLowerCase().includes('pauz') || 
-                    plannedWorkoutName.toLowerCase().includes('recuperare')
+                    plannedWorkoutName.toLowerCase().includes('odihn')
 
   const totalTodaySets = todayLog?.workout_sets?.length || 0
   const completedTodaySets = todayLog?.workout_sets?.filter((s: { is_completed: boolean }) => s.is_completed)?.length || 0
@@ -168,16 +170,16 @@ export default async function DashboardPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Link
-                href="/planner"
+                href="/schedule"
                 className="bg-[var(--color-surface-hover)] text-sm font-semibold py-3 px-4 rounded-xl text-center border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors"
               >
-                Setează Planul
+                Alege Programul
               </Link>
               <Link
-                href="/tracker"
+                href="/plan"
                 className="bg-[var(--color-primary)] text-white text-sm font-bold py-3 px-4 rounded-xl text-center hover:bg-[var(--color-primary-hover)] transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-[#FF4500]/20"
               >
-                Antrenament Ad-hoc
+                Plan Exerciții
               </Link>
             </div>
           </div>
@@ -210,12 +212,12 @@ export default async function DashboardPage() {
             <Trophy size={18} />
           </div>
           <div>
-            <p className="text-xs font-semibold text-[var(--color-muted)] uppercase tracking-wider">Planul săptămânii</p>
+            <p className="text-xs font-semibold text-[var(--color-muted)] uppercase tracking-wider">Program & Plan</p>
             <p className="text-sm font-medium">Vezi programul pe 7 zile</p>
           </div>
         </div>
         <Link 
-          href="/planner" 
+          href="/schedule" 
           className="text-xs font-bold text-[var(--color-primary)] hover:underline flex items-center gap-1"
         >
           Deschide <ArrowRight size={14} />

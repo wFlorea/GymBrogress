@@ -35,6 +35,8 @@ export async function middleware(request: NextRequest) {
   const isAuthPage = request.nextUrl.pathname.startsWith('/login')
   const isProtectedPage = 
     request.nextUrl.pathname.startsWith('/dashboard') ||
+    request.nextUrl.pathname.startsWith('/schedule') ||
+    request.nextUrl.pathname.startsWith('/plan') ||
     request.nextUrl.pathname.startsWith('/planner') ||
     request.nextUrl.pathname.startsWith('/tracker') ||
     request.nextUrl.pathname.startsWith('/exercises') ||

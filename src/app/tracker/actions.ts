@@ -2,14 +2,27 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { parseWeeklyPlan } from '@/lib/types'
 
-// Get today's active workout log or create one
 export async function getTodayWorkoutLog() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+  const now = new Date()
+  const today = now.toISOString().split('T')[0] // YYYY-MM-DD
+  const dayOfWeek = (now.getDay() + 6) % 7 // Monday = 0, Sunday = 6
+
+  // 1. Get today's plan from weekly_plans
+  const { data: planned } = await supabase
+    .from('weekly_plans')
+    .select('workout_name')
+    .eq('user_id', user.id)
+    .eq('day_of_week', dayOfWeek)
+    .maybeSingle()
+
+  const { split, exercises } = parseWeeklyPlan(planned?.workout_name)
+  const isRestDay = split.toLowerCase().includes('rest') || split.toLowerCase().includes('pauz') || split.toLowerCase().includes('odihn')
 
   // Check if we already have a log for today
   const { data: existingLog } = await supabase
@@ -17,75 +30,191 @@ export async function getTodayWorkoutLog() {
     .select('*, workout_sets(*)')
     .eq('user_id', user.id)
     .eq('date', today)
-    .single()
+    .maybeSingle()
 
-  if (existingLog) return existingLog
+  if (existingLog) {
+    // If the log exists but has no sets yet and we have planned exercises, auto-seed Set 1 for each
+    if ((!existingLog.workout_sets || existingLog.workout_sets.length === 0) && exercises.length > 0 && !isRestDay) {
+      const setsToInsert = exercises.map((ex) => ({
+        workout_log_id: existingLog.id,
+        exercise_id: ex.id,
+        exercise_name: ex.name,
+        set_number: 1,
+        target_reps: 10,
+        target_weight: 0,
+        actual_reps: 10,
+        actual_weight: 0,
+        is_completed: false,
+      }))
 
-  // If not, let's see what's planned for today
-  const dayOfWeek = (new Date().getDay() + 6) % 7 // Convert Sun=0,Mon=1 to Mon=0,Sun=6
-  const { data: planned } = await supabase
-    .from('weekly_plans')
-    .select('workout_name')
-    .eq('user_id', user.id)
-    .eq('day_of_week', dayOfWeek)
-    .single()
+      await supabase.from('workout_sets').insert(setsToInsert)
 
-  const workoutName = planned?.workout_name || 'Antrenament Ad-hoc'
+      // Re-fetch updated log
+      const { data: reloadedLog } = await supabase
+        .from('workout_logs')
+        .select('*, workout_sets(*)')
+        .eq('id', existingLog.id)
+        .single()
 
-  // Create new log
+      return {
+        ...reloadedLog,
+        splitName: split,
+        isRestDay: false,
+        plannedExercises: exercises,
+      }
+    }
+
+    return {
+      ...existingLog,
+      splitName: split,
+      isRestDay,
+      plannedExercises: exercises,
+    }
+  }
+
+  // If today is a Rest Day and no log exists yet, return rest state
+  if (isRestDay) {
+    return {
+      id: null,
+      date: today,
+      workout_name: 'Rest Day',
+      splitName: 'Rest Day',
+      isRestDay: true,
+      plannedExercises: [],
+      workout_sets: [],
+    }
+  }
+
+  // Otherwise, create a new workout log for today
+  const workoutName = split || 'Antrenament Săptămânal'
   const { data: newLog, error } = await supabase
     .from('workout_logs')
     .insert({
       user_id: user.id,
       date: today,
-      workout_name: workoutName
+      workout_name: workoutName,
+    })
+    .select('*')
+    .single()
+
+  if (error || !newLog) {
+    console.error('Error creating workout log:', error)
+    return null
+  }
+
+  // Auto-populate Set 1 for each planned exercise
+  if (exercises.length > 0) {
+    const setsToInsert = exercises.map((ex) => ({
+      workout_log_id: newLog.id,
+      exercise_id: ex.id,
+      exercise_name: ex.name,
+      set_number: 1,
+      target_reps: 10,
+      target_weight: 0,
+      actual_reps: 10,
+      actual_weight: 0,
+      is_completed: false,
+    }))
+
+    await supabase.from('workout_sets').insert(setsToInsert)
+  }
+
+  // Fetch complete created log
+  const { data: completeLog } = await supabase
+    .from('workout_logs')
+    .select('*, workout_sets(*)')
+    .eq('id', newLog.id)
+    .single()
+
+  return {
+    ...completeLog,
+    splitName: split,
+    isRestDay: false,
+    plannedExercises: exercises,
+  }
+}
+
+export async function startAdHocWorkout() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const today = new Date().toISOString().split('T')[0]
+
+  const { data: newLog, error } = await supabase
+    .from('workout_logs')
+    .insert({
+      user_id: user.id,
+      date: today,
+      workout_name: 'Antrenament Ad-hoc',
     })
     .select('*, workout_sets(*)')
     .single()
 
   if (error) {
-    console.error('Error creating workout log:', error)
-    return null
+    console.error('Error starting ad-hoc workout:', error)
+    throw new Error('Eroare la crearea antrenamentului')
   }
 
+  revalidatePath('/tracker')
+  revalidatePath('/dashboard')
   return newLog
 }
 
-export async function addExerciseSet(workoutLogId: string, exerciseId: string, exerciseName: string) {
+export async function addExerciseSet(
+  workoutLogId: string,
+  exerciseId: string,
+  exerciseName: string,
+  copyWeight = 0,
+  copyReps = 10
+) {
   const supabase = await createClient()
-  
+
   // Find highest set number for this exercise in this log
   const { data: existingSets } = await supabase
     .from('workout_sets')
-    .select('set_number')
+    .select('set_number, actual_weight, actual_reps')
     .eq('workout_log_id', workoutLogId)
     .eq('exercise_id', exerciseId)
     .order('set_number', { ascending: false })
     .limit(1)
 
   const nextSetNumber = existingSets && existingSets.length > 0 ? existingSets[0].set_number + 1 : 1
+  const defaultWeight = existingSets && existingSets.length > 0 ? existingSets[0].actual_weight : copyWeight
+  const defaultReps = existingSets && existingSets.length > 0 ? existingSets[0].actual_reps : copyReps
 
-  const { error } = await supabase
+  const { data: newSet, error } = await supabase
     .from('workout_sets')
     .insert({
       workout_log_id: workoutLogId,
       exercise_id: exerciseId,
       exercise_name: exerciseName,
       set_number: nextSetNumber,
-      target_reps: 8,
-      target_weight: 0,
-      actual_reps: 8,
-      actual_weight: 0,
-      is_completed: false
+      target_reps: defaultReps,
+      target_weight: defaultWeight,
+      actual_reps: defaultReps,
+      actual_weight: defaultWeight,
+      is_completed: false,
     })
+    .select('*')
+    .single()
 
-  if (error) console.error('Error adding set:', error)
+  if (error) {
+    console.error('Error adding set:', error)
+    throw error
+  }
+
   revalidatePath('/tracker')
+  revalidatePath('/dashboard')
+  return newSet
 }
 
-export async function updateSet(setId: string, data: { actual_reps?: number, actual_weight?: number, is_completed?: boolean }) {
+export async function updateSet(
+  setId: string,
+  data: { actual_reps?: number; actual_weight?: number; is_completed?: boolean }
+) {
   const supabase = await createClient()
-  
+
   const { error } = await supabase
     .from('workout_sets')
     .update(data)
@@ -93,11 +222,12 @@ export async function updateSet(setId: string, data: { actual_reps?: number, act
 
   if (error) console.error('Error updating set:', error)
   revalidatePath('/tracker')
+  revalidatePath('/dashboard')
 }
 
 export async function removeSet(setId: string) {
   const supabase = await createClient()
-  
+
   const { error } = await supabase
     .from('workout_sets')
     .delete()
@@ -105,4 +235,5 @@ export async function removeSet(setId: string) {
 
   if (error) console.error('Error removing set:', error)
   revalidatePath('/tracker')
+  revalidatePath('/dashboard')
 }
