@@ -7,9 +7,8 @@ import {
   serializeWeeklyPlan,
   SplitType,
   getExercisesForSplit,
-  RoutineTemplatesMap,
-  DEFAULT_ROUTINE_TEMPLATES,
 } from '@/lib/types'
+import { getRoutineTemplates } from '@/app/plan/actions'
 
 export async function getWeeklyPlans() {
   const supabase = await createClient()
@@ -20,6 +19,8 @@ export async function getWeeklyPlans() {
     .from('weekly_plans')
     .select('*')
     .eq('user_id', user.id)
+    .gte('day_of_week', 0)
+    .lte('day_of_week', 6)
     .order('day_of_week', { ascending: true })
 
   if (error) {
@@ -44,7 +45,7 @@ export async function updateDaySplit(dayOfWeek: number, newSplit: SplitType) {
     .maybeSingle()
 
   // Get master exercises for this split from user's configured templates
-  const userTemplates = (user.user_metadata?.routine_templates as RoutineTemplatesMap) || DEFAULT_ROUTINE_TEMPLATES
+  const userTemplates = await getRoutineTemplates()
   const exercises = getExercisesForSplit(newSplit, userTemplates)
 
   const serialized = serializeWeeklyPlan(newSplit, exercises)

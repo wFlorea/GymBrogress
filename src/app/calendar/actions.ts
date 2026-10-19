@@ -4,13 +4,10 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import {
   CalendarPlansMap,
-  CalendarDayPlan,
   WorkStatus,
   SplitType,
-  RoutineTemplatesMap,
-  DEFAULT_ROUTINE_TEMPLATES,
-  getExercisesForSplit,
-  serializeWeeklyPlan,
+  serializeCalendarWorkout,
+  parseCalendarWorkout,
 } from '@/lib/types'
 
 export async function getCalendarPlans(): Promise<CalendarPlansMap> {
@@ -18,8 +15,30 @@ export async function getCalendarPlans(): Promise<CalendarPlansMap> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return {}
 
-  const plans = (user.user_metadata?.calendar_plans as CalendarPlansMap) || {}
-  return plans
+  const { data: logs, error } = await supabase
+    .from('workout_logs')
+    .select('id, date, workout_name')
+    .eq('user_id', user.id)
+
+  if (error) {
+    console.error('Error fetching calendar logs:', error)
+    return {}
+  }
+
+  const map: CalendarPlansMap = {}
+  for (const log of logs || []) {
+    const parsed = parseCalendarWorkout(log.workout_name)
+    // Only map if there is a custom split or a custom work status
+    if (parsed.split !== null || parsed.workStatus !== 'none') {
+      map[log.date] = {
+        date: log.date,
+        workStatus: parsed.workStatus,
+        split: parsed.split,
+      }
+    }
+  }
+
+  return map
 }
 
 export async function saveCalendarDay(
@@ -29,53 +48,46 @@ export async function saveCalendarDay(
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+  if (!user) throw new Error('Nu ești autentificat.')
 
-  const currentPlans = await getCalendarPlans()
+  const serialized = serializeCalendarWorkout(split, workStatus)
 
-  const updatedPlans: CalendarPlansMap = {
-    ...currentPlans,
-    [date]: {
-      date,
-      workStatus,
-      split,
-    },
+  // 1. Check if a workout_log record already exists for this date
+  const { data: existing, error: checkError } = await supabase
+    .from('workout_logs')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('date', date)
+    .maybeSingle()
+
+  if (checkError) {
+    console.error('Error checking existing log:', checkError)
   }
 
-  // Persist in user metadata
-  const { error } = await supabase.auth.updateUser({
-    data: { calendar_plans: updatedPlans },
-  })
+  if (existing) {
+    // 2. Update existing log
+    const { error: updateError } = await supabase
+      .from('workout_logs')
+      .update({ workout_name: serialized })
+      .eq('id', existing.id)
 
-  if (error) {
-    console.error('Error saving calendar day:', error)
-    throw new Error('Nu s-a putut salva ziua în calendar.')
-  }
+    if (updateError) {
+      console.error('Error updating calendar log:', updateError)
+      throw new Error('Eroare la actualizarea calendarului.')
+    }
+  } else {
+    // 3. Insert new log
+    const { error: insertError } = await supabase
+      .from('workout_logs')
+      .insert({
+        user_id: user.id,
+        date,
+        workout_name: serialized,
+      })
 
-  // If the edited date is TODAY, sync today's workout log if appropriate
-  const today = new Date().toISOString().split('T')[0]
-  if (date === today && split) {
-    try {
-      const userTemplates =
-        (user.user_metadata?.routine_templates as RoutineTemplatesMap) || DEFAULT_ROUTINE_TEMPLATES
-      const exercises = getExercisesForSplit(split, userTemplates)
-
-      // Check if a workout log already exists for today
-      const { data: existingLog } = await supabase
-        .from('workout_logs')
-        .select('id, workout_name')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .maybeSingle()
-
-      if (existingLog) {
-        await supabase
-          .from('workout_logs')
-          .update({ workout_name: split })
-          .eq('id', existingLog.id)
-      }
-    } catch (logErr) {
-      console.error('Error updating today workout log from calendar:', logErr)
+    if (insertError) {
+      console.error('Error inserting calendar log:', insertError)
+      throw new Error('Eroare la salvarea în calendar.')
     }
   }
 
@@ -90,19 +102,31 @@ export async function saveCalendarDay(
 export async function clearCalendarDay(date: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+  if (!user) throw new Error('Nu ești autentificat.')
 
-  const currentPlans = await getCalendarPlans()
-  const updatedPlans = { ...currentPlans }
-  delete updatedPlans[date]
+  // Check if existing log has sets
+  const { data: existing } = await supabase
+    .from('workout_logs')
+    .select('id, workout_sets(id)')
+    .eq('user_id', user.id)
+    .eq('date', date)
+    .maybeSingle()
 
-  const { error } = await supabase.auth.updateUser({
-    data: { calendar_plans: updatedPlans },
-  })
-
-  if (error) {
-    console.error('Error clearing calendar day:', error)
-    throw new Error('Nu s-a putut reseta ziua.')
+  if (existing) {
+    const hasSets = existing.workout_sets && existing.workout_sets.length > 0
+    if (hasSets) {
+      // If there are recorded sets, just clear split/workStatus to none
+      await supabase
+        .from('workout_logs')
+        .update({ workout_name: serializeCalendarWorkout(null, 'none') })
+        .eq('id', existing.id)
+    } else {
+      // Otherwise safe to remove the planned log completely
+      await supabase
+        .from('workout_logs')
+        .delete()
+        .eq('id', existing.id)
+    }
   }
 
   revalidatePath('/calendar')

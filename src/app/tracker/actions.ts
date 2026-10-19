@@ -4,11 +4,11 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import {
   parseWeeklyPlan,
-  CalendarPlansMap,
-  RoutineTemplatesMap,
-  DEFAULT_ROUTINE_TEMPLATES,
+  parseCalendarWorkout,
+  serializeCalendarWorkout,
   getExercisesForSplit,
 } from '@/lib/types'
+import { getRoutineTemplates } from '@/app/plan/actions'
 
 export async function getTodayWorkoutLog() {
   const supabase = await createClient()
@@ -19,18 +19,24 @@ export async function getTodayWorkoutLog() {
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const dayOfWeek = (now.getDay() + 6) % 7 // Monday = 0, Sunday = 6
 
-  const calendarPlans = (user.user_metadata?.calendar_plans as CalendarPlansMap) || {}
-  const todayCalendarPlan = calendarPlans[today]
-  const userTemplates =
-    (user.user_metadata?.routine_templates as RoutineTemplatesMap) || DEFAULT_ROUTINE_TEMPLATES
+  // 1. Fetch today's log from workout_logs table (which holds calendar entries)
+  const { data: existingLog } = await supabase
+    .from('workout_logs')
+    .select('*, workout_sets(*)')
+    .eq('user_id', user.id)
+    .eq('date', today)
+    .maybeSingle()
+
+  const parsedLog = parseCalendarWorkout(existingLog?.workout_name)
 
   let split = ''
+  let workStatus = parsedLog.workStatus
 
-  // 1. Check if today has a custom calendar override
-  if (todayCalendarPlan?.split) {
-    split = todayCalendarPlan.split
+  // Prioritize calendar split if set
+  if (parsedLog.split) {
+    split = parsedLog.split
   } else {
-    // 2. Fall back to recurring weekly schedule
+    // Fall back to recurring weekly schedule
     const { data: planned } = await supabase
       .from('weekly_plans')
       .select('workout_name')
@@ -48,15 +54,8 @@ export async function getTodayWorkoutLog() {
     split.toLowerCase().includes('odihn')
 
   // Retrieve exercises for this split from user templates
+  const userTemplates = await getRoutineTemplates()
   const exercises = getExercisesForSplit(split, userTemplates)
-
-  // Check if we already have a log for today
-  const { data: existingLog } = await supabase
-    .from('workout_logs')
-    .select('*, workout_sets(*)')
-    .eq('user_id', user.id)
-    .eq('date', today)
-    .maybeSingle()
 
   if (existingLog) {
     // If the log exists but has no sets yet and we have planned exercises, auto-seed Set 1 for each
@@ -89,7 +88,7 @@ export async function getTodayWorkoutLog() {
       return {
         ...reloadedLog,
         splitName: split,
-        workStatus: todayCalendarPlan?.workStatus || 'none',
+        workStatus,
         isRestDay: false,
         plannedExercises: exercises,
       }
@@ -98,7 +97,7 @@ export async function getTodayWorkoutLog() {
     return {
       ...existingLog,
       splitName: split,
-      workStatus: todayCalendarPlan?.workStatus || 'none',
+      workStatus,
       isRestDay,
       plannedExercises: exercises,
     }
@@ -111,7 +110,7 @@ export async function getTodayWorkoutLog() {
       date: today,
       workout_name: 'Rest Day',
       splitName: 'Rest Day',
-      workStatus: todayCalendarPlan?.workStatus || 'none',
+      workStatus,
       isRestDay: true,
       plannedExercises: [],
       workout_sets: [],
@@ -119,7 +118,7 @@ export async function getTodayWorkoutLog() {
   }
 
   // Otherwise, create a new workout log for today
-  const workoutName = split || 'Antrenament Săptămânal'
+  const workoutName = serializeCalendarWorkout(split as any, workStatus)
   const { data: newLog, error } = await supabase
     .from('workout_logs')
     .insert({
@@ -162,7 +161,7 @@ export async function getTodayWorkoutLog() {
   return {
     ...completeLog,
     splitName: split,
-    workStatus: todayCalendarPlan?.workStatus || 'none',
+    workStatus,
     isRestDay: false,
     plannedExercises: exercises,
   }
@@ -181,7 +180,7 @@ export async function startAdHocWorkout() {
     .insert({
       user_id: user.id,
       date: today,
-      workout_name: 'Antrenament Ad-hoc',
+      workout_name: serializeCalendarWorkout('Full Body', 'none'),
     })
     .select('*, workout_sets(*)')
     .single()

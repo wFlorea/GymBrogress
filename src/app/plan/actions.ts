@@ -6,6 +6,7 @@ import {
   PlannedExerciseItem,
   RoutineTemplatesMap,
   DEFAULT_ROUTINE_TEMPLATES,
+  SPLIT_INDEX_MAP,
   parseWeeklyPlan,
   serializeWeeklyPlan,
 } from '@/lib/types'
@@ -15,16 +16,34 @@ export async function getRoutineTemplates(): Promise<RoutineTemplatesMap> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return DEFAULT_ROUTINE_TEMPLATES
 
-  const userTemplates = user.user_metadata?.routine_templates as RoutineTemplatesMap | undefined
-  if (!userTemplates || Object.keys(userTemplates).length === 0) {
-    return DEFAULT_ROUTINE_TEMPLATES
+  // Fetch templates from weekly_plans where day_of_week >= 100
+  const { data: dbTemplates, error } = await supabase
+    .from('weekly_plans')
+    .select('day_of_week, workout_name')
+    .eq('user_id', user.id)
+    .gte('day_of_week', 100)
+
+  if (error) {
+    console.error('Error fetching routine templates from DB:', error)
   }
 
-  // Merge with defaults so any missing split still has defaults
-  return {
-    ...DEFAULT_ROUTINE_TEMPLATES,
-    ...userTemplates,
+  const result: RoutineTemplatesMap = { ...DEFAULT_ROUTINE_TEMPLATES }
+
+  if (dbTemplates && dbTemplates.length > 0) {
+    for (const row of dbTemplates) {
+      const splitKey = Object.keys(SPLIT_INDEX_MAP).find(
+        (k) => SPLIT_INDEX_MAP[k] === row.day_of_week
+      )
+      if (splitKey) {
+        const parsed = parseWeeklyPlan(row.workout_name)
+        if (parsed.exercises && parsed.exercises.length > 0) {
+          result[splitKey] = parsed.exercises
+        }
+      }
+    }
   }
+
+  return result
 }
 
 export async function addExerciseToSplitTemplate(splitKey: string, exercise: PlannedExerciseItem) {
@@ -41,26 +60,40 @@ export async function addExerciseToSplitTemplate(splitKey: string, exercise: Pla
   }
 
   const updatedExercises = [...splitExercises, exercise]
-  const updatedTemplates: RoutineTemplatesMap = {
-    ...currentTemplates,
-    [splitKey]: updatedExercises,
+  const splitIndex = SPLIT_INDEX_MAP[splitKey] || 100
+  const serialized = serializeWeeklyPlan(splitKey, updatedExercises)
+
+  // 1. Upsert template into weekly_plans table (day_of_week >= 100)
+  const { data: existingTemplate } = await supabase
+    .from('weekly_plans')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('day_of_week', splitIndex)
+    .maybeSingle()
+
+  if (existingTemplate) {
+    await supabase
+      .from('weekly_plans')
+      .update({ workout_name: serialized })
+      .eq('id', existingTemplate.id)
+  } else {
+    await supabase
+      .from('weekly_plans')
+      .insert({
+        user_id: user.id,
+        day_of_week: splitIndex,
+        workout_name: serialized,
+      })
   }
 
-  // 1. Update user metadata
-  const { error: userMetaError } = await supabase.auth.updateUser({
-    data: { routine_templates: updatedTemplates },
-  })
-
-  if (userMetaError) {
-    console.error('Error saving routine templates:', userMetaError)
-  }
-
-  // 2. Cascade update to any day in weekly_plans that uses this split
+  // 2. Cascade update to any recurring day (0..6) that uses this split
   try {
     const { data: weeklyPlans } = await supabase
       .from('weekly_plans')
       .select('id, day_of_week, workout_name')
       .eq('user_id', user.id)
+      .gte('day_of_week', 0)
+      .lte('day_of_week', 6)
 
     if (weeklyPlans && weeklyPlans.length > 0) {
       for (const p of weeklyPlans) {
@@ -99,26 +132,40 @@ export async function removeExerciseFromSplitTemplate(splitKey: string, exercise
   const splitExercises = currentTemplates[splitKey] || []
   const updatedExercises = splitExercises.filter((e) => e.id !== exerciseId)
 
-  const updatedTemplates: RoutineTemplatesMap = {
-    ...currentTemplates,
-    [splitKey]: updatedExercises,
+  const splitIndex = SPLIT_INDEX_MAP[splitKey] || 100
+  const serialized = serializeWeeklyPlan(splitKey, updatedExercises)
+
+  // 1. Upsert template into weekly_plans table
+  const { data: existingTemplate } = await supabase
+    .from('weekly_plans')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('day_of_week', splitIndex)
+    .maybeSingle()
+
+  if (existingTemplate) {
+    await supabase
+      .from('weekly_plans')
+      .update({ workout_name: serialized })
+      .eq('id', existingTemplate.id)
+  } else {
+    await supabase
+      .from('weekly_plans')
+      .insert({
+        user_id: user.id,
+        day_of_week: splitIndex,
+        workout_name: serialized,
+      })
   }
 
-  // 1. Update user metadata
-  const { error: userMetaError } = await supabase.auth.updateUser({
-    data: { routine_templates: updatedTemplates },
-  })
-
-  if (userMetaError) {
-    console.error('Error saving routine templates:', userMetaError)
-  }
-
-  // 2. Cascade update to weekly_plans
+  // 2. Cascade update to recurring days (0..6)
   try {
     const { data: weeklyPlans } = await supabase
       .from('weekly_plans')
       .select('id, day_of_week, workout_name')
       .eq('user_id', user.id)
+      .gte('day_of_week', 0)
+      .lte('day_of_week', 6)
 
     if (weeklyPlans && weeklyPlans.length > 0) {
       for (const p of weeklyPlans) {

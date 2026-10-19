@@ -346,6 +346,20 @@ export function getExercisesForSplit(
   return [];
 }
 
+export const SPLIT_INDEX_MAP: Record<string, number> = {
+  Push: 100,
+  Pull: 101,
+  Legs: 102,
+  Upper: 103,
+  Lower: 104,
+  Arms: 105,
+  Chest: 106,
+  Back: 107,
+  Shoulders: 108,
+  "Cardio & Core": 109,
+  "Full Body": 110,
+};
+
 // ==========================================
 // Flexible Monthly Calendar Plans
 // ==========================================
@@ -358,4 +372,38 @@ export interface CalendarDayPlan {
 }
 
 export type CalendarPlansMap = Record<string, CalendarDayPlan>;
+
+export function serializeCalendarWorkout(
+  split: SplitType | null,
+  workStatus: WorkStatus
+): string {
+  return JSON.stringify({
+    split: split ?? null,
+    workStatus: workStatus ?? "none",
+  });
+}
+
+export function parseCalendarWorkout(raw: string | null | undefined): {
+  split: SplitType | null;
+  workStatus: WorkStatus;
+} {
+  if (!raw) return { split: null, workStatus: "none" };
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      return {
+        split: parsed.split ?? null,
+        workStatus: parsed.workStatus ?? "none",
+      };
+    }
+  } catch {
+    // Plain text split (e.g. legacy logs)
+    return {
+      split: raw as SplitType,
+      workStatus: "none",
+    };
+  }
+  return { split: raw as SplitType, workStatus: "none" };
+}
+
 

@@ -3,11 +3,10 @@ import { createClient } from '@/utils/supabase/server'
 import {
   DAYS_OF_WEEK,
   parseWeeklyPlan,
-  CalendarPlansMap,
-  RoutineTemplatesMap,
-  DEFAULT_ROUTINE_TEMPLATES,
+  parseCalendarWorkout,
   getExercisesForSplit,
 } from '@/lib/types'
+import { getRoutineTemplates } from '@/app/plan/actions'
 import {
   Dumbbell,
   Flame,
@@ -17,8 +16,6 @@ import {
   Coffee,
   Trophy,
   Layers,
-  Briefcase,
-  Palmtree,
   ClipboardList,
 } from 'lucide-react'
 
@@ -42,13 +39,20 @@ export default async function DashboardPage() {
   })
   const capitalizedDate = formattedToday.charAt(0).toUpperCase() + formattedToday.slice(1)
 
-  // 1. Fetch user calendar & routine templates
-  const calendarPlans = (user?.user_metadata?.calendar_plans as CalendarPlansMap) || {}
-  const todayCalendarPlan = calendarPlans[todayIso]
-  const userTemplates =
-    (user?.user_metadata?.routine_templates as RoutineTemplatesMap) || DEFAULT_ROUTINE_TEMPLATES
+  // 1. Fetch today's workout log (which also holds calendar shift / workout plan)
+  const { data: todayLog } = await supabase
+    .from('workout_logs')
+    .select('id, workout_name, workout_sets(id, is_completed)')
+    .eq('user_id', user?.id)
+    .eq('date', todayIso)
+    .maybeSingle()
 
-  // 2. Fetch today's plan from weekly_plans
+  const parsedLog = parseCalendarWorkout(todayLog?.workout_name)
+
+  // 2. Fetch user routine templates from DB
+  const userTemplates = await getRoutineTemplates()
+
+  // 3. Fetch today's plan from weekly_plans as default
   const { data: planned } = await supabase
     .from('weekly_plans')
     .select('workout_name')
@@ -59,7 +63,7 @@ export default async function DashboardPage() {
   const weeklySplit = parseWeeklyPlan(planned?.workout_name).split
 
   // Prioritize calendar override if user set a specific split for today
-  const activeSplit = todayCalendarPlan?.split || weeklySplit || ''
+  const activeSplit = parsedLog.split || weeklySplit || ''
   const isRestDay =
     !activeSplit ||
     activeSplit.toLowerCase().includes('rest') ||
@@ -67,14 +71,6 @@ export default async function DashboardPage() {
     activeSplit.toLowerCase().includes('odihn')
 
   const todayExercises = getExercisesForSplit(activeSplit, userTemplates)
-
-  // 3. Fetch today's workout log (if already started)
-  const { data: todayLog } = await supabase
-    .from('workout_logs')
-    .select('id, workout_name, workout_sets(id, is_completed)')
-    .eq('user_id', user?.id)
-    .eq('date', todayIso)
-    .maybeSingle()
 
   // 4. Calculate streak from all logs
   const { data: allLogs } = await supabase
@@ -119,7 +115,7 @@ export default async function DashboardPage() {
     .select('*', { count: 'exact', head: true })
     .eq('is_completed', true)
 
-  const plannedWorkoutName = todayLog?.workout_name || activeSplit || ''
+  const plannedWorkoutName = activeSplit || ''
   const totalTodaySets = todayLog?.workout_sets?.length || 0
   const completedTodaySets =
     todayLog?.workout_sets?.filter((s: { is_completed: boolean }) => s.is_completed)?.length || 0
@@ -142,16 +138,16 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {/* Work Status Banner if set for today */}
-      {todayCalendarPlan?.workStatus && todayCalendarPlan.workStatus !== 'none' && (
-        <div className="mb-4 p-3 rounded-2xl bg-[#14141c] border border-[#232332] flex items-center justify-between">
+      {/* Work Status Banner if set in Calendar */}
+      {parsedLog.workStatus && parsedLog.workStatus !== 'none' && (
+        <div className="mb-4 p-3.5 rounded-2xl bg-[#14141c] border border-[#232332] flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-2.5">
             <span className="text-xl">
-              {todayCalendarPlan.workStatus === 'work' ? '💼' : '🏖️'}
+              {parsedLog.workStatus === 'work' ? '💼' : '🏖️'}
             </span>
             <div>
               <span className="text-xs font-bold text-white block">
-                {todayCalendarPlan.workStatus === 'work'
+                {parsedLog.workStatus === 'work'
                   ? 'Azi ești la muncă'
                   : 'Azi este zi liberă'}
               </span>
@@ -175,7 +171,7 @@ export default async function DashboardPage() {
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)] flex items-center gap-1.5">
             <Calendar size={14} className="text-[var(--color-primary)]" /> {todayDayName}
-            {todayCalendarPlan?.split && (
+            {parsedLog.split && (
               <span className="text-[10px] bg-[#FF4500]/20 text-[#FF4500] px-2 py-0.5 rounded-full font-bold ml-1">
                 Calendar
               </span>

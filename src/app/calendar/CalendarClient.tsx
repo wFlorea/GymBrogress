@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, useEffect } from 'react'
 import {
   DAYS_OF_WEEK,
   SPLIT_OPTIONS,
@@ -25,6 +25,7 @@ import {
   X,
   Check,
   RotateCcw,
+  AlertCircle,
 } from 'lucide-react'
 
 type WeeklyPlanRecord = {
@@ -46,7 +47,13 @@ export function CalendarClient({
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [modalWorkStatus, setModalWorkStatus] = useState<WorkStatus>('none')
   const [modalSplit, setModalSplit] = useState<SplitType | 'weekly_default'>('weekly_default')
+  const [saveStatus, setSaveStatus] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  // Sync state whenever server revalidates props
+  useEffect(() => {
+    setCalendarPlans(initialCalendarPlans)
+  }, [initialCalendarPlans])
 
   // Base dates: Current Month (0) vs Next Month (1)
   const [monthOffset, setMonthOffset] = useState<0 | 1>(0)
@@ -67,8 +74,7 @@ export function CalendarClient({
   // Days in target month
   const totalDaysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate()
 
-  // First day of month (0 = Sunday, 1 = Monday ... 6 = Saturday)
-  // Convert to Monday = 0 ... Sunday = 6
+  // First day of month (Monday = 0 ... Sunday = 6)
   const firstDayWeekday = (new Date(targetYear, targetMonth, 1).getDay() + 6) % 7
 
   // Today string YYYY-MM-DD
@@ -145,8 +151,11 @@ export function CalendarClient({
     startTransition(async () => {
       try {
         await saveCalendarDay(dateToSave, statusToSave, splitToSave)
-      } catch (err) {
-        console.error(err)
+        setSaveStatus(`Ziua ${dateToSave} a fost salvată!`)
+        setTimeout(() => setSaveStatus(null), 3000)
+      } catch (err: any) {
+        console.error('Eroare la salvare:', err)
+        alert(err?.message || 'Eroare la salvarea zilei.')
       }
     })
   }
@@ -166,8 +175,11 @@ export function CalendarClient({
     startTransition(async () => {
       try {
         await clearCalendarDay(dateToReset)
-      } catch (err) {
-        console.error(err)
+        setSaveStatus(`Ziua a fost resetată la valorile implicite.`)
+        setTimeout(() => setSaveStatus(null), 3000)
+      } catch (err: any) {
+        console.error('Eroare la resetare:', err)
+        alert(err?.message || 'Eroare la resetarea zilei.')
       }
     })
   }
@@ -184,6 +196,14 @@ export function CalendarClient({
 
   return (
     <div className="space-y-6">
+      {/* Toast notification */}
+      {saveStatus && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-[#161d26] text-white px-4 py-2.5 rounded-2xl border border-emerald-500/50 shadow-2xl flex items-center gap-2 text-xs font-bold animate-in fade-in slide-in-from-top-2">
+          <Check size={16} className="text-emerald-400" />
+          <span>{saveStatus}</span>
+        </div>
+      )}
+
       {/* Top Switcher: Schedule vs Calendar */}
       <div className="grid grid-cols-2 p-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl">
         <Link
@@ -308,7 +328,9 @@ export function CalendarClient({
                   isToday
                     ? 'border-[#FF4500] bg-[#FF4500]/10 shadow-md shadow-[#FF4500]/20'
                     : isCustomSplit
-                    ? 'border-zinc-600 bg-[#171720]'
+                    ? 'border-[#FF4500]/70 bg-[#171720]'
+                    : workStatus !== 'none'
+                    ? 'border-blue-500/50 bg-[#131722]'
                     : 'border-[var(--color-border)]/70 bg-[#121216] hover:border-zinc-500'
                 }`}
               >
@@ -415,7 +437,7 @@ export function CalendarClient({
                     onClick={() => setModalWorkStatus('work')}
                     className={`py-3 px-3 rounded-xl border font-bold text-xs flex flex-col items-center justify-center gap-1.5 transition-all ${
                       modalWorkStatus === 'work'
-                        ? 'bg-blue-950/60 border-blue-500 text-blue-300 shadow-md'
+                        ? 'bg-blue-950/60 border-blue-500 text-blue-300 shadow-md ring-1 ring-blue-500'
                         : 'bg-[#181818] border-[var(--color-border)] text-zinc-400 hover:text-white'
                     }`}
                   >
@@ -428,7 +450,7 @@ export function CalendarClient({
                     onClick={() => setModalWorkStatus('off')}
                     className={`py-3 px-3 rounded-xl border font-bold text-xs flex flex-col items-center justify-center gap-1.5 transition-all ${
                       modalWorkStatus === 'off'
-                        ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 shadow-md'
+                        ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 shadow-md ring-1 ring-emerald-500'
                         : 'bg-[#181818] border-[var(--color-border)] text-zinc-400 hover:text-white'
                     }`}
                   >
@@ -441,7 +463,7 @@ export function CalendarClient({
                     onClick={() => setModalWorkStatus('none')}
                     className={`py-3 px-3 rounded-xl border font-bold text-xs flex flex-col items-center justify-center gap-1.5 transition-all ${
                       modalWorkStatus === 'none'
-                        ? 'bg-zinc-800 border-zinc-500 text-white shadow-md'
+                        ? 'bg-zinc-800 border-zinc-500 text-white shadow-md ring-1 ring-zinc-400'
                         : 'bg-[#181818] border-[var(--color-border)] text-zinc-500 hover:text-zinc-300'
                     }`}
                   >
@@ -463,7 +485,7 @@ export function CalendarClient({
                   onClick={() => setModalSplit('weekly_default')}
                   className={`w-full p-3 rounded-xl border text-left flex items-center justify-between mb-2 transition-all ${
                     modalSplit === 'weekly_default'
-                      ? 'bg-[#FF4500]/20 border-[var(--color-primary)] text-white'
+                      ? 'bg-[#FF4500]/20 border-[var(--color-primary)] text-white ring-1 ring-[#FF4500]'
                       : 'bg-[#161616] border-[var(--color-border)] text-zinc-400 hover:text-white'
                   }`}
                 >
@@ -499,7 +521,7 @@ export function CalendarClient({
                         onClick={() => setModalSplit(opt.id)}
                         className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all ${
                           isSelected
-                            ? 'bg-[#FF4500]/25 border-[var(--color-primary)] text-white shadow-sm'
+                            ? 'bg-[#FF4500]/25 border-[var(--color-primary)] text-white shadow-sm ring-1 ring-[#FF4500]'
                             : 'bg-[#161616] border-[var(--color-border)] text-zinc-300 hover:border-zinc-500'
                         }`}
                       >
@@ -555,7 +577,8 @@ export function CalendarClient({
               <button
                 type="button"
                 onClick={handleResetDay}
-                className="py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                disabled={isPending}
+                className="py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
                 title="Resetează la setările implicite"
               >
                 <RotateCcw size={14} />
@@ -565,9 +588,10 @@ export function CalendarClient({
               <button
                 type="button"
                 onClick={handleSaveModal}
-                className="flex-1 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-[#FF4500]/25 active:scale-[0.98]"
+                disabled={isPending}
+                className="flex-1 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-[#FF4500]/25 active:scale-[0.98] disabled:opacity-50"
               >
-                Salvează Ziua
+                {isPending ? 'Se salvează...' : 'Salvează Ziua'}
               </button>
             </div>
           </div>
