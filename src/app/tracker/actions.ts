@@ -2,7 +2,13 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { parseWeeklyPlan } from '@/lib/types'
+import {
+  parseWeeklyPlan,
+  CalendarPlansMap,
+  RoutineTemplatesMap,
+  DEFAULT_ROUTINE_TEMPLATES,
+  getExercisesForSplit,
+} from '@/lib/types'
 
 export async function getTodayWorkoutLog() {
   const supabase = await createClient()
@@ -10,19 +16,39 @@ export async function getTodayWorkoutLog() {
   if (!user) return null
 
   const now = new Date()
-  const today = now.toISOString().split('T')[0] // YYYY-MM-DD
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const dayOfWeek = (now.getDay() + 6) % 7 // Monday = 0, Sunday = 6
 
-  // 1. Get today's plan from weekly_plans
-  const { data: planned } = await supabase
-    .from('weekly_plans')
-    .select('workout_name')
-    .eq('user_id', user.id)
-    .eq('day_of_week', dayOfWeek)
-    .maybeSingle()
+  const calendarPlans = (user.user_metadata?.calendar_plans as CalendarPlansMap) || {}
+  const todayCalendarPlan = calendarPlans[today]
+  const userTemplates =
+    (user.user_metadata?.routine_templates as RoutineTemplatesMap) || DEFAULT_ROUTINE_TEMPLATES
 
-  const { split, exercises } = parseWeeklyPlan(planned?.workout_name)
-  const isRestDay = split.toLowerCase().includes('rest') || split.toLowerCase().includes('pauz') || split.toLowerCase().includes('odihn')
+  let split = ''
+
+  // 1. Check if today has a custom calendar override
+  if (todayCalendarPlan?.split) {
+    split = todayCalendarPlan.split
+  } else {
+    // 2. Fall back to recurring weekly schedule
+    const { data: planned } = await supabase
+      .from('weekly_plans')
+      .select('workout_name')
+      .eq('user_id', user.id)
+      .eq('day_of_week', dayOfWeek)
+      .maybeSingle()
+
+    split = parseWeeklyPlan(planned?.workout_name).split
+  }
+
+  const isRestDay =
+    !split ||
+    split.toLowerCase().includes('rest') ||
+    split.toLowerCase().includes('pauz') ||
+    split.toLowerCase().includes('odihn')
+
+  // Retrieve exercises for this split from user templates
+  const exercises = getExercisesForSplit(split, userTemplates)
 
   // Check if we already have a log for today
   const { data: existingLog } = await supabase
@@ -34,7 +60,11 @@ export async function getTodayWorkoutLog() {
 
   if (existingLog) {
     // If the log exists but has no sets yet and we have planned exercises, auto-seed Set 1 for each
-    if ((!existingLog.workout_sets || existingLog.workout_sets.length === 0) && exercises.length > 0 && !isRestDay) {
+    if (
+      (!existingLog.workout_sets || existingLog.workout_sets.length === 0) &&
+      exercises.length > 0 &&
+      !isRestDay
+    ) {
       const setsToInsert = exercises.map((ex) => ({
         workout_log_id: existingLog.id,
         exercise_id: ex.id,
@@ -59,6 +89,7 @@ export async function getTodayWorkoutLog() {
       return {
         ...reloadedLog,
         splitName: split,
+        workStatus: todayCalendarPlan?.workStatus || 'none',
         isRestDay: false,
         plannedExercises: exercises,
       }
@@ -67,6 +98,7 @@ export async function getTodayWorkoutLog() {
     return {
       ...existingLog,
       splitName: split,
+      workStatus: todayCalendarPlan?.workStatus || 'none',
       isRestDay,
       plannedExercises: exercises,
     }
@@ -79,6 +111,7 @@ export async function getTodayWorkoutLog() {
       date: today,
       workout_name: 'Rest Day',
       splitName: 'Rest Day',
+      workStatus: todayCalendarPlan?.workStatus || 'none',
       isRestDay: true,
       plannedExercises: [],
       workout_sets: [],
@@ -129,6 +162,7 @@ export async function getTodayWorkoutLog() {
   return {
     ...completeLog,
     splitName: split,
+    workStatus: todayCalendarPlan?.workStatus || 'none',
     isRestDay: false,
     plannedExercises: exercises,
   }
@@ -139,7 +173,8 @@ export async function startAdHocWorkout() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  const today = new Date().toISOString().split('T')[0]
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
   const { data: newLog, error } = await supabase
     .from('workout_logs')

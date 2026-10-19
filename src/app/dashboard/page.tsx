@@ -1,21 +1,40 @@
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
-import { DAYS_OF_WEEK, parseWeeklyPlan } from '@/lib/types'
-import { Dumbbell, Flame, CheckCircle2, Calendar, ArrowRight, Coffee, Trophy } from 'lucide-react'
+import {
+  DAYS_OF_WEEK,
+  parseWeeklyPlan,
+  CalendarPlansMap,
+  RoutineTemplatesMap,
+  DEFAULT_ROUTINE_TEMPLATES,
+  getExercisesForSplit,
+} from '@/lib/types'
+import {
+  Dumbbell,
+  Flame,
+  CheckCircle2,
+  Calendar,
+  ArrowRight,
+  Coffee,
+  Trophy,
+  Layers,
+  Briefcase,
+  Palmtree,
+  ClipboardList,
+} from 'lucide-react'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Champ'
+  const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Campioanule'
 
   // Today's day of week (Monday = 0, Sunday = 6)
   const now = new Date()
   const dayOfWeek = (now.getDay() + 6) % 7
   const todayDayName = DAYS_OF_WEEK[dayOfWeek]
-  const todayIso = now.toISOString().split('T')[0]
+  const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
-  // Format today date in Romanian (ex: "Joi, 15 Octombrie")
+  // Format today date in Romanian (ex: "Luni, 19 Octombrie")
   const formattedToday = now.toLocaleDateString('ro-RO', {
     weekday: 'long',
     day: 'numeric',
@@ -23,7 +42,13 @@ export default async function DashboardPage() {
   })
   const capitalizedDate = formattedToday.charAt(0).toUpperCase() + formattedToday.slice(1)
 
-  // 1. Fetch today's plan from weekly_plans
+  // 1. Fetch user calendar & routine templates
+  const calendarPlans = (user?.user_metadata?.calendar_plans as CalendarPlansMap) || {}
+  const todayCalendarPlan = calendarPlans[todayIso]
+  const userTemplates =
+    (user?.user_metadata?.routine_templates as RoutineTemplatesMap) || DEFAULT_ROUTINE_TEMPLATES
+
+  // 2. Fetch today's plan from weekly_plans
   const { data: planned } = await supabase
     .from('weekly_plans')
     .select('workout_name')
@@ -31,9 +56,19 @@ export default async function DashboardPage() {
     .eq('day_of_week', dayOfWeek)
     .maybeSingle()
 
-  const { split: plannedSplit, exercises: plannedExercises } = parseWeeklyPlan(planned?.workout_name)
+  const weeklySplit = parseWeeklyPlan(planned?.workout_name).split
 
-  // 2. Fetch today's workout log (if already started)
+  // Prioritize calendar override if user set a specific split for today
+  const activeSplit = todayCalendarPlan?.split || weeklySplit || ''
+  const isRestDay =
+    !activeSplit ||
+    activeSplit.toLowerCase().includes('rest') ||
+    activeSplit.toLowerCase().includes('pauz') ||
+    activeSplit.toLowerCase().includes('odihn')
+
+  const todayExercises = getExercisesForSplit(activeSplit, userTemplates)
+
+  // 3. Fetch today's workout log (if already started)
   const { data: todayLog } = await supabase
     .from('workout_logs')
     .select('id, workout_name, workout_sets(id, is_completed)')
@@ -41,7 +76,7 @@ export default async function DashboardPage() {
     .eq('date', todayIso)
     .maybeSingle()
 
-  // 3. Calculate streak from all logs
+  // 4. Calculate streak from all logs
   const { data: allLogs } = await supabase
     .from('workout_logs')
     .select('date')
@@ -78,19 +113,16 @@ export default async function DashboardPage() {
     }
   }
 
-  // 4. Calculate total completed sets
+  // 5. Calculate total completed sets
   const { count: completedSetsCount } = await supabase
     .from('workout_sets')
     .select('*', { count: 'exact', head: true })
     .eq('is_completed', true)
 
-  const plannedWorkoutName = todayLog?.workout_name || plannedSplit || ''
-  const isRestDay = plannedWorkoutName.toLowerCase().includes('rest') || 
-                    plannedWorkoutName.toLowerCase().includes('pauz') || 
-                    plannedWorkoutName.toLowerCase().includes('odihn')
-
+  const plannedWorkoutName = todayLog?.workout_name || activeSplit || ''
   const totalTodaySets = todayLog?.workout_sets?.length || 0
-  const completedTodaySets = todayLog?.workout_sets?.filter((s: { is_completed: boolean }) => s.is_completed)?.length || 0
+  const completedTodaySets =
+    todayLog?.workout_sets?.filter((s: { is_completed: boolean }) => s.is_completed)?.length || 0
 
   return (
     <div className="p-4 pt-8 pb-24 max-w-lg mx-auto">
@@ -110,11 +142,44 @@ export default async function DashboardPage() {
         )}
       </div>
 
+      {/* Work Status Banner if set for today */}
+      {todayCalendarPlan?.workStatus && todayCalendarPlan.workStatus !== 'none' && (
+        <div className="mb-4 p-3 rounded-2xl bg-[#14141c] border border-[#232332] flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl">
+              {todayCalendarPlan.workStatus === 'work' ? '💼' : '🏖️'}
+            </span>
+            <div>
+              <span className="text-xs font-bold text-white block">
+                {todayCalendarPlan.workStatus === 'work'
+                  ? 'Azi ești la muncă'
+                  : 'Azi este zi liberă'}
+              </span>
+              <span className="text-[10px] text-[var(--color-muted)]">
+                Conform planificării din Calendar
+              </span>
+            </div>
+          </div>
+
+          <Link
+            href="/calendar"
+            className="text-[11px] font-bold text-[var(--color-primary)] hover:underline flex items-center gap-1"
+          >
+            Calendar <ArrowRight size={12} />
+          </Link>
+        </div>
+      )}
+
       {/* Main Card: Today's Workout / Rest */}
       <div className="bg-[var(--color-surface)] p-5 rounded-2xl shadow-xl border border-[var(--color-border)] mb-6 transition-all">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)] flex items-center gap-1.5">
             <Calendar size={14} className="text-[var(--color-primary)]" /> {todayDayName}
+            {todayCalendarPlan?.split && (
+              <span className="text-[10px] bg-[#FF4500]/20 text-[#FF4500] px-2 py-0.5 rounded-full font-bold ml-1">
+                Calendar
+              </span>
+            )}
           </span>
           {todayLog && (
             <span className="text-xs bg-[var(--color-success)]/15 text-[var(--color-success)] border border-[var(--color-success)]/30 px-2.5 py-0.5 rounded-full font-medium">
@@ -133,21 +198,36 @@ export default async function DashboardPage() {
                 Mușchii cresc în perioada de refacere! Asigură-te că dormi suficient, te hidratezi și mănânci echilibrat.
               </p>
             </div>
-            <Link 
-              href="/tracker"
-              className="w-full bg-[var(--color-surface-hover)] text-sm text-[var(--color-muted)] hover:text-white font-medium py-3 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-all flex items-center justify-center gap-2"
-            >
-              Vrei să te antrenezi totuși? Deschide Tracker <ArrowRight size={16} />
-            </Link>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <Link
+                href="/calendar"
+                className="bg-[var(--color-surface-hover)] text-xs text-zinc-300 font-semibold py-3 px-3 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-all flex items-center justify-center gap-1 text-center"
+              >
+                <Layers size={14} /> Schimbă în Calendar
+              </Link>
+              <Link
+                href="/tracker"
+                className="bg-[#FF4500]/15 text-xs text-[var(--color-primary)] font-bold py-3 px-3 rounded-xl border border-[#FF4500]/30 hover:bg-[#FF4500]/25 transition-all flex items-center justify-center gap-1 text-center"
+              >
+                Antrenează-te totuși <ArrowRight size={14} />
+              </Link>
+            </div>
           </div>
         ) : plannedWorkoutName ? (
           <div>
-            <h2 className="text-xl font-bold mb-1.5 text-[var(--color-foreground)]">
-              {plannedWorkoutName}
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold mb-1.5 text-[var(--color-foreground)]">
+                {plannedWorkoutName}
+              </h2>
+              {todayExercises.length > 0 && (
+                <span className="text-xs text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-lg">
+                  {todayExercises.length} exerciții
+                </span>
+              )}
+            </div>
             <p className="text-sm text-[var(--color-muted)] mb-5">
-              {todayLog 
-                ? `Ai finalizat ${completedTodaySets} din ${totalTodaySets} seturi.` 
+              {todayLog
+                ? `Ai finalizat ${completedTodaySets} din ${totalTodaySets} seturi.`
                 : 'Ești gata pentru sesiunea de azi? Pregătește-te de progres!'}
             </p>
 
@@ -165,7 +245,7 @@ export default async function DashboardPage() {
             <div>
               <h2 className="text-lg font-bold">Niciun antrenament programat azi</h2>
               <p className="text-sm text-[var(--color-muted)] mt-1">
-                Configurează-ți săptămâna în Planner pentru a avea totul organizat.
+                Configurează-ți săptămâna în Schedule sau Calendar pentru a avea totul organizat.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -176,10 +256,10 @@ export default async function DashboardPage() {
                 Alege Programul
               </Link>
               <Link
-                href="/plan"
+                href="/calendar"
                 className="bg-[var(--color-primary)] text-white text-sm font-bold py-3 px-4 rounded-xl text-center hover:bg-[var(--color-primary-hover)] transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-[#FF4500]/20"
               >
-                Plan Exerciții
+                Calendar Flexibil
               </Link>
             </div>
           </div>
@@ -205,22 +285,32 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Quick Navigation / Motivation Quote */}
-      <div className="mt-6 bg-[var(--color-surface)]/60 p-4 rounded-2xl border border-[var(--color-border)] flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[var(--color-surface)] flex items-center justify-center text-[var(--color-primary)] border border-[var(--color-border)]">
-            <Trophy size={18} />
+      {/* Quick Navigation Cards */}
+      <div className="mt-6 grid grid-cols-2 gap-3">
+        <Link
+          href="/calendar"
+          className="bg-[var(--color-surface)]/70 hover:bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-all flex flex-col justify-between"
+        >
+          <div className="w-8 h-8 rounded-lg bg-blue-500/15 text-blue-400 flex items-center justify-center mb-2">
+            <Layers size={17} />
           </div>
           <div>
-            <p className="text-xs font-semibold text-[var(--color-muted)] uppercase tracking-wider">Program & Plan</p>
-            <p className="text-sm font-medium">Vezi programul pe 7 zile</p>
+            <span className="text-xs font-black text-white block">Calendar Lună</span>
+            <span className="text-[10px] text-[var(--color-muted)]">Planifică ture & liber</span>
           </div>
-        </div>
-        <Link 
-          href="/schedule" 
-          className="text-xs font-bold text-[var(--color-primary)] hover:underline flex items-center gap-1"
+        </Link>
+
+        <Link
+          href="/plan"
+          className="bg-[var(--color-surface)]/70 hover:bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-all flex flex-col justify-between"
         >
-          Deschide <ArrowRight size={14} />
+          <div className="w-8 h-8 rounded-lg bg-[#FF4500]/15 text-[#FF4500] flex items-center justify-center mb-2">
+            <ClipboardList size={17} />
+          </div>
+          <div>
+            <span className="text-xs font-black text-white block">Rutine în Plan</span>
+            <span className="text-[10px] text-[var(--color-muted)]">Exerciții Push, Pull etc.</span>
+          </div>
         </Link>
       </div>
     </div>

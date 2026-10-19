@@ -228,3 +228,134 @@ export interface WorkoutSet {
   actual_weight: number;
   is_completed: boolean;
 }
+
+// ==========================================
+// Routine Templates & Master Splits
+// ==========================================
+export type RoutineTemplatesMap = Record<string, PlannedExerciseItem[]>;
+
+export const DEFAULT_ROUTINE_TEMPLATES: RoutineTemplatesMap = {
+  Push: [
+    { id: "ex-002", name: "Incline Dumbbell Press", muscle_group: "chest" },
+    { id: "ex-001", name: "Barbell Bench Press", muscle_group: "chest" },
+    { id: "ex-006", name: "Cable Flyes (Cross-over)", muscle_group: "chest" },
+    { id: "ex-032", name: "Dumbbell Shoulder Press", muscle_group: "shoulders" },
+    { id: "ex-033", name: "Dumbbell Lateral Raises", muscle_group: "shoulders" },
+    { id: "ex-047", name: "Tricep Rope Pushdown", muscle_group: "arms" },
+  ],
+  Pull: [
+    { id: "ex-012", name: "Lat Pulldown (Tracțiuni la scripete)", muscle_group: "back" },
+    { id: "ex-013", name: "Barbell Bent-Over Row", muscle_group: "back" },
+    { id: "ex-015", name: "Seated Cable Row", muscle_group: "back" },
+    { id: "ex-034", name: "Face Pulls", muscle_group: "shoulders" },
+    { id: "ex-041", name: "Barbell Bicep Curl", muscle_group: "arms" },
+    { id: "ex-043", name: "Hammer Curls", muscle_group: "arms" },
+  ],
+  Legs: [
+    { id: "ex-021", name: "Barbell Back Squat", muscle_group: "legs" },
+    { id: "ex-022", name: "Romanian Deadlift (RDL)", muscle_group: "legs" },
+    { id: "ex-023", name: "Leg Press (Presa de picioare)", muscle_group: "legs" },
+    { id: "ex-025", name: "Lying Leg Curl (Flexia picioarelor)", muscle_group: "legs" },
+    { id: "ex-026", name: "Leg Extension (Extensia picioarelor)", muscle_group: "legs" },
+    { id: "ex-028", name: "Standing Calf Raises", muscle_group: "legs" },
+  ],
+  Upper: [
+    { id: "ex-001", name: "Barbell Bench Press", muscle_group: "chest" },
+    { id: "ex-012", name: "Lat Pulldown (Tracțiuni la scripete)", muscle_group: "back" },
+    { id: "ex-032", name: "Dumbbell Shoulder Press", muscle_group: "shoulders" },
+    { id: "ex-015", name: "Seated Cable Row", muscle_group: "back" },
+    { id: "ex-042", name: "Incline Dumbbell Curl", muscle_group: "arms" },
+    { id: "ex-047", name: "Tricep Rope Pushdown", muscle_group: "arms" },
+  ],
+  Lower: [
+    { id: "ex-021", name: "Barbell Back Squat", muscle_group: "legs" },
+    { id: "ex-022", name: "Romanian Deadlift (RDL)", muscle_group: "legs" },
+    { id: "ex-024", name: "Bulgarian Split Squat", muscle_group: "legs" },
+    { id: "ex-025", name: "Lying Leg Curl (Flexia picioarelor)", muscle_group: "legs" },
+    { id: "ex-051", name: "Hanging Leg Raises", muscle_group: "core" },
+    { id: "ex-028", name: "Standing Calf Raises", muscle_group: "legs" },
+  ],
+  Arms: [
+    { id: "ex-041", name: "Barbell Bicep Curl", muscle_group: "arms" },
+    { id: "ex-042", name: "Incline Dumbbell Curl", muscle_group: "arms" },
+    { id: "ex-045", name: "Preacher Curl", muscle_group: "arms" },
+    { id: "ex-049", name: "Close-Grip Bench Press", muscle_group: "arms" },
+    { id: "ex-048", name: "Skull Crushers (Extensii franceze)", muscle_group: "arms" },
+    { id: "ex-047", name: "Tricep Rope Pushdown", muscle_group: "arms" },
+  ],
+  Chest: [
+    { id: "ex-001", name: "Barbell Bench Press", muscle_group: "chest" },
+    { id: "ex-002", name: "Incline Dumbbell Press", muscle_group: "chest" },
+    { id: "ex-008", name: "Chest Dips (Flotări la paralele)", muscle_group: "chest" },
+    { id: "ex-006", name: "Cable Flyes (Cross-over)", muscle_group: "chest" },
+    { id: "ex-010", name: "Push-ups (Flotări la sol)", muscle_group: "chest" },
+  ],
+  Back: [
+    { id: "ex-011", name: "Conventional Deadlift", muscle_group: "back" },
+    { id: "ex-013", name: "Barbell Bent-Over Row", muscle_group: "back" },
+    { id: "ex-012", name: "Lat Pulldown (Tracțiuni la scripete)", muscle_group: "back" },
+    { id: "ex-015", name: "Seated Cable Row", muscle_group: "back" },
+    { id: "ex-016", name: "Dumbbell Single-Arm Row", muscle_group: "back" },
+  ],
+  Shoulders: [
+    { id: "ex-031", name: "Overhead Barbell Press (OHP)", muscle_group: "shoulders" },
+    { id: "ex-032", name: "Dumbbell Shoulder Press", muscle_group: "shoulders" },
+    { id: "ex-033", name: "Dumbbell Lateral Raises", muscle_group: "shoulders" },
+    { id: "ex-034", name: "Face Pulls", muscle_group: "shoulders" },
+    { id: "ex-037", name: "Dumbbell Rear Delt Fly", muscle_group: "shoulders" },
+  ],
+  "Cardio & Core": [
+    { id: "ex-061", name: "Treadmill Incline Walk / Run", muscle_group: "cardio" },
+    { id: "ex-053", name: "Plank (Scândura)", muscle_group: "core" },
+    { id: "ex-051", name: "Hanging Leg Raises", muscle_group: "core" },
+    { id: "ex-052", name: "Cable Woodchoppers", muscle_group: "core" },
+    { id: "ex-054", name: "Abdominal Crunches", muscle_group: "core" },
+  ],
+  "Full Body": [
+    { id: "ex-021", name: "Barbell Back Squat", muscle_group: "legs" },
+    { id: "ex-001", name: "Barbell Bench Press", muscle_group: "chest" },
+    { id: "ex-013", name: "Barbell Bent-Over Row", muscle_group: "back" },
+    { id: "ex-032", name: "Dumbbell Shoulder Press", muscle_group: "shoulders" },
+    { id: "ex-022", name: "Romanian Deadlift (RDL)", muscle_group: "legs" },
+    { id: "ex-051", name: "Hanging Leg Raises", muscle_group: "core" },
+  ],
+  "Rest Day": [],
+};
+
+export function getExercisesForSplit(
+  split: string,
+  userTemplates?: RoutineTemplatesMap | null
+): PlannedExerciseItem[] {
+  if (!split || split.toLowerCase().includes("rest") || split.toLowerCase().includes("odihn") || split.toLowerCase().includes("pauz")) {
+    return [];
+  }
+
+  // Find matching key (e.g. "Push Day" or "Push")
+  const normalizedKey = Object.keys(DEFAULT_ROUTINE_TEMPLATES).find(
+    (k) => k.toLowerCase() === split.toLowerCase() || split.toLowerCase().startsWith(k.toLowerCase())
+  );
+
+  if (userTemplates && normalizedKey && userTemplates[normalizedKey]) {
+    return userTemplates[normalizedKey];
+  }
+
+  if (normalizedKey && DEFAULT_ROUTINE_TEMPLATES[normalizedKey]) {
+    return DEFAULT_ROUTINE_TEMPLATES[normalizedKey];
+  }
+
+  return [];
+}
+
+// ==========================================
+// Flexible Monthly Calendar Plans
+// ==========================================
+export type WorkStatus = "work" | "off" | "none";
+
+export interface CalendarDayPlan {
+  date: string; // YYYY-MM-DD
+  workStatus: WorkStatus;
+  split: SplitType | null; // null = follow weekly schedule
+}
+
+export type CalendarPlansMap = Record<string, CalendarDayPlan>;
+

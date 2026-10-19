@@ -2,7 +2,14 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { parseWeeklyPlan, serializeWeeklyPlan, SplitType } from '@/lib/types'
+import {
+  parseWeeklyPlan,
+  serializeWeeklyPlan,
+  SplitType,
+  getExercisesForSplit,
+  RoutineTemplatesMap,
+  DEFAULT_ROUTINE_TEMPLATES,
+} from '@/lib/types'
 
 export async function getWeeklyPlans() {
   const supabase = await createClient()
@@ -36,10 +43,9 @@ export async function updateDaySplit(dayOfWeek: number, newSplit: SplitType) {
     .eq('day_of_week', dayOfWeek)
     .maybeSingle()
 
-  const current = parseWeeklyPlan(existingPlan?.workout_name)
-  
-  // If user changed to Rest Day, clear exercises
-  const exercises = newSplit === 'Rest Day' ? [] : current.exercises
+  // Get master exercises for this split from user's configured templates
+  const userTemplates = (user.user_metadata?.routine_templates as RoutineTemplatesMap) || DEFAULT_ROUTINE_TEMPLATES
+  const exercises = getExercisesForSplit(newSplit, userTemplates)
 
   const serialized = serializeWeeklyPlan(newSplit, exercises)
 
@@ -67,6 +73,7 @@ export async function updateDaySplit(dayOfWeek: number, newSplit: SplitType) {
   }
 
   revalidatePath('/schedule')
+  revalidatePath('/calendar')
   revalidatePath('/plan')
   revalidatePath('/planner')
   revalidatePath('/tracker')

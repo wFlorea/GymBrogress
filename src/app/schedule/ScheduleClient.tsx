@@ -1,10 +1,25 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { DAYS_OF_WEEK, SPLIT_OPTIONS, parseWeeklyPlan, SplitType } from '@/lib/types'
+import {
+  DAYS_OF_WEEK,
+  SPLIT_OPTIONS,
+  parseWeeklyPlan,
+  SplitType,
+  getExercisesForSplit,
+} from '@/lib/types'
 import { updateDaySplit } from './actions'
 import Link from 'next/link'
-import { Calendar, ChevronRight, Check, X, ArrowRight, Sparkles } from 'lucide-react'
+import {
+  Calendar,
+  ChevronRight,
+  Check,
+  X,
+  ArrowRight,
+  Layers,
+  Sparkles,
+  ClipboardList,
+} from 'lucide-react'
 
 type PlanRecord = {
   id: string
@@ -18,22 +33,21 @@ export function ScheduleClient({ initialPlans }: { initialPlans: PlanRecord[] })
   const [isPending, startTransition] = useTransition()
 
   // Get current split for a given day
-  const getDaySplit = (dayIndex: number): string => {
+  const getDayPlan = (dayIndex: number) => {
     const record = plans.find((p) => p.day_of_week === dayIndex)
-    if (!record) return 'Rest Day'
-    return parseWeeklyPlan(record.workout_name).split
+    if (!record) return { split: 'Rest Day', exercises: [] }
+    return parseWeeklyPlan(record.workout_name)
   }
 
   const handleSelectSplit = (splitId: SplitType) => {
     if (selectedDayIndex === null) return
     const dayIndex = selectedDayIndex
 
-    // Optimistic state update
-    const currentRecord = plans.find((p) => p.day_of_week === dayIndex)
-    const currentExercises = currentRecord ? parseWeeklyPlan(currentRecord.workout_name).exercises : []
+    // Optimistic state update with exercises pulled from default/saved templates
+    const autoExercises = splitId === 'Rest Day' ? [] : getExercisesForSplit(splitId)
     const updatedWorkoutName = JSON.stringify({
       split: splitId,
-      exercises: splitId === 'Rest Day' ? [] : currentExercises,
+      exercises: autoExercises,
     })
 
     const newPlans = [...plans]
@@ -57,10 +71,32 @@ export function ScheduleClient({ initialPlans }: { initialPlans: PlanRecord[] })
   }
 
   const activeDayName = selectedDayIndex !== null ? DAYS_OF_WEEK[selectedDayIndex] : ''
-  const currentSplitForActiveDay = selectedDayIndex !== null ? getDaySplit(selectedDayIndex) : ''
+  const currentSplitForActiveDay = selectedDayIndex !== null ? getDayPlan(selectedDayIndex).split : ''
 
   return (
     <div className="space-y-6">
+      {/* View Switcher: Weekly Schedule vs Monthly Calendar */}
+      <div className="grid grid-cols-2 p-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl">
+        <button
+          type="button"
+          className="py-2.5 px-4 rounded-xl font-bold text-xs bg-[var(--color-primary)] text-white shadow-md shadow-[#FF4500]/20 flex items-center justify-center gap-1.5"
+        >
+          <Calendar size={14} />
+          <span>Săptămânal</span>
+        </button>
+
+        <Link
+          href="/calendar"
+          className="py-2.5 px-4 rounded-xl font-bold text-xs text-zinc-400 hover:text-white hover:bg-zinc-800/60 transition-colors flex items-center justify-center gap-1.5"
+        >
+          <Layers size={14} />
+          <span>Calendar Lună</span>
+          <span className="text-[9px] bg-emerald-500/20 text-emerald-400 font-extrabold px-1.5 py-0.5 rounded-full border border-emerald-500/30">
+            NOU
+          </span>
+        </Link>
+      </div>
+
       {/* Informative Banner */}
       <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] flex items-start gap-3 shadow-md">
         <div className="w-10 h-10 rounded-xl bg-[#FF4500]/15 flex items-center justify-center text-[var(--color-primary)] shrink-0 mt-0.5">
@@ -69,7 +105,7 @@ export function ScheduleClient({ initialPlans }: { initialPlans: PlanRecord[] })
         <div>
           <h2 className="font-bold text-sm text-white">Programul Tău Săptămânal</h2>
           <p className="text-xs text-[var(--color-muted)] mt-1 leading-relaxed">
-            Alege grupa musculară sau split-ul potrivit pentru fiecare zi. Nu trebuie să tastezi nimic manual!
+            Alege tipul de antrenament pentru fiecare zi. Când selectezi o grupă (ex: Push sau Legs), exercițiile din <strong>Plan</strong> se asociază instant fără tastare manuală!
           </p>
         </div>
       </div>
@@ -77,8 +113,10 @@ export function ScheduleClient({ initialPlans }: { initialPlans: PlanRecord[] })
       {/* Days List */}
       <div className="space-y-2.5">
         {DAYS_OF_WEEK.map((dayName, index) => {
-          const splitName = getDaySplit(index)
-          const splitConfig = SPLIT_OPTIONS.find((s) => s.id === splitName || s.name === splitName) || SPLIT_OPTIONS.find((s) => s.id === 'Rest Day')!
+          const { split: splitName, exercises } = getDayPlan(index)
+          const splitConfig =
+            SPLIT_OPTIONS.find((s) => s.id === splitName || s.name === splitName) ||
+            SPLIT_OPTIONS.find((s) => s.id === 'Rest Day')!
           const isRest = splitConfig.id === 'Rest Day'
 
           return (
@@ -100,7 +138,14 @@ export function ScheduleClient({ initialPlans }: { initialPlans: PlanRecord[] })
                   {splitConfig.emoji}
                 </div>
                 <div>
-                  <span className="font-extrabold text-base text-white block">{dayName}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-base text-white">{dayName}</span>
+                    {!isRest && exercises.length > 0 && (
+                      <span className="text-[10px] text-zinc-400 bg-zinc-800/90 px-2 py-0.5 rounded-full">
+                        {exercises.length} ex.
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs text-[var(--color-muted)] mt-0.5 block line-clamp-1">
                     {splitConfig.description}
                   </span>
@@ -124,14 +169,21 @@ export function ScheduleClient({ initialPlans }: { initialPlans: PlanRecord[] })
         })}
       </div>
 
-      {/* Next Step Action Button */}
-      <div className="pt-2">
+      {/* Next Step Action Buttons */}
+      <div className="pt-2 grid grid-cols-2 gap-3">
         <Link
           href="/plan"
-          className="w-full bg-[var(--color-primary)] text-white font-bold py-4 rounded-2xl hover:bg-[var(--color-primary-hover)] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#FF4500]/25 active:scale-[0.98] text-sm"
+          className="bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary)] text-white font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs text-center"
         >
-          <span>Pasul 2: Alege exercițiile în Plan</span>
-          <ArrowRight size={18} />
+          <ClipboardList size={15} className="text-[var(--color-primary)]" />
+          <span>Personalizează în Plan</span>
+        </Link>
+        <Link
+          href="/calendar"
+          className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs text-center shadow-lg shadow-[#FF4500]/25"
+        >
+          <Layers size={15} />
+          <span>Planifică Luna în Calendar</span>
         </Link>
       </div>
 

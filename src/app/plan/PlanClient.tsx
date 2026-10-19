@@ -2,17 +2,15 @@
 
 import { useState, useTransition } from 'react'
 import {
-  DAYS_OF_WEEK,
   SPLIT_OPTIONS,
-  parseWeeklyPlan,
-  serializeWeeklyPlan,
   PlannedExerciseItem,
   MUSCLE_GROUP_LABELS,
   MUSCLE_GROUP_EMOJIS,
   MuscleGroup,
+  RoutineTemplatesMap,
 } from '@/lib/types'
 import { EXERCISES } from '@/lib/exercises-data'
-import { addExerciseToPlan, removeExerciseFromPlan } from './actions'
+import { addExerciseToSplitTemplate, removeExerciseFromSplitTemplate } from './actions'
 import Link from 'next/link'
 import {
   Plus,
@@ -21,82 +19,67 @@ import {
   X,
   Dumbbell,
   ArrowRight,
-  Coffee,
   Check,
-  Filter,
   Sparkles,
+  Calendar,
+  Layers,
 } from 'lucide-react'
 
-type PlanRecord = {
-  id: string
-  day_of_week: number
-  workout_name: string
-}
-
-export function PlanClient({ initialPlans }: { initialPlans: PlanRecord[] }) {
-  const [plans, setPlans] = useState<PlanRecord[]>(initialPlans)
-  const [activeModalDay, setActiveModalDay] = useState<number | null>(null)
+export function PlanClient({
+  initialTemplates,
+}: {
+  initialTemplates: RoutineTemplatesMap
+}) {
+  const [templates, setTemplates] = useState<RoutineTemplatesMap>(initialTemplates)
+  const [activeModalSplitKey, setActiveModalSplitKey] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<'recommended' | 'all' | MuscleGroup>('recommended')
+  const [activeSplitTab, setActiveSplitTab] = useState<string>('all')
   const [isPending, startTransition] = useTransition()
 
-  // Helper to extract plan for a day
-  const getDayPlan = (dayIndex: number) => {
-    const record = plans.find((p) => p.day_of_week === dayIndex)
-    if (!record) return { split: 'Rest Day', exercises: [] }
-    return parseWeeklyPlan(record.workout_name)
-  }
+  // Eligible splits to display in templates (exclude "Rest Day" since it has no exercises)
+  const splitsToDisplay = SPLIT_OPTIONS.filter((s) => s.id !== 'Rest Day')
 
-  const handleAddExercise = (dayIndex: number, ex: { id: string; name: string; muscle_group: MuscleGroup }) => {
+  const handleAddExercise = (
+    splitKey: string,
+    ex: { id: string; name: string; muscle_group: MuscleGroup }
+  ) => {
     const newItem: PlannedExerciseItem = {
       id: ex.id,
       name: ex.name,
       muscle_group: ex.muscle_group,
     }
 
-    // Optimistic UI update
-    const current = getDayPlan(dayIndex)
-    if (current.exercises.some((e) => e.id === ex.id)) return
+    const currentList = templates[splitKey] || []
+    if (currentList.some((e) => e.id === ex.id)) return
 
-    const updatedExercises = [...current.exercises, newItem]
-    const updatedWorkoutName = serializeWeeklyPlan(current.split, updatedExercises)
+    const updatedList = [...currentList, newItem]
+    setTemplates({
+      ...templates,
+      [splitKey]: updatedList,
+    })
 
-    const newPlans = [...plans]
-    const idx = newPlans.findIndex((p) => p.day_of_week === dayIndex)
-    if (idx >= 0) {
-      newPlans[idx] = { ...newPlans[idx], workout_name: updatedWorkoutName }
-    } else {
-      newPlans.push({ id: 'temp-' + dayIndex, day_of_week: dayIndex, workout_name: updatedWorkoutName })
-    }
-    setPlans(newPlans)
-
-    // DB Call
     startTransition(async () => {
       try {
-        await addExerciseToPlan(dayIndex, newItem)
+        await addExerciseToSplitTemplate(splitKey, newItem)
       } catch (err) {
         console.error(err)
       }
     })
   }
 
-  const handleRemoveExercise = (dayIndex: number, exerciseId: string) => {
-    // Optimistic UI update
-    const current = getDayPlan(dayIndex)
-    const updatedExercises = current.exercises.filter((e) => e.id !== exerciseId)
-    const updatedWorkoutName = serializeWeeklyPlan(current.split, updatedExercises)
+  const handleRemoveExercise = (splitKey: string, exerciseId: string) => {
+    const currentList = templates[splitKey] || []
+    const updatedList = currentList.filter((e) => e.id !== exerciseId)
 
-    const newPlans = [...plans]
-    const idx = newPlans.findIndex((p) => p.day_of_week === dayIndex)
-    if (idx >= 0) {
-      newPlans[idx] = { ...newPlans[idx], workout_name: updatedWorkoutName }
-    }
-    setPlans(newPlans)
+    setTemplates({
+      ...templates,
+      [splitKey]: updatedList,
+    })
 
-    // DB Call
     startTransition(async () => {
       try {
-        await removeExerciseFromPlan(dayIndex, exerciseId)
+        await removeExerciseFromSplitTemplate(splitKey, exerciseId)
       } catch (err) {
         console.error(err)
       }
@@ -104,19 +87,16 @@ export function PlanClient({ initialPlans }: { initialPlans: PlanRecord[] }) {
   }
 
   // Active modal details
-  const activeDayName = activeModalDay !== null ? DAYS_OF_WEEK[activeModalDay] : ''
-  const activePlan = activeModalDay !== null ? getDayPlan(activeModalDay) : null
-  const activeSplitConfig = SPLIT_OPTIONS.find((s) => s.id === activePlan?.split || s.name === activePlan?.split)
+  const activeSplitConfig = SPLIT_OPTIONS.find((s) => s.id === activeModalSplitKey)
+  const activeSplitExercises = activeModalSplitKey ? templates[activeModalSplitKey] || [] : []
 
   // Filter exercises in modal
   const filteredExercises = EXERCISES.filter((ex) => {
-    // Search filter
     const matchesSearch =
       ex.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       ex.description.toLowerCase().includes(searchTerm.toLowerCase())
     if (!matchesSearch) return false
 
-    // Category / Muscle filter
     if (selectedMuscleFilter === 'all') return true
     if (selectedMuscleFilter === 'recommended') {
       if (!activeSplitConfig || activeSplitConfig.targetMuscleGroups.length === 0) return true
@@ -125,170 +105,181 @@ export function PlanClient({ initialPlans }: { initialPlans: PlanRecord[] }) {
     return ex.muscle_group === selectedMuscleFilter
   })
 
+  // Visible splits based on top pill selector
+  const visibleSplits = activeSplitTab === 'all' 
+    ? splitsToDisplay 
+    : splitsToDisplay.filter((s) => s.id === activeSplitTab)
+
   return (
     <div className="space-y-6">
-      {/* Quick intro note */}
-      <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-md flex items-center justify-between">
+      {/* Informative Banner */}
+      <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-md flex items-start gap-3">
+        <div className="w-10 h-10 rounded-xl bg-[#FF4500]/15 flex items-center justify-center text-[var(--color-primary)] shrink-0 mt-0.5">
+          <Sparkles size={20} />
+        </div>
         <div>
-          <h2 className="font-bold text-sm text-white">Planul tău de exerciții</h2>
-          <p className="text-xs text-[var(--color-muted)] mt-0.5">
-            Adaugă exercițiile dorite pentru fiecare sesiune planificată.
+          <h2 className="font-bold text-sm text-white">Rutine Generale de Antrenament</h2>
+          <p className="text-xs text-[var(--color-muted)] mt-1 leading-relaxed">
+            Configurează exercițiile dorite pentru fiecare tip de sesiune (Push, Pull, Legs etc.). Când îți muți zilele în <strong>Schedule</strong> sau <strong>Calendar</strong>, planul se preia automat, fără să adaugi fiecare exercițiu din nou!
           </p>
         </div>
-        <Link
-          href="/schedule"
-          className="text-xs font-bold text-[var(--color-primary)] hover:underline flex items-center gap-1 bg-[#FF4500]/10 px-3 py-1.5 rounded-xl border border-[#FF4500]/20"
-        >
-          Schimbă Zilele
-        </Link>
       </div>
 
-      {/* 7 Days Workout Planner */}
+      {/* Quick Split Filter Tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+        <button
+          type="button"
+          onClick={() => setActiveSplitTab('all')}
+          className={`px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-colors ${
+            activeSplitTab === 'all'
+              ? 'bg-[var(--color-primary)] text-white shadow-md shadow-[#FF4500]/20'
+              : 'bg-zinc-800 text-zinc-400 hover:text-white'
+          }`}
+        >
+          Toate Rutinele ({splitsToDisplay.length})
+        </button>
+        {splitsToDisplay.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => setActiveSplitTab(s.id)}
+            className={`px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-colors flex items-center gap-1 ${
+              activeSplitTab === s.id
+                ? 'bg-[var(--color-primary)] text-white shadow-md shadow-[#FF4500]/20'
+                : 'bg-zinc-800 text-zinc-400 hover:text-white'
+            }`}
+          >
+            <span>{s.emoji}</span>
+            <span>{s.name}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Master Split Routines List */}
       <div className="space-y-4">
-        {DAYS_OF_WEEK.map((dayName, dayIndex) => {
-          const { split, exercises } = getDayPlan(dayIndex)
-          const splitConfig = SPLIT_OPTIONS.find((s) => s.id === split || s.name === split) || SPLIT_OPTIONS.find((s) => s.id === 'Rest Day')!
-          const isRest = splitConfig.id === 'Rest Day'
+        {visibleSplits.map((splitConfig) => {
+          const splitKey = splitConfig.id
+          const exercises = templates[splitKey] || []
 
           return (
             <div
-              key={dayName}
-              className={`rounded-2xl border transition-all overflow-hidden shadow-sm ${
-                isRest
-                  ? 'bg-[var(--color-surface)]/60 border-[var(--color-border)]'
-                  : 'bg-[var(--color-surface)] border-[#FF4500]/25'
-              }`}
+              key={splitKey}
+              className="rounded-2xl border bg-[var(--color-surface)] border-[#FF4500]/25 overflow-hidden shadow-sm transition-all"
             >
-              {/* Day Card Header */}
-              <div className="p-4 flex items-center justify-between border-b border-[var(--color-border)]/60">
+              {/* Card Header */}
+              <div className="p-4 flex items-center justify-between border-b border-[var(--color-border)]/60 bg-gradient-to-r from-[var(--color-surface)] to-[#18181c]">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{splitConfig.emoji}</span>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-black text-base text-white">{dayName}</h3>
-                      <span
-                        className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                          isRest
-                            ? 'bg-zinc-800 text-zinc-400'
-                            : 'bg-[#FF4500]/15 text-[var(--color-primary)]'
-                        }`}
-                      >
-                        {splitConfig.name}
+                      <h3 className="font-black text-base text-white">{splitConfig.name}</h3>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#FF4500]/15 text-[var(--color-primary)]">
+                        {splitConfig.id}
                       </span>
                     </div>
                     <p className="text-xs text-[var(--color-muted)] mt-0.5">{splitConfig.description}</p>
                   </div>
                 </div>
 
-                {!isRest && (
-                  <span className="text-xs font-bold text-zinc-400 bg-zinc-800/80 px-2.5 py-1 rounded-xl">
-                    {exercises.length} {exercises.length === 1 ? 'exercițiu' : 'exerciții'}
-                  </span>
-                )}
+                <span className="text-xs font-bold text-zinc-300 bg-zinc-800/90 border border-zinc-700 px-2.5 py-1 rounded-xl shrink-0">
+                  {exercises.length} {exercises.length === 1 ? 'exercițiu' : 'exerciții'}
+                </span>
               </div>
 
-              {/* Day Card Body */}
-              <div className="p-4">
-                {isRest ? (
-                  /* Rest Day Special View */
-                  <div className="py-4 px-2 text-center flex flex-col items-center justify-center">
-                    <span className="text-3xl mb-1.5">🧘‍♂️</span>
-                    <h4 className="font-extrabold text-base text-[var(--color-primary)]">
-                      Odihnă, Campionule!
-                    </h4>
-                    <p className="text-xs text-[var(--color-muted)] mt-1 max-w-xs">
-                      Astăzi mușchii tăi se regenerează și cresc. Asigură-te că te odihnești și te hidratezi!
+              {/* Card Body: Exercise List */}
+              <div className="p-4 space-y-2.5">
+                {exercises.length === 0 ? (
+                  <div className="text-center py-6 border border-dashed border-[var(--color-border)] rounded-xl">
+                    <Dumbbell size={24} className="mx-auto text-[var(--color-muted)] mb-2" />
+                    <p className="text-xs text-[var(--color-muted)]">
+                      Nu ai adăugat încă niciun exercițiu pentru {splitConfig.name}.
                     </p>
                   </div>
                 ) : (
-                  /* Workout Exercises View */
-                  <div className="space-y-2.5">
-                    {exercises.length === 0 ? (
-                      <div className="text-center py-5 border border-dashed border-[var(--color-border)] rounded-xl">
-                        <Dumbbell size={24} className="mx-auto text-[var(--color-muted)] mb-2" />
-                        <p className="text-xs text-[var(--color-muted)]">
-                          Nu ai adăugat încă niciun exercițiu pentru {dayName}.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {exercises.map((item, idx) => (
-                          <div
-                            key={item.id + '-' + idx}
-                            className="bg-[#161616] p-3 rounded-xl border border-[var(--color-border)]/80 flex items-center justify-between hover:border-zinc-600 transition-colors"
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-[var(--color-muted)]">
-                                {idx + 1}
-                              </span>
-                              <div>
-                                <h5 className="font-bold text-sm text-white">{item.name}</h5>
-                                <span className="text-[10px] text-[var(--color-muted)] flex items-center gap-1">
-                                  {MUSCLE_GROUP_EMOJIS[item.muscle_group || 'chest']}{' '}
-                                  {MUSCLE_GROUP_LABELS[item.muscle_group || 'chest']}
-                                </span>
-                              </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveExercise(dayIndex, item.id)}
-                              className="w-8 h-8 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-950/40 hover:text-red-300 transition-colors"
-                              title="Șterge exercițiul"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                  <div className="space-y-2">
+                    {exercises.map((item, idx) => (
+                      <div
+                        key={item.id + '-' + idx}
+                        className="bg-[#151515] p-3 rounded-xl border border-[var(--color-border)]/80 flex items-center justify-between hover:border-zinc-600 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-[var(--color-muted)] shrink-0">
+                            {idx + 1}
+                          </span>
+                          <div>
+                            <h5 className="font-bold text-sm text-white">{item.name}</h5>
+                            <span className="text-[10px] text-[var(--color-muted)] flex items-center gap-1">
+                              {MUSCLE_GROUP_EMOJIS[item.muscle_group || 'chest']}{' '}
+                              {MUSCLE_GROUP_LABELS[item.muscle_group || 'chest']}
+                            </span>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        </div>
 
-                    {/* Add Exercise Button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveModalDay(dayIndex)
-                        setSearchTerm('')
-                        setSelectedMuscleFilter('recommended')
-                      }}
-                      className="w-full mt-3 py-3 border border-dashed border-[#FF4500]/40 text-[var(--color-primary)] font-bold text-xs rounded-xl hover:bg-[#FF4500]/10 transition-all flex items-center justify-center gap-1.5 active:scale-[0.99]"
-                    >
-                      <Plus size={16} /> Adaugă Exercițiu
-                    </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveExercise(splitKey, item.id)}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-950/40 hover:text-red-300 transition-colors shrink-0"
+                          title="Șterge exercițiul"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
+
+                {/* Add Exercise Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveModalSplitKey(splitKey)
+                    setSearchTerm('')
+                    setSelectedMuscleFilter('recommended')
+                  }}
+                  className="w-full mt-2 py-3 border border-dashed border-[#FF4500]/40 text-[var(--color-primary)] font-bold text-xs rounded-xl hover:bg-[#FF4500]/10 transition-all flex items-center justify-center gap-1.5 active:scale-[0.99]"
+                >
+                  <Plus size={16} /> Adaugă Exercițiu în {splitConfig.name}
+                </button>
               </div>
             </div>
           )
         })}
       </div>
 
-      {/* Quick link to Tracker */}
-      <div className="pt-2">
+      {/* Action links */}
+      <div className="pt-2 grid grid-cols-2 gap-3">
         <Link
-          href="/tracker"
-          className="w-full bg-[var(--color-primary)] text-white font-bold py-4 rounded-2xl hover:bg-[var(--color-primary-hover)] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#FF4500]/25 active:scale-[0.98] text-sm"
+          href="/schedule"
+          className="bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary)] text-white font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs text-center"
         >
-          <span>Deschide Tracker-ul de Azi</span>
-          <ArrowRight size={18} />
+          <Calendar size={15} className="text-[var(--color-primary)]" />
+          <span>Alege Zilele în Schedule</span>
+        </Link>
+        <Link
+          href="/calendar"
+          className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs text-center shadow-lg shadow-[#FF4500]/25"
+        >
+          <Layers size={15} />
+          <span>Planifică Luna în Calendar</span>
         </Link>
       </div>
 
       {/* Exercise Picker Modal */}
-      {activeModalDay !== null && activePlan && (
+      {activeModalSplitKey !== null && activeSplitConfig && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="w-full max-w-lg bg-[var(--color-surface)] border-t sm:border border-[var(--color-border)] rounded-t-3xl sm:rounded-3xl p-5 max-h-[88vh] flex flex-col shadow-2xl">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border)]">
               <div>
-                <span className="text-xs uppercase tracking-wider text-[var(--color-muted)] font-bold">
-                  {activeDayName} • {activePlan.split}
+                <span className="text-xs uppercase tracking-wider text-[var(--color-muted)] font-bold flex items-center gap-1">
+                  <span>{activeSplitConfig.emoji}</span>
+                  <span>{activeSplitConfig.name}</span>
                 </span>
                 <h3 className="text-xl font-extrabold text-white">Adaugă în Rutină</h3>
               </div>
               <button
                 type="button"
-                onClick={() => setActiveModalDay(null)}
+                onClick={() => setActiveModalSplitKey(null)}
                 className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
               >
                 <X size={18} />
@@ -365,7 +356,7 @@ export function PlanClient({ initialPlans }: { initialPlans: PlanRecord[] }) {
                 </div>
               ) : (
                 filteredExercises.map((ex) => {
-                  const isAlreadyAdded = activePlan.exercises.some((e) => e.id === ex.id)
+                  const isAlreadyAdded = activeSplitExercises.some((e) => e.id === ex.id)
 
                   return (
                     <div
@@ -390,7 +381,7 @@ export function PlanClient({ initialPlans }: { initialPlans: PlanRecord[] }) {
 
                       <button
                         type="button"
-                        onClick={() => handleAddExercise(activeModalDay, ex)}
+                        onClick={() => handleAddExercise(activeModalSplitKey, ex)}
                         disabled={isAlreadyAdded}
                         className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all ${
                           isAlreadyAdded
