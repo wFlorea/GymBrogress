@@ -1,87 +1,127 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useMemo } from 'react'
 import {
   DAYS_OF_WEEK,
   SPLIT_OPTIONS,
-  parseWeeklyPlan,
   SplitType,
+  WorkStatus,
+  CalendarPlansMap,
+  RoutineTemplatesMap,
   getExercisesForSplit,
 } from '@/lib/types'
-import { updateDaySplit } from './actions'
 import Link from 'next/link'
 import {
-  Calendar,
+  Calendar as CalendarIcon,
+  ChevronLeft,
   ChevronRight,
-  Check,
-  X,
-  ArrowRight,
   Layers,
+  ArrowRight,
+  Lock,
   Sparkles,
-  ClipboardList,
+  Dumbbell,
+  Coffee,
 } from 'lucide-react'
 
-type PlanRecord = {
-  id: string
-  day_of_week: number
-  workout_name: string
-}
+export function ScheduleClient({
+  calendarPlans,
+  routineTemplates,
+}: {
+  calendarPlans: CalendarPlansMap
+  routineTemplates: RoutineTemplatesMap
+}) {
+  // Week navigation offset (0 = current week, -1 = last week, +1 = next week)
+  const [weekOffset, setWeekOffset] = useState<number>(0)
 
-export function ScheduleClient({ initialPlans }: { initialPlans: PlanRecord[] }) {
-  const [plans, setPlans] = useState<PlanRecord[]>(initialPlans)
-  const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null)
-  const [isPending, startTransition] = useTransition()
+  // Current date
+  const now = useMemo(() => new Date(), [])
+  const todayIso = useMemo(() => {
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  }, [now])
 
-  // Get current split for a given day
-  const getDayPlan = (dayIndex: number) => {
-    const record = plans.find((p) => p.day_of_week === dayIndex)
-    if (!record) return { split: 'Rest Day', exercises: [] }
-    return parseWeeklyPlan(record.workout_name)
-  }
+  // Compute Monday of the displayed week
+  const mondayOfWeek = useMemo(() => {
+    const currentDay = (now.getDay() + 6) % 7 // Monday = 0
+    const m = new Date(now)
+    m.setDate(now.getDate() - currentDay + weekOffset * 7)
+    return m
+  }, [now, weekOffset])
 
-  const handleSelectSplit = (splitId: SplitType) => {
-    if (selectedDayIndex === null) return
-    const dayIndex = selectedDayIndex
+  // Generate the 7 days of this week (Monday to Sunday)
+  const weekDays = useMemo(() => {
+    const days = []
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(mondayOfWeek)
+      d.setDate(mondayOfWeek.getDate() + i)
+      const dateIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
-    // Optimistic state update with exercises pulled from default/saved templates
-    const autoExercises = splitId === 'Rest Day' ? [] : getExercisesForSplit(splitId)
-    const updatedWorkoutName = JSON.stringify({
-      split: splitId,
-      exercises: autoExercises,
-    })
+      const dayName = DAYS_OF_WEEK[i]
+      const formattedDate = d.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' })
+      const isToday = dateIso === todayIso
 
-    const newPlans = [...plans]
-    const existingIndex = newPlans.findIndex((p) => p.day_of_week === dayIndex)
-    if (existingIndex >= 0) {
-      newPlans[existingIndex] = { ...newPlans[existingIndex], workout_name: updatedWorkoutName }
-    } else {
-      newPlans.push({ id: 'temp-' + dayIndex, day_of_week: dayIndex, workout_name: updatedWorkoutName })
+      // Lookup in calendar plans
+      const plan = calendarPlans[dateIso]
+      const workStatus: WorkStatus = plan?.workStatus || 'none'
+      const split: SplitType = plan?.split || 'Rest Day'
+
+      const splitConfig =
+        SPLIT_OPTIONS.find((s) => s.id === split) || SPLIT_OPTIONS.find((s) => s.id === 'Rest Day')!
+      const isRest = splitConfig.id === 'Rest Day'
+      const exercises = getExercisesForSplit(split, routineTemplates)
+
+      days.push({
+        dayName,
+        dateIso,
+        formattedDate,
+        isToday,
+        workStatus,
+        split,
+        splitConfig,
+        isRest,
+        hasCustomPlan: !!plan,
+        exercises,
+      })
     }
-    setPlans(newPlans)
-    setSelectedDayIndex(null)
+    return days
+  }, [mondayOfWeek, todayIso, calendarPlans, routineTemplates])
 
-    // Server update
-    startTransition(async () => {
-      try {
-        await updateDaySplit(dayIndex, splitId)
-      } catch (err) {
-        console.error(err)
-      }
+  // Week range label (e.g. "19 Oct - 25 Oct 2026")
+  const weekRangeLabel = useMemo(() => {
+    const sunday = new Date(mondayOfWeek)
+    sunday.setDate(mondayOfWeek.getDate() + 6)
+
+    const startStr = mondayOfWeek.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' })
+    const endStr = sunday.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', year: 'numeric' })
+    return `${startStr} – ${endStr}`
+  }, [mondayOfWeek])
+
+  // Quick stats for this week
+  const weekStats = useMemo(() => {
+    let work = 0
+    let off = 0
+    let workouts = 0
+    let rest = 0
+
+    weekDays.forEach((d) => {
+      if (d.workStatus === 'work') work++
+      else if (d.workStatus === 'off') off++
+
+      if (d.isRest) rest++
+      else workouts++
     })
-  }
 
-  const activeDayName = selectedDayIndex !== null ? DAYS_OF_WEEK[selectedDayIndex] : ''
-  const currentSplitForActiveDay = selectedDayIndex !== null ? getDayPlan(selectedDayIndex).split : ''
+    return { work, off, workouts, rest }
+  }, [weekDays])
 
   return (
     <div className="space-y-6">
-      {/* View Switcher: Weekly Schedule vs Monthly Calendar */}
+      {/* Top Switcher: Schedule vs Calendar */}
       <div className="grid grid-cols-2 p-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl">
         <button
           type="button"
           className="py-2.5 px-4 rounded-xl font-bold text-xs bg-[var(--color-primary)] text-white shadow-md shadow-[#FF4500]/20 flex items-center justify-center gap-1.5"
         >
-          <Calendar size={14} />
+          <CalendarIcon size={14} />
           <span>Săptămânal</span>
         </button>
 
@@ -92,168 +132,187 @@ export function ScheduleClient({ initialPlans }: { initialPlans: PlanRecord[] })
           <Layers size={14} />
           <span>Calendar Lună</span>
           <span className="text-[9px] bg-emerald-500/20 text-emerald-400 font-extrabold px-1.5 py-0.5 rounded-full border border-emerald-500/30">
-            NOU
+            EDITABIL
           </span>
         </Link>
       </div>
 
-      {/* Informative Banner */}
-      <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] flex items-start gap-3 shadow-md">
-        <div className="w-10 h-10 rounded-xl bg-[#FF4500]/15 flex items-center justify-center text-[var(--color-primary)] shrink-0 mt-0.5">
-          <Calendar size={20} />
+      {/* Info Notice Banner */}
+      <div className="bg-[var(--color-surface)] p-4 sm:p-5 rounded-3xl border border-[var(--color-border)] shadow-md space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center text-blue-400 shrink-0 mt-0.5">
+              <Lock size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-sm text-white">Program Săptămânal (Vizualizare)</h2>
+                <span className="text-[10px] bg-zinc-800 text-zinc-400 font-bold px-2 py-0.5 rounded-full">
+                  Read-Only
+                </span>
+              </div>
+              <p className="text-xs text-[var(--color-muted)] mt-1 leading-relaxed">
+                Zilele de mai jos sunt preluate direct din <strong>Calendar</strong>. Pentru a schimba tura de muncă sau antrenamentul, modifică direct din calendar.
+              </p>
+            </div>
+          </div>
         </div>
-        <div>
-          <h2 className="font-bold text-sm text-white">Programul Tău Săptămânal</h2>
-          <p className="text-xs text-[var(--color-muted)] mt-1 leading-relaxed">
-            Alege tipul de antrenament pentru fiecare zi. Când selectezi o grupă (ex: Push sau Legs), exercițiile din <strong>Plan</strong> se asociază instant fără tastare manuală!
-          </p>
+
+        <Link
+          href="/calendar"
+          className="w-full py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 shadow-md shadow-[#FF4500]/20"
+        >
+          <Layers size={15} />
+          <span>Deschide Calendarul pentru Modificări</span>
+          <ArrowRight size={15} />
+        </Link>
+      </div>
+
+      {/* Week Navigator */}
+      <div className="flex items-center justify-between p-3 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
+        <button
+          type="button"
+          onClick={() => setWeekOffset(weekOffset - 1)}
+          className="p-2 rounded-xl bg-zinc-800 text-zinc-300 hover:text-white transition-colors"
+          title="Săptămâna anterioară"
+        >
+          <ChevronLeft size={18} />
+        </button>
+
+        <div className="text-center">
+          <span className="text-[10px] uppercase font-bold text-[var(--color-muted)] tracking-wider block">
+            {weekOffset === 0 ? 'Săptămâna Curentă' : weekOffset === 1 ? 'Săptămâna Viitoare' : 'Săptămână'}
+          </span>
+          <span className="text-sm font-extrabold text-white">{weekRangeLabel}</span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setWeekOffset(weekOffset + 1)}
+          className="p-2 rounded-xl bg-zinc-800 text-zinc-300 hover:text-white transition-colors"
+          title="Săptămâna viitoare"
+        >
+          <ChevronRight size={18} />
+        </button>
+      </div>
+
+      {/* Weekly Stats */}
+      <div className="grid grid-cols-4 gap-2 text-center">
+        <div className="bg-[#15151c] p-2.5 rounded-xl border border-[var(--color-border)]">
+          <span className="text-sm font-black text-blue-400 block">{weekStats.work}</span>
+          <span className="text-[9px] uppercase font-bold text-zinc-400 block mt-0.5">La Muncă</span>
+        </div>
+        <div className="bg-[#15151c] p-2.5 rounded-xl border border-[var(--color-border)]">
+          <span className="text-sm font-black text-emerald-400 block">{weekStats.off}</span>
+          <span className="text-[9px] uppercase font-bold text-zinc-400 block mt-0.5">Zile Libere</span>
+        </div>
+        <div className="bg-[#15151c] p-2.5 rounded-xl border border-[var(--color-border)]">
+          <span className="text-sm font-black text-[#FF4500] block">{weekStats.workouts}</span>
+          <span className="text-[9px] uppercase font-bold text-zinc-400 block mt-0.5">Antrenamente</span>
+        </div>
+        <div className="bg-[#15151c] p-2.5 rounded-xl border border-[var(--color-border)]">
+          <span className="text-sm font-black text-amber-400 block">{weekStats.rest}</span>
+          <span className="text-[9px] uppercase font-bold text-zinc-400 block mt-0.5">Odihnă</span>
         </div>
       </div>
 
-      {/* Days List */}
+      {/* 7 Days Read-Only List */}
       <div className="space-y-2.5">
-        {DAYS_OF_WEEK.map((dayName, index) => {
-          const { split: splitName, exercises } = getDayPlan(index)
-          const splitConfig =
-            SPLIT_OPTIONS.find((s) => s.id === splitName || s.name === splitName) ||
-            SPLIT_OPTIONS.find((s) => s.id === 'Rest Day')!
-          const isRest = splitConfig.id === 'Rest Day'
-
+        {weekDays.map((day) => {
           return (
-            <div
-              key={dayName}
-              onClick={() => setSelectedDayIndex(index)}
-              className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between active:scale-[0.99] ${
-                isRest
-                  ? 'bg-[var(--color-surface)]/70 border-[var(--color-border)] hover:border-zinc-600'
-                  : 'bg-[var(--color-surface)] border-[#FF4500]/30 hover:border-[var(--color-primary)] shadow-sm'
+            <Link
+              key={day.dateIso}
+              href="/calendar"
+              className={`p-4 rounded-2xl border transition-all block relative overflow-hidden group ${
+                day.isToday
+                  ? 'border-[#FF4500] bg-[#FF4500]/10 shadow-md shadow-[#FF4500]/15'
+                  : day.isRest
+                  ? 'bg-[var(--color-surface)]/70 border-[var(--color-border)] hover:border-zinc-500'
+                  : 'bg-[var(--color-surface)] border-[#FF4500]/30 hover:border-[var(--color-primary)]'
               }`}
             >
-              <div className="flex items-center gap-3.5">
-                <div
-                  className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 ${
-                    isRest ? 'bg-zinc-800/80 text-zinc-400' : 'bg-[#FF4500]/20 text-white shadow-inner'
-                  }`}
-                >
-                  {splitConfig.emoji}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-base text-white">{dayName}</span>
-                    {!isRest && exercises.length > 0 && (
-                      <span className="text-[10px] text-zinc-400 bg-zinc-800/90 px-2 py-0.5 rounded-full">
-                        {exercises.length} ex.
-                      </span>
-                    )}
+              <div className="flex items-center justify-between">
+                {/* Left: Day & Date & Split Info */}
+                <div className="flex items-center gap-3.5">
+                  <div
+                    className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 ${
+                      day.isRest
+                        ? 'bg-zinc-800/80 text-zinc-400'
+                        : 'bg-[#FF4500]/20 text-white shadow-inner'
+                    }`}
+                  >
+                    {day.splitConfig.emoji}
                   </div>
-                  <span className="text-xs text-[var(--color-muted)] mt-0.5 block line-clamp-1">
-                    {splitConfig.description}
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-base text-white">{day.dayName}</span>
+                      <span className="text-xs text-[var(--color-muted)] font-semibold">
+                        ({day.formattedDate})
+                      </span>
+                      {day.isToday && (
+                        <span className="text-[9px] bg-[#FF4500] text-white font-black px-2 py-0.5 rounded-full uppercase">
+                          Azi
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-1">
+                      {/* Work Badge */}
+                      {day.workStatus === 'work' && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-950/70 text-blue-300 border border-blue-800/50 flex items-center gap-1">
+                          <span>💼</span> La Muncă
+                        </span>
+                      )}
+                      {day.workStatus === 'off' && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-950/70 text-emerald-300 border border-emerald-800/50 flex items-center gap-1">
+                          <span>🏖️</span> Zi Liberă
+                        </span>
+                      )}
+
+                      {/* Workout exercises count */}
+                      {!day.isRest && day.exercises.length > 0 && (
+                        <span className="text-[10px] text-zinc-400 bg-zinc-800/90 px-2 py-0.5 rounded-md">
+                          {day.exercises.length} exerciții
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Split Badge & Arrow */}
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-xs font-bold px-3 py-1.5 rounded-full border ${
+                      day.isRest
+                        ? 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                        : 'bg-[#FF4500]/15 text-[var(--color-primary)] border-[#FF4500]/30'
+                    }`}
+                  >
+                    {day.splitConfig.name}
                   </span>
+                  <ChevronRight
+                    size={18}
+                    className="text-[var(--color-muted)] group-hover:text-white group-hover:translate-x-0.5 transition-all"
+                  />
                 </div>
               </div>
-
-              <div className="flex items-center gap-2">
-                <span
-                  className={`text-xs font-bold px-3 py-1.5 rounded-full border ${
-                    isRest
-                      ? 'bg-zinc-800 text-zinc-400 border-zinc-700'
-                      : 'bg-[#FF4500]/15 text-[var(--color-primary)] border-[#FF4500]/30'
-                  }`}
-                >
-                  {splitConfig.name}
-                </span>
-                <ChevronRight size={18} className="text-[var(--color-muted)]" />
-              </div>
-            </div>
+            </Link>
           )
         })}
       </div>
 
-      {/* Next Step Action Buttons */}
-      <div className="pt-2 grid grid-cols-2 gap-3">
-        <Link
-          href="/plan"
-          className="bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary)] text-white font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs text-center"
-        >
-          <ClipboardList size={15} className="text-[var(--color-primary)]" />
-          <span>Personalizează în Plan</span>
-        </Link>
+      {/* Footer Action */}
+      <div className="pt-2">
         <Link
           href="/calendar"
-          className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs text-center shadow-lg shadow-[#FF4500]/25"
+          className="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold py-4 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#FF4500]/25 text-sm"
         >
-          <Layers size={15} />
-          <span>Planifică Luna în Calendar</span>
+          <Layers size={17} />
+          <span>Modifică zilele în Calendar</span>
+          <ArrowRight size={17} />
         </Link>
       </div>
-
-      {/* Split Selection Modal */}
-      {selectedDayIndex !== null && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-lg bg-[var(--color-surface)] border-t sm:border border-[var(--color-border)] rounded-t-3xl sm:rounded-3xl p-5 max-h-[85vh] flex flex-col shadow-2xl">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border)]">
-              <div>
-                <span className="text-xs uppercase tracking-wider text-[var(--color-muted)] font-bold">
-                  Selectează antrenamentul
-                </span>
-                <h3 className="text-xl font-extrabold text-white">Program pentru {activeDayName}</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedDayIndex(null)}
-                className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Modal List */}
-            <div className="overflow-y-auto py-3 space-y-2 pr-1 mt-2">
-              {SPLIT_OPTIONS.map((opt) => {
-                const isSelected = currentSplitForActiveDay === opt.id || currentSplitForActiveDay === opt.name
-                const isRest = opt.id === 'Rest Day'
-
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => handleSelectSplit(opt.id)}
-                    className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-center justify-between active:scale-[0.99] ${
-                      isSelected
-                        ? 'bg-[#FF4500]/20 border-[var(--color-primary)] text-white shadow-md'
-                        : 'bg-[#181818] border-[var(--color-border)] hover:border-zinc-600 text-zinc-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3.5">
-                      <span className="text-2xl shrink-0">{opt.emoji}</span>
-                      <div>
-                        <div className="font-bold text-sm text-white flex items-center gap-2">
-                          {opt.name}
-                          {isRest && (
-                            <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full font-normal">
-                              Pauză
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-[var(--color-muted)] mt-0.5 line-clamp-1">
-                          {opt.description}
-                        </p>
-                      </div>
-                    </div>
-
-                    {isSelected && (
-                      <div className="w-6 h-6 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white shrink-0">
-                        <Check size={14} strokeWidth={3} />
-                      </div>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
