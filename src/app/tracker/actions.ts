@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { getAuthUser } from '@/utils/supabase/auth-user'
 import { revalidatePath } from 'next/cache'
 import {
   parseWeeklyPlan,
@@ -12,7 +13,7 @@ import { getRoutineTemplates } from '@/app/plan/actions'
 
 export async function getTodayWorkoutLog() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
 
   const now = new Date()
@@ -169,7 +170,7 @@ export async function getTodayWorkoutLog() {
 
 export async function startAdHocWorkout() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
 
   const now = new Date()

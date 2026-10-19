@@ -36,6 +36,7 @@ export async function middleware(request: NextRequest) {
   const isProtectedPage = 
     request.nextUrl.pathname.startsWith('/dashboard') ||
     request.nextUrl.pathname.startsWith('/schedule') ||
+    request.nextUrl.pathname.startsWith('/calendar') ||
     request.nextUrl.pathname.startsWith('/plan') ||
     request.nextUrl.pathname.startsWith('/planner') ||
     request.nextUrl.pathname.startsWith('/tracker') ||

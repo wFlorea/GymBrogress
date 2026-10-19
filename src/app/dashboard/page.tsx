@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
+import { getAuthUser } from '@/utils/supabase/auth-user'
 import {
   DAYS_OF_WEEK,
   parseWeeklyPlan,
@@ -21,7 +22,7 @@ import {
 
 export default async function DashboardPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
 
   const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Campioanule'
 

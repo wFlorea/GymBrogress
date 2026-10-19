@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { getAuthUser } from '@/utils/supabase/auth-user'
 import { revalidatePath } from 'next/cache'
 import {
   CalendarPlansMap,
@@ -12,7 +13,7 @@ import {
 
 export async function getCalendarPlans(): Promise<CalendarPlansMap> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return {}
 
   const { data: logs, error } = await supabase
@@ -47,7 +48,7 @@ export async function saveCalendarDay(
   split: SplitType | null
 ) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) throw new Error('Nu ești autentificat.')
 
   const serialized = serializeCalendarWorkout(split, workStatus)
@@ -101,7 +102,7 @@ export async function saveCalendarDay(
 
 export async function clearCalendarDay(date: string) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) throw new Error('Nu ești autentificat.')
 
   // Check if existing log has sets

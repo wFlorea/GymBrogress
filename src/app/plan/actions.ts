@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { getAuthUser } from '@/utils/supabase/auth-user'
 import { revalidatePath } from 'next/cache'
 import {
   PlannedExerciseItem,
@@ -13,7 +14,7 @@ import {
 
 export async function getRoutineTemplates(): Promise<RoutineTemplatesMap> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return DEFAULT_ROUTINE_TEMPLATES
 
   // Fetch templates from weekly_plans where day_of_week >= 100
@@ -48,7 +49,7 @@ export async function getRoutineTemplates(): Promise<RoutineTemplatesMap> {
 
 export async function addExerciseToSplitTemplate(splitKey: string, exercise: PlannedExerciseItem) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
 
   const currentTemplates = await getRoutineTemplates()
@@ -125,7 +126,7 @@ export async function addExerciseToSplitTemplate(splitKey: string, exercise: Pla
 
 export async function removeExerciseFromSplitTemplate(splitKey: string, exerciseId: string) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
 
   const currentTemplates = await getRoutineTemplates()

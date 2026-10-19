@@ -1,12 +1,13 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { getAuthUser } from '@/utils/supabase/auth-user'
 import { revalidatePath } from 'next/cache'
 
 export async function getWeeklyPlans() {
   const supabase = await createClient()
   
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return []
 
   const { data, error } = await supabase
@@ -26,7 +27,7 @@ export async function getWeeklyPlans() {
 export async function upsertWeeklyPlan(dayOfWeek: number, workoutName: string) {
   const supabase = await createClient()
   
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
 
   // Check if a plan for this day already exists

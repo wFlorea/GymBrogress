@@ -1,11 +1,12 @@
 import { createClient } from '@/utils/supabase/server'
+import { getAuthUser } from '@/utils/supabase/auth-user'
 import { logout } from '@/app/login/actions'
 import { NotificationButton } from './NotificationButton'
 import { Bell, LogOut, Settings, User } from 'lucide-react'
 
 export default async function ProfilePage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
 
   return (
     <div className="p-4 pt-8 pb-20">
