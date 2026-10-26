@@ -1,11 +1,11 @@
 'use client'
 
-import { useOptimistic, useState, useTransition } from 'react'
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronDown, Dumbbell, Loader2, Minus, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { startTransition as startSavingOrder, useOptimistic, useState, useTransition } from 'react'
+import { ChevronDown, Dumbbell, Loader2, Minus, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { ExerciseBrowser } from '@/components/ExerciseBrowser'
 import { Alert } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
-import { buttonStyles } from '@/components/ui/styles'
+import { DragHandle, SortableItem, SortableList } from '@/components/ui/Sortable'
 import { MUSCLE_GROUP_EMOJIS, MUSCLE_GROUP_LABELS, getExercise } from '@/lib/exercises-data'
 import { plural } from '@/lib/format'
 import { DEFAULT_SETS_PER_EXERCISE, MAX_SETS_PER_EXERCISE, MIN_SETS_PER_EXERCISE } from '@/lib/sets'
@@ -31,8 +31,6 @@ export function PlanClient({
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [order, setOrder] = useState(splits)
-  const [reordering, setReordering] = useState(false)
-  const [isSavingOrder, startSavingOrder] = useTransition()
 
   const [optimisticRoutines, setOptimisticRoutine] = useOptimistic(
     routines,
@@ -74,26 +72,20 @@ export function PlanClient({
     )
   }
 
-  function moveSplit(index: number, offset: -1 | 1) {
-    setOrder((prev) => {
-      const next = [...prev]
-      const [split] = next.splice(index, 1)
-      next.splice(index + offset, 0, split)
-      return next
-    })
+  /** Exercises keep their sets when they're moved; the Workout page lists them in this order. */
+  function reorderExercises(split: WorkoutSplit, exerciseIds: string[]) {
+    const byId = new Map(optimisticRoutines[split].map((item) => [item.exerciseId, item]))
+    saveItems(
+      split,
+      exerciseIds.flatMap((id) => byId.get(id) ?? [])
+    )
   }
 
-  function toggleReordering() {
-    if (!reordering) {
-      setExpanded(null)
-      setReordering(true)
-      return
-    }
-    setReordering(false)
-    if (order.every((split, i) => split === splits[i])) return
+  function reorderSplits(next: WorkoutSplit[]) {
+    setOrder(next)
     setError(null)
     startSavingOrder(async () => {
-      const result = await saveSplitOrder(order)
+      const result = await saveSplitOrder(next)
       if (!result.ok) {
         setError(result.error)
         setOrder(splits)
@@ -105,56 +97,10 @@ export function PlanClient({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted">{reordering ? 'Move your routines up or down.' : ''}</p>
-        <button type="button" onClick={toggleReordering} disabled={isSavingOrder} className={`${buttonStyles.chip} shrink-0`}>
-          {isSavingOrder ? (
-            <Loader2 size={13} className="animate-spin" />
-          ) : reordering ? (
-            <Check size={13} />
-          ) : (
-            <ArrowUpDown size={13} />
-          )}
-          {reordering ? 'Done' : 'Reorder'}
-        </button>
-      </div>
-
       {error && <Alert>{error}</Alert>}
 
-      {reordering ? (
-        <ol className="space-y-2" aria-label="Routine order">
-          {order.map((split, index) => {
-            const option = getSplitOption(split)
-            return (
-              <li key={split} className="flex items-center gap-3 rounded-2xl border border-primary/25 bg-surface p-3">
-                <span className="text-xl" aria-hidden>
-                  {option.emoji}
-                </span>
-                <span className="min-w-0 flex-1 text-sm font-black text-white">{option.name}</span>
-                <button
-                  type="button"
-                  onClick={() => moveSplit(index, -1)}
-                  disabled={index === 0}
-                  aria-label={`Move ${option.name} up`}
-                  className={`${buttonStyles.icon} disabled:opacity-30`}
-                >
-                  <ArrowUp size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveSplit(index, 1)}
-                  disabled={index === order.length - 1}
-                  aria-label={`Move ${option.name} down`}
-                  className={`${buttonStyles.icon} disabled:opacity-30`}
-                >
-                  <ArrowDown size={16} />
-                </button>
-              </li>
-            )
-          })}
-        </ol>
-      ) : (
-        <ul className="space-y-2.5">
+      <ul className="space-y-2.5" aria-label="Your routines">
+        <SortableList ids={order} itemName={(split) => getSplitOption(split).name} onReorder={reorderSplits}>
           {order.map((split) => {
             const option = getSplitOption(split)
             const items = optimisticRoutines[split].flatMap((item) => {
@@ -166,89 +112,103 @@ export function PlanClient({
             const isSaving = isPending && savingSplit === split
 
             return (
-              <li
+              <SortableItem
                 key={split}
-                className={`overflow-hidden rounded-2xl border bg-surface shadow-sm transition-all ${
+                id={split}
+                className={`overflow-hidden rounded-2xl border bg-surface shadow-sm transition-colors ${
                   isExpanded ? 'border-primary' : 'border-primary/25'
                 }`}
               >
-                <button
-                  type="button"
-                  onClick={() => setExpanded(isExpanded ? null : split)}
-                  aria-expanded={isExpanded}
-                  className={`flex w-full items-center justify-between gap-3 bg-gradient-to-r from-surface to-sunken/60 p-4 text-left ${
+                <div
+                  className={`flex items-center bg-gradient-to-r from-surface to-sunken/60 pl-1.5 ${
                     isExpanded ? 'border-b border-border/60' : ''
                   }`}
                 >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="text-2xl" aria-hidden>
-                      {option.emoji}
-                    </span>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-base font-black text-white">{option.name}</h3>
-                        {isCustom && (
-                          <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
-                            Custom
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-0.5 text-xs text-muted">{option.description}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex shrink-0 items-center gap-2">
-                    {isSaving ? (
-                      <Loader2 size={16} className="animate-spin text-primary" aria-label="Saving" />
-                    ) : (
-                      <span className="rounded-xl border border-zinc-700 bg-zinc-800/90 px-2.5 py-1 text-xs font-bold text-zinc-300">
-                        {plural(items.length, 'exercise')}
+                  <DragHandle label={`Move ${option.name}`} />
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(isExpanded ? null : split)}
+                    aria-expanded={isExpanded}
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3 py-4 pl-1 pr-4 text-left"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="text-2xl" aria-hidden>
+                        {option.emoji}
                       </span>
-                    )}
-                    <ChevronDown size={18} className={`text-muted transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                  </div>
-                </button>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-base font-black text-white">{option.name}</h3>
+                          {isCustom && (
+                            <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+                              Custom
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-xs text-muted">{option.description}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-2">
+                      {isSaving ? (
+                        <Loader2 size={16} className="animate-spin text-primary" aria-label="Saving" />
+                      ) : (
+                        <span className="rounded-xl border border-zinc-700 bg-zinc-800/90 px-2.5 py-1 text-xs font-bold text-zinc-300">
+                          {plural(items.length, 'exercise')}
+                        </span>
+                      )}
+                      <ChevronDown size={18} className={`text-muted transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </div>
+                  </button>
+                </div>
 
                 {isExpanded && (
-                  <div className="space-y-2.5 p-4">
+                  <div className="space-y-2.5 p-3 sm:p-4">
                     {items.length === 0 ? (
                       <div className="rounded-xl border border-dashed border-border py-6 text-center">
                         <Dumbbell size={24} className="mx-auto mb-2 text-muted" />
                         <p className="text-xs text-muted">No exercises in {option.name} yet.</p>
                       </div>
                     ) : (
-                      <ol className="space-y-2">
-                        {items.map(({ exercise, sets }, index) => (
-                          <li
-                            key={exercise.id}
-                            className="flex items-center gap-2.5 rounded-xl border border-border/80 bg-sunken p-3 transition-colors hover:border-zinc-600"
-                          >
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-muted">
-                              {index + 1}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <h4 className="text-sm font-bold text-white">{exercise.name}</h4>
-                              <span className="text-[10px] text-muted">
-                                {MUSCLE_GROUP_EMOJIS[exercise.muscle_group]} {MUSCLE_GROUP_LABELS[exercise.muscle_group]}
-                              </span>
-                            </div>
-
-                            <SetStepper
-                              value={sets}
-                              exerciseName={exercise.name}
-                              onChange={(value) => changeSets(split, exercise.id, value)}
-                            />
-
-                            <button
-                              type="button"
-                              onClick={() => removeExercise(split, exercise.id)}
-                              aria-label={`Remove ${exercise.name}`}
-                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-950/40 hover:text-red-300"
+                      <ol className="space-y-2" aria-label={`${option.name} exercises`}>
+                        <SortableList
+                          ids={items.map(({ exercise }) => exercise.id)}
+                          itemName={(id) => getExercise(id)?.name ?? id}
+                          onReorder={(ids) => reorderExercises(split, ids)}
+                        >
+                          {items.map(({ exercise, sets }, index) => (
+                            <SortableItem
+                              key={exercise.id}
+                              id={exercise.id}
+                              className="flex items-center gap-1.5 rounded-xl border border-border/80 bg-sunken py-3 pl-1 pr-2 transition-colors hover:border-zinc-600 sm:gap-2.5 sm:pr-3"
                             >
-                              <Trash2 size={16} />
-                            </button>
-                          </li>
-                        ))}
+                              <DragHandle label={`Move ${exercise.name}`} />
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-muted">
+                                {index + 1}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <h4 className="text-sm font-bold text-white">{exercise.name}</h4>
+                                <span className="text-[10px] text-muted">
+                                  {MUSCLE_GROUP_EMOJIS[exercise.muscle_group]} {MUSCLE_GROUP_LABELS[exercise.muscle_group]}
+                                </span>
+                              </div>
+
+                              <SetStepper
+                                value={sets}
+                                exerciseName={exercise.name}
+                                onChange={(value) => changeSets(split, exercise.id, value)}
+                              />
+
+                              <button
+                                type="button"
+                                onClick={() => removeExercise(split, exercise.id)}
+                                aria-label={`Remove ${exercise.name}`}
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-950/40 hover:text-red-300"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </SortableItem>
+                          ))}
+                        </SortableList>
                       </ol>
                     )}
 
@@ -271,11 +231,11 @@ export function PlanClient({
                     )}
                   </div>
                 )}
-              </li>
+              </SortableItem>
             )
           })}
-        </ul>
-      )}
+        </SortableList>
+      </ul>
 
       <Modal
         open={pickerSplit !== null}
