@@ -80,16 +80,9 @@ export function formatDate(iso: IsoDate, options: Intl.DateTimeFormatOptions): s
   return new Intl.DateTimeFormat('en-GB', { ...options, timeZone: 'UTC' }).format(toUtc(iso))
 }
 
-/** Formats a `YYYY-MM` month, e.g. "Mar 2026". */
-export function formatMonth(month: string, options: Intl.DateTimeFormatOptions = { month: 'short', year: 'numeric' }): string {
-  return formatDate(`${month}-01`, options)
-}
-
-/** Every `YYYY-MM` month from `from` to `to`, both included. */
-export function monthsBetween(from: string, to: string): string[] {
-  const months: string[] = []
-  for (let month = from; month <= to; month = monthOf(addMonths(`${month}-01`, 1))) months.push(month)
-  return months
+/** Whole days from `from` to `to` (negative when `to` is earlier). */
+export function daysBetween(from: IsoDate, to: IsoDate): number {
+  return Math.round((toUtc(to).getTime() - toUtc(from).getTime()) / 86_400_000)
 }
 
 /** Cookie holding the browser's IANA time zone, so the server knows the user's "today". */

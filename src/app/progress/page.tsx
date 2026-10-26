@@ -14,7 +14,7 @@ export default async function ProgressPage() {
     <Page>
       <PageHeader
         title="Progress"
-        subtitle="Your heaviest lift of every month."
+        subtitle="Your heaviest lift from every workout."
         action={
           <Link href="/profile" className={buttonStyles.chip}>
             <ChevronLeft size={13} /> Profile

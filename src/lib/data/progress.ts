@@ -1,7 +1,7 @@
 import 'server-only'
 import { cache } from 'react'
 import { getExercise } from '@/lib/exercises-data'
-import type { ExerciseHistory, MonthlyBest } from '@/lib/types'
+import type { ExerciseHistory, IsoDate, WorkoutBest } from '@/lib/types'
 import { getSession } from './session'
 
 /** Every exercise with a completed set, most recently done first (aggregated by a database view). */
@@ -22,23 +22,35 @@ export const getExerciseHistory = cache(async (): Promise<ExerciseHistory[]> => 
   }))
 })
 
-/** The heaviest completed set of an exercise in each month it was done, oldest first. */
-export async function getMonthlyBests(exerciseId: string): Promise<MonthlyBest[]> {
+/** Rows per request; PostgREST returns at most 1000 at a time. */
+const PAGE_SIZE = 1000
+
+/** The heaviest completed set of an exercise in each workout it was done in, oldest first. */
+export async function getWorkoutBests(exerciseId: string): Promise<WorkoutBest[]> {
   const { user, supabase } = await getSession()
-  const { data, error } = await supabase
-    .from('exercise_monthly_bests')
-    .select('month, max_weight')
-    .eq('user_id', user.id)
-    .eq('exercise_id', exerciseId)
-    .order('month')
-  if (error) throw new Error(`Could not load your progress: ${error.message}`)
+  const bests = new Map<IsoDate, number>()
 
-  return data.map((row) => ({ month: row.month, maxWeight: Number(row.max_weight ?? 0) }))
-}
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('workout_sets')
+      .select('actual_weight, workout_logs!inner(date)')
+      .eq('workout_logs.user_id', user.id)
+      .eq('exercise_id', exerciseId)
+      .eq('is_completed', true)
+      .order('id')
+      .range(from, from + PAGE_SIZE - 1)
+    if (error) throw new Error(`Could not load your progress: ${error.message}`)
 
-/** `YYYY-MM` the account was created in, or null if the auth server can't be reached. */
-export async function getAccountStartMonth(): Promise<string | null> {
-  const { supabase } = await getSession()
-  const { data } = await supabase.auth.getUser()
-  return data.user?.created_at?.slice(0, 7) ?? null
+    // Each set belongs to one log (one per date), so the embedded log is a single object.
+    const rows = data as unknown as { actual_weight: number | string | null; workout_logs: { date: IsoDate } }[]
+    for (const { actual_weight, workout_logs } of rows) {
+      const weight = Number(actual_weight ?? 0)
+      bests.set(workout_logs.date, Math.max(weight, bests.get(workout_logs.date) ?? 0))
+    }
+    if (rows.length < PAGE_SIZE) break
+  }
+
+  return [...bests]
+    .map(([date, maxWeight]) => ({ date, maxWeight }))
+    .sort((a, b) => a.date.localeCompare(b.date))
 }

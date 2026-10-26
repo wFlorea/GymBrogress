@@ -118,9 +118,9 @@ export interface ExerciseHistory {
   lastDate: IsoDate
 }
 
-/** Heaviest completed set of an exercise in one month (`YYYY-MM`). */
-export interface MonthlyBest {
-  month: string
+/** Heaviest completed set of an exercise in one workout. */
+export interface WorkoutBest {
+  date: IsoDate
   maxWeight: number
 }
 

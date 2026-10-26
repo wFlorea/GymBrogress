@@ -1,14 +1,16 @@
 'use client'
 
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
-import { formatMonth } from '@/lib/date'
+import { addDays, daysBetween, formatDate } from '@/lib/date'
 import { formatKg } from '@/lib/format'
-import type { MonthlyBest } from '@/lib/types'
+import type { WorkoutBest } from '@/lib/types'
 
 const HEIGHT = 240
-const PAD = { top: 28, right: 18, bottom: 40, left: 40 }
-/** Room each month label needs on the x axis. */
+const PAD = { top: 28, right: 24, bottom: 40, left: 40 }
+/** Room each date label needs on the x axis. */
 const LABEL_WIDTH = 52
+/** Below this many pixels per workout the dots would crowd the line, so only the line is drawn. */
+const DOT_SPACING = 12
 
 /** A round axis maximum just above `value`, split into about four steps. */
 function niceScale(value: number): { max: number; step: number } {
@@ -22,10 +24,10 @@ function niceScale(value: number): { max: number; step: number } {
 const formatTick = (value: number) => value.toLocaleString('en-GB', { maximumFractionDigits: 1 })
 
 /**
- * Line chart of the heaviest set in each month. `months` is the whole x axis (every month since
- * the account was made); months without a workout have no point and the line joins their neighbours.
+ * Line chart of the heaviest set in each workout. The x axis is time, from the first workout to
+ * the latest, so gaps between workouts show as longer stretches of line.
  */
-export function ProgressChart({ months, points, label }: { months: string[]; points: MonthlyBest[]; label: string }) {
+export function ProgressChart({ points, label }: { points: WorkoutBest[]; label: string }) {
   const container = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(340)
   const [active, setActive] = useState<number | null>(null)
@@ -40,21 +42,25 @@ export function ProgressChart({ months, points, label }: { months: string[]; poi
 
   const plotWidth = width - PAD.left - PAD.right
   const plotHeight = HEIGHT - PAD.top - PAD.bottom
-  const monthIndex = new Map(months.map((month, i) => [month, i]))
-  const x = (i: number) => PAD.left + (months.length === 1 ? plotWidth / 2 : (i / (months.length - 1)) * plotWidth)
+  const start = points[0].date
+  const span = daysBetween(start, points.at(-1)!.date)
+  const x = (date: string) => PAD.left + (span === 0 ? plotWidth / 2 : (daysBetween(start, date) / span) * plotWidth)
   const scale = niceScale(Math.max(...points.map((p) => p.maxWeight)))
   const y = (value: number) => PAD.top + plotHeight - (value / scale.max) * plotHeight
   const ticks = Array.from({ length: Math.round(scale.max / scale.step) + 1 }, (_, i) => i * scale.step)
 
-  const coords = points.map((p) => ({ ...p, cx: x(monthIndex.get(p.month) ?? 0), cy: y(p.maxWeight) }))
+  const coords = points.map((p) => ({ ...p, cx: x(p.date), cy: y(p.maxWeight) }))
   const line = coords.map((c, i) => `${i === 0 ? 'M' : 'L'}${c.cx},${c.cy}`).join(' ')
   const first = coords[0]
   const last = coords.at(-1)!
   const area = coords.length > 1 ? `${line} L${last.cx},${y(0)} L${first.cx},${y(0)} Z` : null
+  const showDots = coords.length <= plotWidth / DOT_SPACING
 
-  // Label every n-th month, counting back from the current one so it is always labelled.
-  const labelEvery = Math.max(1, Math.ceil(months.length / Math.max(1, Math.floor(plotWidth / LABEL_WIDTH))))
-  const labelled = months.filter((_, i) => (months.length - 1 - i) % labelEvery === 0)
+  // Evenly spaced dates from the first workout to the latest, as many as fit.
+  const tickCount = Math.max(2, Math.min(span + 1, Math.floor(plotWidth / LABEL_WIDTH)))
+  const dateTicks = [
+    ...new Set(Array.from({ length: tickCount }, (_, i) => addDays(start, Math.round((i * span) / (tickCount - 1))))),
+  ]
 
   function pick(event: PointerEvent<SVGSVGElement>) {
     const left = event.currentTarget.getBoundingClientRect().left
@@ -91,48 +97,58 @@ export function ProgressChart({ months, points, label }: { months: string[]; poi
         onBlur={() => setActive(null)}
         className="block touch-pan-y rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
       >
+        <defs>
+          <linearGradient id="progress-area-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="var(--color-primary)" stopOpacity={0.3} />
+            <stop offset="1" stopColor="var(--color-primary)" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+
         {ticks.map((tick) => (
           <g key={tick}>
-            <line x1={PAD.left} x2={width - PAD.right} y1={y(tick)} y2={y(tick)} className="stroke-border" strokeWidth={1} />
+            <line x1={PAD.left} x2={width - PAD.right} y1={y(tick)} y2={y(tick)} className="stroke-white/5" strokeWidth={1} />
             <text x={PAD.left - 8} y={y(tick)} dy="0.32em" textAnchor="end" className="fill-muted text-[10px] tabular-nums">
               {formatTick(tick)}
             </text>
           </g>
         ))}
 
-        {labelled.map((month, i) => {
-          const isJanuary = month.endsWith('-01')
+        {dateTicks.map((date, i) => {
+          const newYear = i === 0 || date.slice(0, 4) !== dateTicks[i - 1].slice(0, 4)
           return (
-            <text key={month} x={x(monthIndex.get(month)!)} y={HEIGHT - PAD.bottom + 16} textAnchor="middle" className="fill-muted text-[10px]">
-              {formatMonth(month, { month: 'short' })}
-              {(i === 0 || isJanuary) && (
-                <tspan x={x(monthIndex.get(month)!)} dy="1.2em" className="text-[9px]">
-                  {month.slice(0, 4)}
+            <text key={date} x={x(date)} y={HEIGHT - PAD.bottom + 16} textAnchor="middle" className="fill-muted text-[10px]">
+              {formatDate(date, { day: 'numeric', month: 'short' })}
+              {newYear && (
+                <tspan x={x(date)} dy="1.2em" className="text-[9px]">
+                  {date.slice(0, 4)}
                 </tspan>
               )}
             </text>
           )
         })}
 
-        {area && <path d={area} className="fill-primary/10" />}
+        {area && <path d={area} fill="url(#progress-area-fill)" />}
         {coords.length > 1 && (
           <path d={line} fill="none" className="stroke-primary" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         )}
 
         {shown && (
-          <line x1={shown.cx} x2={shown.cx} y1={PAD.top - 8} y2={y(0)} className="stroke-zinc-500" strokeWidth={1} />
+          <line x1={shown.cx} x2={shown.cx} y1={PAD.top - 8} y2={y(0)} className="stroke-white/30" strokeWidth={1} />
         )}
 
-        {coords.map((c, i) => (
-          <circle
-            key={c.month}
-            cx={c.cx}
-            cy={c.cy}
-            r={active === i ? 6 : 4}
-            className="fill-primary stroke-surface"
-            strokeWidth={2}
-          />
-        ))}
+        {coords.map(
+          (c, i) =>
+            (showDots || i === active || c === last) && (
+              <circle
+                key={c.date}
+                cx={c.cx}
+                cy={c.cy}
+                r={active === i ? 6 : 4}
+                className="fill-primary stroke-surface"
+                strokeWidth={2}
+              />
+            )
+        )}
 
         {active === null && (
           <text
@@ -148,15 +164,17 @@ export function ProgressChart({ months, points, label }: { months: string[]; poi
 
       {shown && (
         <div
-          className="pointer-events-none absolute z-10 whitespace-nowrap rounded-lg border border-border bg-sunken px-2.5 py-1.5 text-center shadow-lg"
+          className="pointer-events-none absolute z-10 whitespace-nowrap rounded-xl border border-white/10 bg-sunken px-3 py-1.5 text-center shadow-lg shadow-black/40"
           style={{
-            left: Math.min(Math.max(shown.cx, 48), width - 48),
+            left: Math.min(Math.max(shown.cx, 56), width - 56),
             top: shown.cy,
             transform: tooltipBelow ? 'translate(-50%, 14px)' : 'translate(-50%, calc(-100% - 14px))',
           }}
         >
           <span className="block text-sm font-black text-white">{formatKg(shown.maxWeight)}</span>
-          <span className="block text-[10px] font-bold text-muted">{formatMonth(shown.month, { month: 'long', year: 'numeric' })}</span>
+          <span className="block text-[10px] font-bold text-muted">
+            {formatDate(shown.date, { day: 'numeric', month: 'long', year: 'numeric' })}
+          </span>
         </div>
       )}
     </div>
