@@ -2,13 +2,7 @@
 
 import { useState } from 'react'
 import { Check, Plus, Search, Sparkles, X } from 'lucide-react'
-import {
-  EXERCISES,
-  MUSCLE_GROUPS,
-  MUSCLE_GROUP_EMOJIS,
-  MUSCLE_GROUP_LABELS,
-  searchExercises,
-} from '@/lib/exercises-data'
+import { EXERCISES, MUSCLE_GROUPS, MUSCLE_GROUP_LABELS, searchExercises } from '@/lib/exercises-data'
 import type { Exercise, MuscleGroup } from '@/lib/types'
 import { inputStyles, pillStyles } from './ui/styles'
 
@@ -24,7 +18,10 @@ export function ExerciseBrowser({
   onAdd,
   scrollable = false,
 }: {
-  /** Muscle groups of the current split; adds a "Recommended" filter, selected by default. */
+  /**
+   * Muscle groups of the current split, most relevant first; adds a "Recommended" filter,
+   * selected by default, that lists their exercises in this order.
+   */
   recommended?: MuscleGroup[]
   isAdded?: (exerciseId: string) => boolean
   onAdd?: (exercise: Exercise) => void
@@ -37,7 +34,7 @@ export function ExerciseBrowser({
 
   const matchesFilter = (e: Exercise) =>
     filter === 'all' || (filter === 'recommended' ? recommended!.includes(e.muscle_group) : e.muscle_group === filter)
-  const results = searchExercises(query, matchesFilter)
+  const results = searchExercises(query, matchesFilter, filter === 'recommended' ? recommended : MUSCLE_GROUPS)
 
   return (
     <div className={scrollable ? 'flex min-h-0 flex-1 flex-col' : ''}>
@@ -49,7 +46,8 @@ export function ExerciseBrowser({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search exercises (e.g. bench press, squat, row)"
           aria-label="Search exercises"
-          className={`${inputStyles} py-2.5 pl-10 pr-9 text-xs`}
+          // The browser's own clear button would sit on top of ours.
+          className={`${inputStyles} py-2.5 pl-10 pr-9 text-xs [&::-webkit-search-cancel-button]:hidden`}
         />
         {query && (
           <button
@@ -63,7 +61,8 @@ export function ExerciseBrowser({
         )}
       </div>
 
-      <div className="scrollbar-none -mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-2" role="group" aria-label="Filter by muscle group">
+      {/* Wraps instead of scrolling sideways, so every filter stays visible on a phone. */}
+      <div className="flex flex-wrap gap-1.5 pb-2" role="group" aria-label="Filter by muscle group">
         {hasRecommended && (
           <button type="button" onClick={() => setFilter('recommended')} className={pillStyles(filter === 'recommended')} aria-pressed={filter === 'recommended'}>
             <Sparkles size={12} /> Recommended
@@ -74,7 +73,6 @@ export function ExerciseBrowser({
         </button>
         {MUSCLE_GROUPS.map((group) => (
           <button key={group} type="button" onClick={() => setFilter(group)} className={pillStyles(filter === group)} aria-pressed={filter === group}>
-            <span aria-hidden>{MUSCLE_GROUP_EMOJIS[group]}</span>
             {MUSCLE_GROUP_LABELS[group]}
           </button>
         ))}

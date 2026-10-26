@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
-import { BookOpen, CalendarCheck, ChevronRight, Dumbbell, LogOut } from 'lucide-react'
+import { BookOpen, CalendarCheck, ChevronRight, Dumbbell, LogOut, TrendingUp } from 'lucide-react'
 import { logout } from '@/app/login/actions'
 import { Card } from '@/components/ui/Card'
 import { Page, PageHeader, SectionTitle } from '@/components/ui/Page'
@@ -42,21 +42,22 @@ export default async function ProfilePage() {
       <section className="mb-6">
         <SectionTitle>Gym history</SectionTitle>
         <GymHistoryCalendar today={today} gymDates={gymDates} />
+        <LinkCard
+          href="/progress"
+          icon={<TrendingUp size={20} className="text-primary" />}
+          title="Progress"
+          description="Your heaviest lifts, month by month"
+          className="mt-3"
+        />
       </section>
 
-      <Link
+      <LinkCard
         href="/exercises"
-        className="mb-8 flex items-center justify-between rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-primary"
-      >
-        <span className="flex items-center gap-3">
-          <BookOpen size={20} className="text-primary" />
-          <span>
-            <span className="block font-medium">Exercise library</span>
-            <span className="text-xs text-muted">{plural(EXERCISES.length, 'exercise')} with technique tips</span>
-          </span>
-        </span>
-        <ChevronRight size={18} className="text-muted" />
-      </Link>
+        icon={<BookOpen size={20} className="text-primary" />}
+        title="Exercise library"
+        description={`${plural(EXERCISES.length, 'exercise')} with technique tips`}
+        className="mb-8"
+      />
 
       <form action={logout}>
         <SubmitButton className={buttonStyles.danger} pendingLabel="Signing out…">
@@ -64,6 +65,36 @@ export default async function ProfilePage() {
         </SubmitButton>
       </form>
     </Page>
+  )
+}
+
+function LinkCard({
+  href,
+  icon,
+  title,
+  description,
+  className = '',
+}: {
+  href: string
+  icon: ReactNode
+  title: string
+  description: string
+  className?: string
+}) {
+  return (
+    <Link
+      href={href}
+      className={`flex items-center justify-between rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-primary ${className}`}
+    >
+      <span className="flex items-center gap-3">
+        {icon}
+        <span>
+          <span className="block font-medium">{title}</span>
+          <span className="text-xs text-muted">{description}</span>
+        </span>
+      </span>
+      <ChevronRight size={18} className="text-muted" />
+    </Link>
   )
 }
 

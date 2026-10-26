@@ -9,15 +9,28 @@ import { Modal } from '@/components/ui/Modal'
 import { buttonStyles } from '@/components/ui/styles'
 import { MUSCLE_GROUP_LABELS, getExercise } from '@/lib/exercises-data'
 import { plural } from '@/lib/format'
-import { DEFAULT_REPS, MAX_REPS, MAX_WEIGHT_KG } from '@/lib/sets'
+import { DEFAULT_SETS_PER_EXERCISE, MAX_REPS, MAX_WEIGHT_KG } from '@/lib/sets'
 import { getSplitOption } from '@/lib/splits'
-import type { Exercise, WorkoutDay, WorkoutSet } from '@/lib/types'
-import { finishWorkout, syncWithPlan, type SetValues } from './actions'
+import type { Exercise, PlannedExercise, SetValues, WorkoutDay, WorkoutSet } from '@/lib/types'
+import { addExerciseToWorkout, finishWorkout, syncWithPlan } from './actions'
 import { useRestTimer, useSetPersistence } from './hooks'
 
 const REST_SECONDS = 90
 
-export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plannedExercises: Exercise[] }) {
+/** Numbers an exercise's sets 1, 2, 3… in the order they are listed. */
+function renumber(sets: WorkoutSet[], exerciseId: string): WorkoutSet[] {
+  let number = 0
+  return sets.map((s) => (s.exercise_id === exerciseId ? { ...s, set_number: ++number } : s))
+}
+
+/** Puts a set whose delete failed back in its old place. */
+function restoreSet(sets: WorkoutSet[], set: WorkoutSet): WorkoutSet[] {
+  const index = sets.findIndex((s) => s.exercise_id === set.exercise_id && s.set_number >= set.set_number)
+  const next = index === -1 ? [...sets, set] : [...sets.slice(0, index), set, ...sets.slice(index)]
+  return renumber(next, set.exercise_id)
+}
+
+export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plannedExercises: PlannedExercise[] }) {
   const [sets, setSets] = useState(day.sets)
   const [finished, setFinished] = useState(day.finished_at !== null)
   const [error, setError] = useState<string | null>(null)
@@ -25,6 +38,8 @@ export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plan
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [isSyncing, startSync] = useTransition()
   const [isFinishing, startFinish] = useTransition()
+  const [addingId, setAddingId] = useState<string | null>(null)
+  const [isAdding, startAdding] = useTransition()
   const timer = useRestTimer()
   const persistence = useSetPersistence(day.id, setError)
   const split = getSplitOption(day.split)
@@ -41,10 +56,22 @@ export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plan
   const patchLocal = (setId: string, patch: Partial<WorkoutSet>) =>
     setSets((prev) => prev.map((s) => (s.id === setId ? { ...s, ...patch } : s)))
 
-  function addSetTo(exerciseId: string) {
+  /** Adds an exercise's first sets, as many as the routine plans, filled in from last time. */
+  function addExerciseSets(exerciseId: string) {
+    const setCount = plannedExercises.find((e) => e.id === exerciseId)?.sets ?? DEFAULT_SETS_PER_EXERCISE
     setError(null)
+    setAddingId(exerciseId)
+    startAdding(async () => {
+      const result = await persistence.run(() => addExerciseToWorkout(day.id, exerciseId, setCount))
+      if (result.ok) setSets((prev) => [...prev, ...result.data])
+    })
+  }
+
+  function addSetTo(exerciseId: string) {
     const last = setsByExercise.get(exerciseId)?.at(-1)
-    const values: SetValues = { actual_reps: last?.actual_reps ?? DEFAULT_REPS, actual_weight: last?.actual_weight ?? 0 }
+    if (!last) return addExerciseSets(exerciseId)
+    setError(null)
+    const values: SetValues = { actual_reps: last.actual_reps, actual_weight: last.actual_weight }
     const tempId = `temp-${crypto.randomUUID()}`
     setSets((prev) => [
       ...prev,
@@ -52,7 +79,7 @@ export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plan
         id: tempId,
         exercise_id: exerciseId,
         exercise_name: getExercise(exerciseId)?.name ?? '',
-        set_number: (last?.set_number ?? 0) + 1,
+        set_number: last.set_number + 1,
         is_completed: false,
         ...values,
       },
@@ -86,9 +113,9 @@ export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plan
 
   function deleteSet(set: WorkoutSet) {
     setError(null)
-    setSets((prev) => prev.filter((s) => s.id !== set.id))
+    setSets((prev) => renumber(prev.filter((s) => s.id !== set.id), set.exercise_id))
     void persistence.deleteSet(set.id).then((deleted) => {
-      if (!deleted) setSets((prev) => [...prev, set])
+      if (!deleted) setSets((prev) => restoreSet(prev, set))
     })
   }
 
@@ -189,6 +216,8 @@ export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plan
             index={index}
             exerciseId={exerciseId}
             sets={setsByExercise.get(exerciseId)!}
+            plannedSets={plannedExercises.find((e) => e.id === exerciseId)?.sets ?? DEFAULT_SETS_PER_EXERCISE}
+            isAdding={isAdding && addingId === exerciseId}
             onAddSet={() => addSetTo(exerciseId)}
             onChange={changeValue}
             onToggle={toggleCompleted}
@@ -197,8 +226,19 @@ export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plan
         ))
       )}
 
+      {isAdding && addingId && !setsByExercise.has(addingId) && (
+        <div className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-border py-5 text-xs font-bold text-muted">
+          <Loader2 size={16} className="animate-spin text-primary" /> Adding {getExercise(addingId)?.name}…
+        </div>
+      )}
+
       <div className="space-y-3 pt-1">
-        <button type="button" onClick={() => setPickerOpen(true)} className={`${buttonStyles.secondary} w-full text-sm`}>
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          disabled={isAdding}
+          className={`${buttonStyles.secondary} w-full text-sm`}
+        >
           <Plus size={18} className="text-primary" /> Add another exercise
         </button>
 
@@ -265,6 +305,8 @@ function ExerciseCard({
   index,
   exerciseId,
   sets,
+  plannedSets,
+  isAdding,
   onAddSet,
   onChange,
   onToggle,
@@ -273,6 +315,9 @@ function ExerciseCard({
   index: number
   exerciseId: string
   sets: WorkoutSet[]
+  /** Sets added at once when the exercise has none yet. */
+  plannedSets: number
+  isAdding: boolean
   onAddSet: () => void
   onChange: (set: WorkoutSet, field: keyof SetValues, input: string) => void
   onToggle: (set: WorkoutSet) => void
@@ -317,7 +362,7 @@ function ExerciseCard({
         </div>
 
         {ordered.length === 0 ? (
-          <p className="py-4 text-center text-xs text-muted">Tap “Add set” below to log your first set.</p>
+          <p className="py-4 text-center text-xs text-muted">No sets yet. They start from what you lifted last time.</p>
         ) : (
           ordered.map((set, i) => (
             <SetRow key={set.id} number={i + 1} set={set} onChange={onChange} onToggle={onToggle} onDelete={onDelete} />
@@ -327,9 +372,11 @@ function ExerciseCard({
         <button
           type="button"
           onClick={onAddSet}
-          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-700 bg-zinc-900/60 py-2.5 text-xs font-bold text-zinc-400 transition-all hover:bg-zinc-800 hover:text-white active:scale-[0.99]"
+          disabled={isAdding}
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-700 bg-zinc-900/60 py-2.5 text-xs font-bold text-zinc-400 transition-all hover:bg-zinc-800 hover:text-white active:scale-[0.99] disabled:opacity-60"
         >
-          <Plus size={15} /> Add set {ordered.length + 1}
+          {isAdding ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
+          {ordered.length === 0 ? `Add ${plural(plannedSets, 'set')}` : `Add set ${ordered.length + 1}`}
         </button>
       </div>
     </section>

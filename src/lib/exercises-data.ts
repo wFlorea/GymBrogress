@@ -1,24 +1,48 @@
 import type { Exercise, MuscleGroup } from './types'
 
-export const MUSCLE_GROUPS: MuscleGroup[] = ['chest', 'back', 'legs', 'shoulders', 'arms', 'core', 'cardio']
+/** Upper body to lower body, then cardio: the order filters and full lists use. */
+export const MUSCLE_GROUPS: MuscleGroup[] = [
+  'chest',
+  'back',
+  'shoulders',
+  'biceps',
+  'triceps',
+  'forearms',
+  'core',
+  'glutes',
+  'quads',
+  'hamstrings',
+  'calves',
+  'cardio',
+]
 
 export const MUSCLE_GROUP_LABELS: Record<MuscleGroup, string> = {
   chest: 'Chest',
   back: 'Back',
-  legs: 'Legs',
-  arms: 'Arms',
   shoulders: 'Shoulders',
+  biceps: 'Biceps',
+  triceps: 'Triceps',
+  forearms: 'Forearms',
   core: 'Abs & Core',
+  glutes: 'Glutes',
+  quads: 'Quads',
+  hamstrings: 'Hamstrings',
+  calves: 'Calves',
   cardio: 'Cardio',
 }
 
 export const MUSCLE_GROUP_EMOJIS: Record<MuscleGroup, string> = {
   chest: '🛡️',
   back: '🦅',
-  legs: '🦵',
-  arms: '💪',
   shoulders: '🚀',
+  biceps: '💪',
+  triceps: '🦾',
+  forearms: '✊',
   core: '🎯',
+  glutes: '🍑',
+  quads: '🦵',
+  hamstrings: '🦿',
+  calves: '🦶',
   cardio: '❤️',
 }
 
@@ -152,74 +176,86 @@ export const EXERCISES: Exercise[] = [
   {
     id: 'ex-021',
     name: 'Barbell Back Squat',
-    muscle_group: 'legs',
+    muscle_group: 'quads',
     description: 'The classic squat with the bar on your traps; the king of leg exercises.',
   },
   {
     id: 'ex-022',
     name: 'Leg Press',
-    muscle_group: 'legs',
+    muscle_group: 'quads',
     description: 'Machine press that loads the quads heavily without stressing the spine.',
   },
   {
     id: 'ex-023',
     name: 'Romanian Deadlift (RDL)',
-    muscle_group: 'legs',
+    muscle_group: 'hamstrings',
     description: 'Barbell or dumbbell hip hinge focused on the hamstrings and glutes.',
   },
   {
     id: 'ex-024',
     name: 'Bulgarian Split Squat',
-    muscle_group: 'legs',
+    muscle_group: 'quads',
     description: 'Single-leg squat with the rear foot on a bench; builds strength and stability.',
   },
   {
     id: 'ex-025',
     name: 'Leg Extension',
-    muscle_group: 'legs',
+    muscle_group: 'quads',
     description: 'Seated machine extension for direct quad isolation and pump.',
   },
   {
     id: 'ex-026',
     name: 'Lying Leg Curl',
-    muscle_group: 'legs',
+    muscle_group: 'hamstrings',
     description: 'Lying machine curl; excellent isolation for the hamstrings.',
   },
   {
     id: 'ex-027',
     name: 'Seated Leg Curl',
-    muscle_group: 'legs',
+    muscle_group: 'hamstrings',
     description: 'Seated machine curl that trains the hamstrings in a stretched position.',
   },
   {
     id: 'ex-028',
     name: 'Barbell Hip Thrust',
-    muscle_group: 'legs',
+    muscle_group: 'glutes',
     description: 'Hip thrust with your back on a bench; the most effective glute builder.',
   },
   {
     id: 'ex-029',
     name: 'Walking Lunges',
-    muscle_group: 'legs',
+    muscle_group: 'glutes',
     description: 'Lunges with dumbbells in hand; works the quads, glutes and balance.',
   },
   {
     id: 'ex-030',
     name: 'Standing Calf Raises',
-    muscle_group: 'legs',
+    muscle_group: 'calves',
     description: 'Raise onto your toes on a machine or weighted step; builds the gastrocnemius.',
   },
   {
     id: 'ex-031',
     name: 'Seated Calf Raises',
-    muscle_group: 'legs',
+    muscle_group: 'calves',
     description: 'Seated calf raises that target the soleus for thicker calves.',
   },
   {
     id: 'ex-032',
     name: 'Hack Squat',
-    muscle_group: 'legs',
+    muscle_group: 'quads',
     description: 'Guided squat on the hack machine; isolates the quads safely.',
+  },
+  {
+    id: 'ex-067',
+    name: 'Cable Glute Kickback',
+    muscle_group: 'glutes',
+    description: 'Ankle strap on a low cable; kick the leg back and squeeze the glute at the top.',
+  },
+  {
+    id: 'ex-068',
+    name: 'Hip Abduction Machine',
+    muscle_group: 'glutes',
+    description: 'Push the pads apart against resistance to build the side glutes (gluteus medius).',
   },
 
   // Shoulders
@@ -272,66 +308,92 @@ export const EXERCISES: Exercise[] = [
     description: 'Shrug the weight towards your ears to build the upper traps.',
   },
 
-  // Arms
+  // Biceps and triceps
   {
     id: 'ex-041',
     name: 'Barbell Bicep Curl',
-    muscle_group: 'arms',
+    muscle_group: 'biceps',
     description: 'Straight or EZ-bar curls; the foundation of bicep mass.',
   },
   {
     id: 'ex-042',
     name: 'Incline Dumbbell Curl',
-    muscle_group: 'arms',
+    muscle_group: 'biceps',
     description: 'Curls on a 60° incline bench that fully stretch the long head of the biceps.',
   },
   {
     id: 'ex-043',
     name: 'Hammer Curl',
-    muscle_group: 'arms',
+    muscle_group: 'biceps',
     description: 'Neutral grip curls for the brachialis and brachioradialis.',
   },
   {
     id: 'ex-044',
     name: 'Preacher Curl',
-    muscle_group: 'arms',
+    muscle_group: 'biceps',
     description: 'Arms braced on a preacher bench, removing momentum to isolate the biceps.',
   },
   {
     id: 'ex-045',
     name: 'Cable Bicep Curl',
-    muscle_group: 'arms',
+    muscle_group: 'biceps',
     description: 'Cable curls with a short bar or rope for even tension.',
   },
   {
     id: 'ex-046',
     name: 'Triceps Rope Pushdown',
-    muscle_group: 'arms',
+    muscle_group: 'triceps',
     description: 'Rope pushdowns; spread the rope at the bottom to hit the lateral head.',
   },
   {
     id: 'ex-047',
     name: 'Straight Bar Triceps Pushdown',
-    muscle_group: 'arms',
+    muscle_group: 'triceps',
     description: 'Pushdowns with a straight or V-bar for maximum pressing strength.',
   },
   {
     id: 'ex-048',
     name: 'Skull Crushers',
-    muscle_group: 'arms',
+    muscle_group: 'triceps',
     description: 'Lying on a bench, lower an EZ bar towards your forehead; great for the long head.',
   },
   {
     id: 'ex-049',
     name: 'Close-Grip Bench Press',
-    muscle_group: 'arms',
+    muscle_group: 'triceps',
     description: 'Shoulder-width bench press; heavy compound work for triceps and inner chest.',
   },
   {
     id: 'ex-050',
     name: 'Overhead Dumbbell Triceps Extension',
-    muscle_group: 'arms',
+    muscle_group: 'triceps',
     description: 'One dumbbell held overhead with both hands; deep stretch on the long head.',
+  },
+
+  // Forearms
+  {
+    id: 'ex-063',
+    name: 'Wrist Curl',
+    muscle_group: 'forearms',
+    description: 'Forearms resting on a bench, palms up; curl the weight using only your wrists.',
+  },
+  {
+    id: 'ex-064',
+    name: 'Reverse Wrist Curl',
+    muscle_group: 'forearms',
+    description: 'Same as the wrist curl with palms down, for the top of the forearm.',
+  },
+  {
+    id: 'ex-065',
+    name: 'Reverse Barbell Curl',
+    muscle_group: 'forearms',
+    description: 'Overhand-grip curls that build the brachioradialis and grip strength.',
+  },
+  {
+    id: 'ex-066',
+    name: "Farmer's Walk",
+    muscle_group: 'forearms',
+    description: 'Walk with heavy dumbbells or handles at your sides; brutal for grip and traps.',
   },
 
   // Core
@@ -417,9 +479,21 @@ export function getExercise(id: string): Exercise | undefined {
   return EXERCISE_BY_ID.get(id)
 }
 
-export function searchExercises(query: string, filter: (e: Exercise) => boolean = () => true): Exercise[] {
+/**
+ * Exercises matching the query and filter, grouped by muscle group in `groupOrder`
+ * (groups missing from it go last).
+ */
+export function searchExercises(
+  query: string,
+  filter: (e: Exercise) => boolean = () => true,
+  groupOrder: MuscleGroup[] = MUSCLE_GROUPS
+): Exercise[] {
   const q = query.trim().toLowerCase()
+  const rank = (e: Exercise) => {
+    const index = groupOrder.indexOf(e.muscle_group)
+    return index === -1 ? groupOrder.length : index
+  }
   return EXERCISES.filter(
     (e) => filter(e) && (!q || e.name.toLowerCase().includes(q) || e.description.toLowerCase().includes(q))
-  )
+  ).sort((a, b) => rank(a) - rank(b))
 }

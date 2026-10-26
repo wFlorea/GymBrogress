@@ -3,14 +3,13 @@
 import { revalidatePath } from 'next/cache'
 import { getExercise } from '@/lib/exercises-data'
 import { resolveRoutine } from '@/lib/routines'
-import { DEFAULT_REPS, DEFAULT_SETS_PER_EXERCISE, MAX_REPS, MAX_WEIGHT_KG } from '@/lib/sets'
+import { DEFAULT_REPS, MAX_REPS, MAX_SETS_PER_EXERCISE, MAX_WEIGHT_KG, MIN_SETS_PER_EXERCISE, isValidSetCount } from '@/lib/sets'
 import { isSplitType, isWorkoutSplit } from '@/lib/splits'
 import { dbFail, fail, ok } from '@/lib/data/action-result'
 import { getRoutineTemplates } from '@/lib/data/plans'
 import { getSession, getToday } from '@/lib/data/session'
-import { SET_COLUMNS, sortSets, toWorkoutSet } from '@/lib/data/workouts'
-import type { ActionResult, Exercise, WorkoutSet, WorkoutSplit } from '@/lib/types'
-
+import { SET_COLUMNS, getLastPerformance, sortSets, toWorkoutSet } from '@/lib/data/workouts'
+import type { ActionResult, IsoDate, PlannedExercise, SetValues, WorkoutSet, WorkoutSplit } from '@/lib/types'
 
 /** The tracker keeps its own state after sync/finish, so it only needs a refresh on start. */
 function revalidateWorkout({ tracker = false } = {}) {
@@ -20,18 +19,31 @@ function revalidateWorkout({ tracker = false } = {}) {
   revalidatePath('/profile')
 }
 
-function seedSets(logId: string, exercises: Exercise[]) {
-  return exercises.flatMap((exercise) =>
-    Array.from({ length: DEFAULT_SETS_PER_EXERCISE }, (_, i) => ({
-      workout_log_id: logId,
-      exercise_id: exercise.id,
-      exercise_name: exercise.name,
-      set_number: i + 1,
-      actual_reps: DEFAULT_REPS,
-      actual_weight: 0,
-      is_completed: false,
-    }))
-  )
+/**
+ * New sets for `exercises`, as many as the routine asks for. Each starts from the reps and weight
+ * of the same set last time; extra sets repeat the last one. Nothing is ticked off.
+ */
+async function seedSets(logId: string, exercises: PlannedExercise[], today: IsoDate) {
+  // Starting from defaults beats failing the whole workout when the history can't be read.
+  const previous = await getLastPerformance(exercises.map((e) => e.id), today).catch((error) => {
+    console.error('[seedSets]', error)
+    return new Map<string, SetValues[]>()
+  })
+  return exercises.flatMap((exercise) => {
+    const last = previous.get(exercise.id) ?? []
+    return Array.from({ length: exercise.sets }, (_, i) => {
+      const values = last[i] ?? last.at(-1)
+      return {
+        workout_log_id: logId,
+        exercise_id: exercise.id,
+        exercise_name: exercise.name,
+        set_number: i + 1,
+        actual_reps: values?.actual_reps ?? DEFAULT_REPS,
+        actual_weight: values?.actual_weight ?? 0,
+        is_completed: false,
+      }
+    })
+  })
 }
 
 /** Starts today's workout with `split`, adding its routine if the day has no sets yet. */
@@ -53,7 +65,7 @@ export async function startWorkout(split: WorkoutSplit): Promise<ActionResult> {
 
   const setCount: number = log.workout_sets?.[0]?.count ?? 0
   if (setCount === 0) {
-    const sets = seedSets(log.id, resolveRoutine(split, templates))
+    const sets = await seedSets(log.id, resolveRoutine(split, templates), today)
     if (sets.length > 0) {
       const { error: seedError } = await supabase.from('workout_sets').insert(sets)
       if (seedError) return dbFail('startWorkout', seedError, 'Could not add the exercises. Please try again.')
@@ -65,7 +77,6 @@ export async function startWorkout(split: WorkoutSplit): Promise<ActionResult> {
 }
 
 export type SetPatch = Partial<Pick<WorkoutSet, 'actual_reps' | 'actual_weight' | 'is_completed'>>
-export type SetValues = Pick<WorkoutSet, 'actual_reps' | 'actual_weight'>
 
 function validatePatch(patch: SetPatch): SetPatch | string {
   const clean: SetPatch = {}
@@ -126,6 +137,35 @@ export async function addSet(logId: string, exerciseId: string, values: SetValue
   return ok(toWorkoutSet(data))
 }
 
+/** Adds an exercise that has no sets in the workout yet, with `setCount` sets filled in from last time. */
+export async function addExerciseToWorkout(
+  logId: string,
+  exerciseId: string,
+  setCount: number
+): Promise<ActionResult<WorkoutSet[]>> {
+  const exercise = getExercise(exerciseId)
+  if (typeof logId !== 'string' || !exercise) return fail('Unknown exercise.')
+  if (!isValidSetCount(setCount)) return fail(`Pick ${MIN_SETS_PER_EXERCISE} to ${MAX_SETS_PER_EXERCISE} sets.`)
+
+  const [{ supabase }, today] = await Promise.all([getSession(), getToday()])
+  const { count, error: readError } = await supabase
+    .from('workout_sets')
+    .select('id', { count: 'exact', head: true })
+    .eq('workout_log_id', logId)
+    .eq('exercise_id', exerciseId)
+  if (readError) return dbFail('addExerciseToWorkout', readError)
+  if (count) return fail(`${exercise.name} is already in this workout.`)
+
+  const { data, error } = await supabase
+    .from('workout_sets')
+    .insert(await seedSets(logId, [{ ...exercise, sets: setCount }], today))
+    .select(SET_COLUMNS)
+  // Row-level security rejects logs that belong to someone else.
+  if (error) return dbFail('addExerciseToWorkout', error, 'Could not add the exercise. Please try again.')
+
+  return ok(sortSets(data.map(toWorkoutSet)))
+}
+
 export async function updateSet(setId: string, patch: SetPatch): Promise<ActionResult> {
   const clean = validatePatch(patch ?? {})
   if (typeof clean === 'string') return fail(clean)
@@ -137,11 +177,45 @@ export async function updateSet(setId: string, patch: SetPatch): Promise<ActionR
   return ok()
 }
 
+/** Deletes a set and renumbers the exercise's other sets so they stay 1, 2, 3… */
 export async function removeSet(setId: string): Promise<ActionResult> {
   const { supabase } = await getSession()
-  const { error } = await supabase.from('workout_sets').delete().eq('id', setId)
+  const { data: removed, error } = await supabase
+    .from('workout_sets')
+    .delete()
+    .eq('id', setId)
+    .select('workout_log_id, exercise_id')
+    .maybeSingle()
   if (error) return dbFail('removeSet', error, 'Could not remove the set. Please try again.')
+
+  // The set is gone either way; a numbering gap only shows until the next delete.
+  if (removed) {
+    const renumbered = await renumberSets(supabase, removed.workout_log_id, removed.exercise_id)
+    if (renumbered.error) console.error('removeSet:', renumbered.error.message)
+  }
   return ok()
+}
+
+async function renumberSets(
+  supabase: Awaited<ReturnType<typeof getSession>>['supabase'],
+  logId: string,
+  exerciseId: string
+): Promise<{ error: { message: string } | null }> {
+  const { data: sets, error } = await supabase
+    .from('workout_sets')
+    .select('id, set_number')
+    .eq('workout_log_id', logId)
+    .eq('exercise_id', exerciseId)
+    .order('set_number')
+  if (error) return { error }
+
+  // In ascending order, so a set only ever moves down into a number that is already free.
+  for (const [i, set] of sets.entries()) {
+    if (set.set_number === i + 1) continue
+    const { error: updateError } = await supabase.from('workout_sets').update({ set_number: i + 1 }).eq('id', set.id)
+    if (updateError) return { error: updateError }
+  }
+  return { error: null }
 }
 
 /**
@@ -150,7 +224,7 @@ export async function removeSet(setId: string): Promise<ActionResult> {
  * Returns the session's sets afterwards.
  */
 export async function syncWithPlan(logId: string): Promise<ActionResult<WorkoutSet[]>> {
-  const [{ user, supabase }, templates] = await Promise.all([getSession(), getRoutineTemplates()])
+  const [{ user, supabase }, templates, today] = await Promise.all([getSession(), getRoutineTemplates(), getToday()])
 
   const { data: log, error } = await supabase
     .from('workout_logs')
@@ -177,7 +251,7 @@ export async function syncWithPlan(logId: string): Promise<ActionResult<WorkoutS
 
   const missing = planned.filter((e) => !loggedIds.has(e.id))
   if (missing.length > 0) {
-    const { error: insertError } = await supabase.from('workout_sets').insert(seedSets(log.id, missing))
+    const { error: insertError } = await supabase.from('workout_sets').insert(await seedSets(log.id, missing, today))
     if (insertError) return dbFail('syncWithPlan', insertError)
   }
 

@@ -1,5 +1,6 @@
 import 'server-only'
 import { cache } from 'react'
+import { DEFAULT_SETS_PER_EXERCISE, isValidSetCount } from '@/lib/sets'
 import { REST_DAY, isSplitType, isWorkoutSplit } from '@/lib/splits'
 import type { DatePlans, IsoDate, RoutineTemplates, WeeklyPlan } from '@/lib/types'
 import { getSession } from './session'
@@ -42,13 +43,18 @@ export const getRoutineTemplates = cache(async (): Promise<RoutineTemplates> => 
   const { user, supabase } = await getSession()
   const { data, error } = await supabase
     .from('routine_templates')
-    .select('split, exercise_ids')
+    .select('split, exercise_ids, exercise_sets')
     .eq('user_id', user.id)
   if (error) throw new Error(`Could not load your routines: ${error.message}`)
 
   const templates: RoutineTemplates = {}
   for (const row of data) {
-    if (isWorkoutSplit(row.split)) templates[row.split] = row.exercise_ids ?? []
+    if (!isWorkoutSplit(row.split)) continue
+    const setCounts: Record<string, unknown> = row.exercise_sets ?? {}
+    templates[row.split] = (row.exercise_ids ?? []).map((exerciseId: string) => {
+      const sets = setCounts[exerciseId]
+      return { exerciseId, sets: isValidSetCount(sets) ? sets : DEFAULT_SETS_PER_EXERCISE }
+    })
   }
   return templates
 })

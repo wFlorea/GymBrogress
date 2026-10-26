@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ActionResult, WorkoutSet } from '@/lib/types'
-import { addSet, removeSet, updateSet, type SetPatch, type SetValues } from './actions'
+import type { ActionResult, SetValues, WorkoutSet } from '@/lib/types'
+import { addSet, removeSet, updateSet, type SetPatch } from './actions'
 
 const SAVE_DELAY_MS = 600
 const OFFLINE_MESSAGE = 'Could not reach the server. Check your connection; your last change may not be saved.'

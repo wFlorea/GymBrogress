@@ -12,14 +12,19 @@ const NAV_ITEMS = [
   { name: 'Profile', href: '/profile', icon: User },
 ]
 
-/** Pages that belong to a tab without being under its path. */
-const TAB_ALIASES: Record<string, string> = { '/exercises': '/profile' }
+/** Sections (with their sub-pages) that belong to a tab without being under its path. */
+const TAB_ALIASES: Record<string, string> = { '/exercises': '/profile', '/progress': '/profile' }
+
+function tabPath(pathname: string): string {
+  const section = `/${pathname.split('/')[1] ?? ''}`
+  return TAB_ALIASES[section] ?? pathname
+}
 
 export function BottomNav() {
   const pathname = usePathname()
   if (pathname === '/login') return null
 
-  const current = TAB_ALIASES[pathname] ?? pathname
+  const current = tabPath(pathname)
 
   return (
     <nav

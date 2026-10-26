@@ -4,7 +4,19 @@
 /** A calendar date in `YYYY-MM-DD` form. */
 export type IsoDate = string
 
-export type MuscleGroup = 'chest' | 'back' | 'legs' | 'arms' | 'shoulders' | 'core' | 'cardio'
+export type MuscleGroup =
+  | 'chest'
+  | 'back'
+  | 'shoulders'
+  | 'biceps'
+  | 'triceps'
+  | 'forearms'
+  | 'core'
+  | 'glutes'
+  | 'quads'
+  | 'hamstrings'
+  | 'calves'
+  | 'cardio'
 
 export interface Exercise {
   id: string
@@ -35,11 +47,30 @@ export interface SplitOption {
   name: string
   emoji: string
   description: string
+  /** Most relevant first; the exercise pickers recommend exercises in this order. */
   targetMuscleGroups: MuscleGroup[]
 }
 
-/** The user's exercise list per split; splits without an entry use the default routine. */
-export type RoutineTemplates = Partial<Record<WorkoutSplit, string[]>>
+/** One exercise of a routine and how many sets to do. */
+export interface RoutineItem {
+  exerciseId: string
+  sets: number
+}
+
+/** An exercise as planned in a routine. */
+export interface PlannedExercise extends Exercise {
+  sets: number
+}
+
+/** The user's routine per split; splits without an entry use the default routine. */
+export type RoutineTemplates = Partial<Record<WorkoutSplit, RoutineItem[]>>
+
+export interface UserSettings {
+  /** Order of the routines in Plan; splits missing from it follow in the default order. */
+  splitOrder: WorkoutSplit[]
+  /** Exercises pinned on the Progress page. */
+  trackedExerciseIds: string[]
+}
 
 /** Splits planned for specific dates (overrides of the weekly plan). */
 export type DatePlans = Record<IsoDate, SplitType>
@@ -57,6 +88,8 @@ export interface WorkoutSet {
   is_completed: boolean
 }
 
+export type SetValues = Pick<WorkoutSet, 'actual_reps' | 'actual_weight'>
+
 export interface WorkoutDay {
   id: string
   date: IsoDate
@@ -71,7 +104,24 @@ export interface DaySummary {
   split: SplitType
   totalSets: number
   completedSets: number
+  totalExercises: number
+  /** Exercises whose sets are all ticked off. */
+  completedExercises: number
   finished: boolean
+}
+
+/** An exercise the user has completed at least one set of. */
+export interface ExerciseHistory {
+  exerciseId: string
+  name: string
+  bestWeight: number
+  lastDate: IsoDate
+}
+
+/** Heaviest completed set of an exercise in one month (`YYYY-MM`). */
+export interface MonthlyBest {
+  month: string
+  maxWeight: number
 }
 
 /** Result of a server action called from a client component. */

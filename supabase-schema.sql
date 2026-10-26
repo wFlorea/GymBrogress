@@ -12,7 +12,8 @@ CREATE TABLE weekly_plans (
   UNIQUE (user_id, day_of_week)
 );
 
--- Exercises the user wants for each split (ordered exercise ids from src/lib/exercises-data.ts).
+-- Exercises the user wants for each split (ordered exercise ids from src/lib/exercises-data.ts)
+-- and the sets planned for each ({"ex-001": 3, ...}; missing ids use the default of 3).
 -- A split without a row uses the app's default routine.
 CREATE TABLE routine_templates (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -20,6 +21,7 @@ CREATE TABLE routine_templates (
   split TEXT NOT NULL CHECK (split IN ('Push', 'Pull', 'Legs', 'Upper', 'Lower', 'Arms', 'Chest',
                                        'Back', 'Shoulders', 'Cardio & Core', 'Full Body')),
   exercise_ids TEXT[] NOT NULL DEFAULT '{}',
+  exercise_sets JSONB NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(exercise_sets) = 'object'),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   UNIQUE (user_id, split)
 );
@@ -50,11 +52,21 @@ CREATE TABLE workout_sets (
 );
 
 CREATE INDEX workout_sets_workout_log_id_idx ON workout_sets (workout_log_id);
+CREATE INDEX workout_sets_exercise_id_idx ON workout_sets (exercise_id);
+
+-- Per-user preferences: the order of the routines in Plan and the exercises pinned on Progress.
+CREATE TABLE user_settings (
+  user_id UUID PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
+  split_order TEXT[] NOT NULL DEFAULT '{}' CHECK (cardinality(split_order) <= 20),
+  tracked_exercise_ids TEXT[] NOT NULL DEFAULT '{}' CHECK (cardinality(tracked_exercise_ids) <= 30),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
 
 ALTER TABLE weekly_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE routine_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workout_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workout_sets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can manage their own weekly plans" ON weekly_plans
   FOR ALL TO authenticated
@@ -74,3 +86,37 @@ CREATE POLICY "Users can manage their own workout sets" ON workout_sets
                  WHERE l.id = workout_sets.workout_log_id AND l.user_id = (SELECT auth.uid())))
   WITH CHECK (EXISTS (SELECT 1 FROM workout_logs l
                       WHERE l.id = workout_sets.workout_log_id AND l.user_id = (SELECT auth.uid())));
+
+CREATE POLICY "Users can manage their own settings" ON user_settings
+  FOR ALL TO authenticated
+  USING ((SELECT auth.uid()) = user_id) WITH CHECK ((SELECT auth.uid()) = user_id);
+
+REVOKE ALL ON user_settings FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON user_settings TO authenticated;
+
+-- Progress page. security_invoker keeps the RLS of the underlying tables.
+-- Heaviest completed set of each exercise per month.
+CREATE VIEW exercise_monthly_bests WITH (security_invoker = true) AS
+SELECT l.user_id,
+       s.exercise_id,
+       to_char(l.date, 'YYYY-MM') AS month,
+       max(s.actual_weight) AS max_weight
+FROM workout_sets s
+JOIN workout_logs l ON l.id = s.workout_log_id
+WHERE s.is_completed
+GROUP BY l.user_id, s.exercise_id, to_char(l.date, 'YYYY-MM');
+
+-- Every exercise with a completed set: its latest name, best weight and last date.
+CREATE VIEW exercise_history WITH (security_invoker = true) AS
+SELECT l.user_id,
+       s.exercise_id,
+       (array_agg(s.exercise_name ORDER BY l.date DESC))[1] AS exercise_name,
+       max(s.actual_weight) AS best_weight,
+       max(l.date) AS last_date
+FROM workout_sets s
+JOIN workout_logs l ON l.id = s.workout_log_id
+WHERE s.is_completed
+GROUP BY l.user_id, s.exercise_id;
+
+REVOKE ALL ON exercise_monthly_bests, exercise_history FROM anon;
+GRANT SELECT ON exercise_monthly_bests, exercise_history TO authenticated;

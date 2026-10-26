@@ -143,7 +143,7 @@ export default async function DashboardPage() {
 
 function workoutSummary(day: DaySummary | undefined): string {
   if (!day || day.totalSets === 0) return 'Ready for today’s session? Time to make progress!'
-  const progress = `${day.completedSets} of ${plural(day.totalSets, 'set')}`
+  const progress = `${day.completedExercises} of ${plural(day.totalExercises, 'exercise')}`
   return day.finished ? `Great work! You completed ${progress}.` : `You have completed ${progress}.`
 }
 

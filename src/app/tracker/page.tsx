@@ -7,7 +7,6 @@ import { dayOfWeek, formatDate } from '@/lib/date'
 import { MUSCLE_GROUP_LABELS } from '@/lib/exercises-data'
 import { plural } from '@/lib/format'
 import { resolveRoutine } from '@/lib/routines'
-import { DEFAULT_SETS_PER_EXERCISE } from '@/lib/sets'
 import { REST_DAY, getSplitOption } from '@/lib/splits'
 import { getRoutineTemplates, getWeeklyPlan } from '@/lib/data/plans'
 import { getToday } from '@/lib/data/session'
@@ -83,7 +82,8 @@ export default async function TrackerPage() {
           <div>
             <h2 className="text-lg font-black text-white">Ready to train?</h2>
             <p className="mt-1 text-xs text-muted">
-              {plural(exercises.length, 'exercise')} with {DEFAULT_SETS_PER_EXERCISE} sets each. You can change sets and add exercises as you go.
+              {plural(exercises.length, 'exercise')}, filled in with what you lifted last time. You can change sets and
+              add exercises as you go.
             </p>
           </div>
           <ol className="space-y-2">
@@ -93,7 +93,10 @@ export default async function TrackerPage() {
                   {index + 1}
                 </span>
                 <span className="min-w-0 flex-1 text-sm font-bold text-white">{exercise.name}</span>
-                <span className="shrink-0 text-[10px] text-muted">{MUSCLE_GROUP_LABELS[exercise.muscle_group]}</span>
+                <span className="shrink-0 text-right text-[10px] leading-tight text-muted">
+                  <span className="block font-bold text-zinc-300">{plural(exercise.sets, 'set')}</span>
+                  {MUSCLE_GROUP_LABELS[exercise.muscle_group]}
+                </span>
               </li>
             ))}
           </ol>
