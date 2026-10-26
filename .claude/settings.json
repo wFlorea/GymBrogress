@@ -1,0 +1,6 @@
+{
+  "permissions": {
+    "allow": ["Bash(pnpm lint)", "Bash(pnpm build)", "Bash(git status)", "Bash(git diff:*)", "Bash(git log:*)"],
+    "deny": ["Read(./.env*)", "Read(./node_modules/**)", "Read(./.next/**)", "Read(./pnpm-lock.yaml)"]
+  }
+}

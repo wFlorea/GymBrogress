@@ -1,274 +1,206 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
-import { getAuthUser } from '@/utils/supabase/auth-user'
 import { revalidatePath } from 'next/cache'
-import {
-  parseWeeklyPlan,
-  parseCalendarWorkout,
-  serializeCalendarWorkout,
-  getExercisesForSplit,
-} from '@/lib/types'
-import { getRoutineTemplates } from '@/app/plan/actions'
+import { getExercise } from '@/lib/exercises-data'
+import { resolveRoutine } from '@/lib/routines'
+import { DEFAULT_REPS, DEFAULT_SETS_PER_EXERCISE, MAX_REPS, MAX_WEIGHT_KG } from '@/lib/sets'
+import { isSplitType, isWorkoutSplit } from '@/lib/splits'
+import { dbFail, fail, ok } from '@/lib/data/action-result'
+import { getRoutineTemplates } from '@/lib/data/plans'
+import { getSession, getToday } from '@/lib/data/session'
+import { SET_COLUMNS, sortSets, toWorkoutSet } from '@/lib/data/workouts'
+import type { ActionResult, Exercise, WorkoutSet, WorkoutSplit } from '@/lib/types'
 
-export async function getTodayWorkoutLog() {
-  const supabase = await createClient()
-  const user = await getAuthUser()
-  if (!user) return null
 
-  const now = new Date()
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  const dayOfWeek = (now.getDay() + 6) % 7 // Monday = 0, Sunday = 6
+/** The tracker keeps its own state after sync/finish, so it only needs a refresh on start. */
+function revalidateWorkout({ tracker = false } = {}) {
+  if (tracker) revalidatePath('/tracker')
+  revalidatePath('/dashboard')
+  revalidatePath('/schedule')
+  revalidatePath('/profile')
+}
 
-  // 1. Fetch today's log from workout_logs table (which holds calendar entries)
-  const { data: existingLog } = await supabase
-    .from('workout_logs')
-    .select('*, workout_sets(*)')
-    .eq('user_id', user.id)
-    .eq('date', today)
-    .maybeSingle()
-
-  const parsedLog = parseCalendarWorkout(existingLog?.workout_name)
-
-  let split = ''
-  let workStatus = parsedLog.workStatus
-
-  // Prioritize calendar split if set
-  if (parsedLog.split) {
-    split = parsedLog.split
-  } else {
-    // Fall back to recurring weekly schedule
-    const { data: planned } = await supabase
-      .from('weekly_plans')
-      .select('workout_name')
-      .eq('user_id', user.id)
-      .eq('day_of_week', dayOfWeek)
-      .maybeSingle()
-
-    split = parseWeeklyPlan(planned?.workout_name).split
-  }
-
-  const isRestDay =
-    !split ||
-    split.toLowerCase().includes('rest') ||
-    split.toLowerCase().includes('pauz') ||
-    split.toLowerCase().includes('odihn')
-
-  // Retrieve exercises for this split from user templates
-  const userTemplates = await getRoutineTemplates()
-  const exercises = getExercisesForSplit(split, userTemplates)
-
-  if (existingLog) {
-    // If the log exists but has no sets yet and we have planned exercises, auto-seed Set 1 for each
-    if (
-      (!existingLog.workout_sets || existingLog.workout_sets.length === 0) &&
-      exercises.length > 0 &&
-      !isRestDay
-    ) {
-      const setsToInsert = exercises.map((ex) => ({
-        workout_log_id: existingLog.id,
-        exercise_id: ex.id,
-        exercise_name: ex.name,
-        set_number: 1,
-        target_reps: 10,
-        target_weight: 0,
-        actual_reps: 10,
-        actual_weight: 0,
-        is_completed: false,
-      }))
-
-      await supabase.from('workout_sets').insert(setsToInsert)
-
-      // Re-fetch updated log
-      const { data: reloadedLog } = await supabase
-        .from('workout_logs')
-        .select('*, workout_sets(*)')
-        .eq('id', existingLog.id)
-        .single()
-
-      return {
-        ...reloadedLog,
-        splitName: split,
-        workStatus,
-        isRestDay: false,
-        plannedExercises: exercises,
-      }
-    }
-
-    return {
-      ...existingLog,
-      splitName: split,
-      workStatus,
-      isRestDay,
-      plannedExercises: exercises,
-    }
-  }
-
-  // If today is a Rest Day and no log exists yet, return rest state
-  if (isRestDay) {
-    return {
-      id: null,
-      date: today,
-      workout_name: 'Rest Day',
-      splitName: 'Rest Day',
-      workStatus,
-      isRestDay: true,
-      plannedExercises: [],
-      workout_sets: [],
-    }
-  }
-
-  // Otherwise, create a new workout log for today
-  const workoutName = serializeCalendarWorkout(split as any, workStatus)
-  const { data: newLog, error } = await supabase
-    .from('workout_logs')
-    .insert({
-      user_id: user.id,
-      date: today,
-      workout_name: workoutName,
-    })
-    .select('*')
-    .single()
-
-  if (error || !newLog) {
-    console.error('Error creating workout log:', error)
-    return null
-  }
-
-  // Auto-populate Set 1 for each planned exercise
-  if (exercises.length > 0) {
-    const setsToInsert = exercises.map((ex) => ({
-      workout_log_id: newLog.id,
-      exercise_id: ex.id,
-      exercise_name: ex.name,
-      set_number: 1,
-      target_reps: 10,
-      target_weight: 0,
-      actual_reps: 10,
+function seedSets(logId: string, exercises: Exercise[]) {
+  return exercises.flatMap((exercise) =>
+    Array.from({ length: DEFAULT_SETS_PER_EXERCISE }, (_, i) => ({
+      workout_log_id: logId,
+      exercise_id: exercise.id,
+      exercise_name: exercise.name,
+      set_number: i + 1,
+      actual_reps: DEFAULT_REPS,
       actual_weight: 0,
       is_completed: false,
     }))
-
-    await supabase.from('workout_sets').insert(setsToInsert)
-  }
-
-  // Fetch complete created log
-  const { data: completeLog } = await supabase
-    .from('workout_logs')
-    .select('*, workout_sets(*)')
-    .eq('id', newLog.id)
-    .single()
-
-  return {
-    ...completeLog,
-    splitName: split,
-    workStatus,
-    isRestDay: false,
-    plannedExercises: exercises,
-  }
+  )
 }
 
-export async function startAdHocWorkout() {
-  const supabase = await createClient()
-  const user = await getAuthUser()
-  if (!user) throw new Error('Not authenticated')
+/** Starts today's workout with `split`, adding its routine if the day has no sets yet. */
+export async function startWorkout(split: WorkoutSplit): Promise<ActionResult> {
+  if (!isWorkoutSplit(split)) return fail('Unknown workout type.')
 
-  const now = new Date()
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const [{ user, supabase }, today, templates] = await Promise.all([
+    getSession(),
+    getToday(),
+    getRoutineTemplates(),
+  ])
 
-  const { data: newLog, error } = await supabase
+  const { data: log, error } = await supabase
     .from('workout_logs')
-    .insert({
-      user_id: user.id,
-      date: today,
-      workout_name: serializeCalendarWorkout('Full Body', 'none'),
-    })
-    .select('*, workout_sets(*)')
+    .upsert({ user_id: user.id, date: today, split }, { onConflict: 'user_id,date' })
+    .select('id, workout_sets(count)')
     .single()
+  if (error) return dbFail('startWorkout', error, 'Could not start the workout. Please try again.')
 
-  if (error) {
-    console.error('Error starting ad-hoc workout:', error)
-    throw new Error('Eroare la crearea antrenamentului')
+  const setCount: number = log.workout_sets?.[0]?.count ?? 0
+  if (setCount === 0) {
+    const sets = seedSets(log.id, resolveRoutine(split, templates))
+    if (sets.length > 0) {
+      const { error: seedError } = await supabase.from('workout_sets').insert(sets)
+      if (seedError) return dbFail('startWorkout', seedError, 'Could not add the exercises. Please try again.')
+    }
   }
 
-  revalidatePath('/tracker')
-  revalidatePath('/dashboard')
-  return newLog
+  revalidateWorkout({ tracker: true })
+  return ok()
 }
 
-export async function addExerciseSet(
-  workoutLogId: string,
-  exerciseId: string,
-  exerciseName: string,
-  copyWeight = 0,
-  copyReps = 10
-) {
-  const supabase = await createClient()
+export type SetPatch = Partial<Pick<WorkoutSet, 'actual_reps' | 'actual_weight' | 'is_completed'>>
+export type SetValues = Pick<WorkoutSet, 'actual_reps' | 'actual_weight'>
 
-  // Find highest set number for this exercise in this log
-  const { data: existingSets } = await supabase
+function validatePatch(patch: SetPatch): SetPatch | string {
+  const clean: SetPatch = {}
+  if (patch.actual_reps !== undefined) {
+    const reps = patch.actual_reps
+    if (!Number.isInteger(reps) || reps < 0 || reps > MAX_REPS) return `Reps must be a whole number from 0 to ${MAX_REPS}.`
+    clean.actual_reps = reps
+  }
+  if (patch.actual_weight !== undefined) {
+    const weight = patch.actual_weight
+    if (!Number.isFinite(weight) || weight < 0 || weight > MAX_WEIGHT_KG) return `Weight must be between 0 and ${MAX_WEIGHT_KG} kg.`
+    clean.actual_weight = Math.round(weight * 100) / 100
+  }
+  if (patch.is_completed !== undefined) {
+    if (typeof patch.is_completed !== 'boolean') return 'Invalid value.'
+    clean.is_completed = patch.is_completed
+  }
+  return Object.keys(clean).length > 0 ? clean : 'Nothing to save.'
+}
+
+/** Adds a set to an exercise with the reps and weight the app shows for it. */
+export async function addSet(logId: string, exerciseId: string, values: SetValues): Promise<ActionResult<WorkoutSet>> {
+  const exercise = getExercise(exerciseId)
+  if (typeof logId !== 'string' || !exercise) return fail('Unknown exercise.')
+  const clean = validatePatch({
+    actual_reps: values?.actual_reps ?? DEFAULT_REPS,
+    actual_weight: values?.actual_weight ?? 0,
+  })
+  if (typeof clean === 'string') return fail(clean)
+
+  const { supabase } = await getSession()
+  const { data: last, error: readError } = await supabase
     .from('workout_sets')
-    .select('set_number, actual_weight, actual_reps')
-    .eq('workout_log_id', workoutLogId)
+    .select('set_number')
+    .eq('workout_log_id', logId)
     .eq('exercise_id', exerciseId)
     .order('set_number', { ascending: false })
     .limit(1)
+    .maybeSingle()
+  if (readError) return dbFail('addSet', readError)
 
-  const nextSetNumber = existingSets && existingSets.length > 0 ? existingSets[0].set_number + 1 : 1
-  const defaultWeight = existingSets && existingSets.length > 0 ? existingSets[0].actual_weight : copyWeight
-  const defaultReps = existingSets && existingSets.length > 0 ? existingSets[0].actual_reps : copyReps
-
-  const { data: newSet, error } = await supabase
+  const { data, error } = await supabase
     .from('workout_sets')
     .insert({
-      workout_log_id: workoutLogId,
-      exercise_id: exerciseId,
-      exercise_name: exerciseName,
-      set_number: nextSetNumber,
-      target_reps: defaultReps,
-      target_weight: defaultWeight,
-      actual_reps: defaultReps,
-      actual_weight: defaultWeight,
+      workout_log_id: logId,
+      exercise_id: exercise.id,
+      exercise_name: exercise.name,
+      set_number: (last?.set_number ?? 0) + 1,
+      actual_reps: clean.actual_reps,
+      actual_weight: clean.actual_weight,
       is_completed: false,
     })
-    .select('*')
+    .select(SET_COLUMNS)
     .single()
+  // Row-level security rejects logs that belong to someone else.
+  if (error) return dbFail('addSet', error, 'Could not add the set. Please try again.')
 
-  if (error) {
-    console.error('Error adding set:', error)
-    throw error
+  return ok(toWorkoutSet(data))
+}
+
+export async function updateSet(setId: string, patch: SetPatch): Promise<ActionResult> {
+  const clean = validatePatch(patch ?? {})
+  if (typeof clean === 'string') return fail(clean)
+
+  const { supabase } = await getSession()
+  const { data, error } = await supabase.from('workout_sets').update(clean).eq('id', setId).select('id')
+  if (error) return dbFail('updateSet', error, 'Could not save the set. Please try again.')
+  if (data.length === 0) return fail('This set no longer exists. Reload the page.')
+  return ok()
+}
+
+export async function removeSet(setId: string): Promise<ActionResult> {
+  const { supabase } = await getSession()
+  const { error } = await supabase.from('workout_sets').delete().eq('id', setId)
+  if (error) return dbFail('removeSet', error, 'Could not remove the set. Please try again.')
+  return ok()
+}
+
+/**
+ * Matches the session to the day's current routine: adds planned exercises that have no sets
+ * and drops exercises that left the plan, unless they already have completed sets.
+ * Returns the session's sets afterwards.
+ */
+export async function syncWithPlan(logId: string): Promise<ActionResult<WorkoutSet[]>> {
+  const [{ user, supabase }, templates] = await Promise.all([getSession(), getRoutineTemplates()])
+
+  const { data: log, error } = await supabase
+    .from('workout_logs')
+    .select(`id, split, workout_sets(${SET_COLUMNS})`)
+    .eq('id', logId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (error) return dbFail('syncWithPlan', error)
+  if (!log || !isSplitType(log.split)) return fail('This workout no longer exists. Reload the page.')
+
+  const sets: WorkoutSet[] = (log.workout_sets ?? []).map(toWorkoutSet)
+  const planned = resolveRoutine(log.split, templates)
+  const plannedIds = new Set(planned.map((e) => e.id))
+  const loggedIds = new Set(sets.map((s) => s.exercise_id))
+  const completedIds = new Set(sets.filter((s) => s.is_completed).map((s) => s.exercise_id))
+
+  const staleSetIds = sets
+    .filter((s) => !plannedIds.has(s.exercise_id) && !completedIds.has(s.exercise_id))
+    .map((s) => s.id)
+  if (staleSetIds.length > 0) {
+    const { error: deleteError } = await supabase.from('workout_sets').delete().in('id', staleSetIds)
+    if (deleteError) return dbFail('syncWithPlan', deleteError)
   }
 
-  revalidatePath('/tracker')
-  revalidatePath('/dashboard')
-  return newSet
+  const missing = planned.filter((e) => !loggedIds.has(e.id))
+  if (missing.length > 0) {
+    const { error: insertError } = await supabase.from('workout_sets').insert(seedSets(log.id, missing))
+    if (insertError) return dbFail('syncWithPlan', insertError)
+  }
+
+  const { data: fresh, error: reloadError } = await supabase
+    .from('workout_sets')
+    .select(SET_COLUMNS)
+    .eq('workout_log_id', log.id)
+    .order('created_at')
+  if (reloadError) return dbFail('syncWithPlan', reloadError)
+
+  revalidateWorkout()
+  return ok(sortSets(fresh.map(toWorkoutSet)))
 }
 
-export async function updateSet(
-  setId: string,
-  data: { actual_reps?: number; actual_weight?: number; is_completed?: boolean }
-) {
-  const supabase = await createClient()
-
+export async function finishWorkout(logId: string): Promise<ActionResult> {
+  const { user, supabase } = await getSession()
   const { error } = await supabase
-    .from('workout_sets')
-    .update(data)
-    .eq('id', setId)
+    .from('workout_logs')
+    .update({ finished_at: new Date().toISOString() })
+    .eq('id', logId)
+    .eq('user_id', user.id)
+  if (error) return dbFail('finishWorkout', error, 'Could not finish the workout. Please try again.')
 
-  if (error) console.error('Error updating set:', error)
-  revalidatePath('/tracker')
-  revalidatePath('/dashboard')
-}
-
-export async function removeSet(setId: string) {
-  const supabase = await createClient()
-
-  const { error } = await supabase
-    .from('workout_sets')
-    .delete()
-    .eq('id', setId)
-
-  if (error) console.error('Error removing set:', error)
-  revalidatePath('/tracker')
-  revalidatePath('/dashboard')
+  revalidateWorkout()
+  return ok()
 }

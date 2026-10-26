@@ -1,58 +1,78 @@
-import { createClient } from '@/utils/supabase/server'
-import { getAuthUser } from '@/utils/supabase/auth-user'
+import type { ReactNode } from 'react'
+import Link from 'next/link'
+import { BookOpen, CalendarCheck, ChevronRight, Dumbbell, LogOut } from 'lucide-react'
 import { logout } from '@/app/login/actions'
-import { NotificationButton } from './NotificationButton'
-import { Bell, LogOut, Settings, User } from 'lucide-react'
+import { Card } from '@/components/ui/Card'
+import { Page, PageHeader, SectionTitle } from '@/components/ui/Page'
+import { SubmitButton } from '@/components/ui/SubmitButton'
+import { buttonStyles } from '@/components/ui/styles'
+import { monthOf } from '@/lib/date'
+import { EXERCISES } from '@/lib/exercises-data'
+import { plural } from '@/lib/format'
+import { getDisplayName, getToday, requireUser } from '@/lib/data/session'
+import { getWorkoutHistory } from '@/lib/data/workouts'
+import { GymHistoryCalendar } from './GymHistoryCalendar'
 
 export default async function ProfilePage() {
-  const supabase = await createClient()
-  const user = await getAuthUser()
+  const [user, today, history] = await Promise.all([requireUser(), getToday(), getWorkoutHistory()])
+
+  const name = getDisplayName(user)
+  const gymDates = history.filter((day) => day.completedSets > 0).map((day) => day.date)
+  const thisMonth = gymDates.filter((date) => monthOf(date) === monthOf(today)).length
 
   return (
-    <div className="p-4 pt-8 pb-20">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold">Profilul Meu</h1>
-        <p className="text-[var(--color-muted)] text-sm mt-1">
-          Gestionează-ți contul și setările.
-        </p>
+    <Page>
+      <PageHeader title="Profile" subtitle="Your account and training history." />
+
+      <Card className="mb-6 flex items-center gap-4 p-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-xl font-bold text-white shadow-md shadow-primary/20">
+          {name.charAt(0).toUpperCase()}
+        </div>
+        <div className="min-w-0">
+          <h2 className="truncate text-lg font-bold">{name}</h2>
+          {user.email && <p className="truncate text-sm text-muted">{user.email}</p>}
+        </div>
+      </Card>
+
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        <Stat icon={<Dumbbell size={18} />} value={gymDates.length} label="Workouts logged" />
+        <Stat icon={<CalendarCheck size={18} />} value={thisMonth} label="This month" />
       </div>
 
-      {/* User Card */}
-      <div className="bg-[var(--color-surface)] p-4 rounded-xl border border-[var(--color-border)] mb-6 flex items-center gap-4">
-        <div className="w-12 h-12 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md shadow-[#FF4500]/20">
-          {(user?.user_metadata?.name || user?.email || 'U').charAt(0).toUpperCase()}
-        </div>
-        <div>
-          <h2 className="font-bold text-lg">{user?.user_metadata?.name || 'Brogresser'}</h2>
-          <p className="text-[var(--color-muted)] text-sm">{user?.email}</p>
-        </div>
-      </div>
+      <section className="mb-6">
+        <SectionTitle>Gym history</SectionTitle>
+        <GymHistoryCalendar today={today} gymDates={gymDates} />
+      </section>
 
-      {/* Settings List */}
-      <div className="space-y-3 mb-8">
-        <div className="bg-[var(--color-surface)] p-4 rounded-xl border border-[var(--color-border)] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Bell size={20} className="text-[var(--color-primary)]" />
-            <span className="font-medium">Notificări Zilnice</span>
-          </div>
-          <NotificationButton />
-        </div>
+      <Link
+        href="/exercises"
+        className="mb-8 flex items-center justify-between rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-primary"
+      >
+        <span className="flex items-center gap-3">
+          <BookOpen size={20} className="text-primary" />
+          <span>
+            <span className="block font-medium">Exercise library</span>
+            <span className="text-xs text-muted">{plural(EXERCISES.length, 'exercise')} with technique tips</span>
+          </span>
+        </span>
+        <ChevronRight size={18} className="text-muted" />
+      </Link>
 
-        <div className="bg-[var(--color-surface)] p-4 rounded-xl border border-[var(--color-border)] flex items-center justify-between opacity-50 cursor-not-allowed">
-          <div className="flex items-center gap-3">
-            <Settings size={20} className="text-[var(--color-muted)]" />
-            <span className="font-medium">Setări Tema</span>
-          </div>
-          <span className="text-xs text-[var(--color-muted)]">În curând</span>
-        </div>
-      </div>
-
-      {/* Logout */}
       <form action={logout}>
-        <button className="w-full bg-red-900/20 text-red-500 border border-red-900/50 font-bold py-4 rounded-xl hover:bg-red-900/40 transition-colors flex items-center justify-center gap-2">
-          <LogOut size={20} /> Deconectare
-        </button>
+        <SubmitButton className={buttonStyles.danger} pendingLabel="Signing out…">
+          <LogOut size={20} /> Sign out
+        </SubmitButton>
       </form>
+    </Page>
+  )
+}
+
+function Stat({ icon, value, label }: { icon: ReactNode; value: number; label: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-4">
+      <span className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary">{icon}</span>
+      <span className="block text-2xl font-extrabold">{value}</span>
+      <span className="text-xs text-muted">{label}</span>
     </div>
   )
 }

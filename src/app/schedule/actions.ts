@@ -1,85 +1,84 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
-import { getAuthUser } from '@/utils/supabase/auth-user'
 import { revalidatePath } from 'next/cache'
-import {
-  parseWeeklyPlan,
-  serializeWeeklyPlan,
-  SplitType,
-  getExercisesForSplit,
-} from '@/lib/types'
-import { getRoutineTemplates } from '@/app/plan/actions'
+import { dayOfWeek, isIsoDate } from '@/lib/date'
+import { isSplitType } from '@/lib/splits'
+import { planningWindow } from '@/lib/schedule'
+import { dbFail, fail, ok } from '@/lib/data/action-result'
+import { getSession, getToday } from '@/lib/data/session'
+import { getWeeklyPlan } from '@/lib/data/plans'
+import type { ActionResult, IsoDate, SplitType } from '@/lib/types'
 
-export async function getWeeklyPlans() {
-  const supabase = await createClient()
-  const user = await getAuthUser()
-  if (!user) return []
-
-  const { data, error } = await supabase
-    .from('weekly_plans')
-    .select('*')
-    .eq('user_id', user.id)
-    .gte('day_of_week', 0)
-    .lte('day_of_week', 6)
-    .order('day_of_week', { ascending: true })
-
-  if (error) {
-    console.error('Error fetching weekly plans:', error)
-    return []
-  }
-
-  return data
+function revalidateSchedule() {
+  revalidatePath('/schedule')
+  revalidatePath('/dashboard')
+  revalidatePath('/tracker')
 }
 
-export async function updateDaySplit(dayOfWeek: number, newSplit: SplitType) {
-  const supabase = await createClient()
-  const user = await getAuthUser()
-  if (!user) throw new Error('Not authenticated')
+async function checkPlannableDate(date: unknown): Promise<string | null> {
+  if (!isIsoDate(date)) return 'Invalid date.'
+  const { first, last } = planningWindow(await getToday())
+  if (date < first || date > last) return 'You can only plan from today up to 4 weeks ahead.'
+  return null
+}
 
-  // Fetch current plan for this day
-  const { data: existingPlan } = await supabase
-    .from('weekly_plans')
-    .select('id, workout_name')
+/** Plans a split for one date (today or later, within the planning window). */
+export async function saveScheduleDay(date: IsoDate, split: SplitType): Promise<ActionResult> {
+  const dateError = await checkPlannableDate(date)
+  if (dateError) return fail(dateError)
+  if (!isSplitType(split)) return fail('Unknown workout type.')
+
+  const { user, supabase } = await getSession()
+  const { error } = await supabase
+    .from('workout_logs')
+    .upsert({ user_id: user.id, date, split }, { onConflict: 'user_id,date' })
+  if (error) return dbFail('saveScheduleDay', error, 'Could not save the schedule. Please try again.')
+
+  revalidateSchedule()
+  return ok()
+}
+
+/** Makes a date follow the repeating week again. Returns the split it falls back to. */
+export async function resetScheduleDay(date: IsoDate): Promise<ActionResult<SplitType>> {
+  const dateError = await checkPlannableDate(date)
+  if (dateError) return fail(dateError)
+
+  const { user, supabase } = await getSession()
+  const fallback = (await getWeeklyPlan())[dayOfWeek(date)]
+
+  const { data: log, error: readError } = await supabase
+    .from('workout_logs')
+    .select('id, workout_sets(count)')
     .eq('user_id', user.id)
-    .eq('day_of_week', dayOfWeek)
+    .eq('date', date)
     .maybeSingle()
+  if (readError) return dbFail('resetScheduleDay', readError)
 
-  // Get master exercises for this split from user's configured templates
-  const userTemplates = await getRoutineTemplates()
-  const exercises = getExercisesForSplit(newSplit, userTemplates)
-
-  const serialized = serializeWeeklyPlan(newSplit, exercises)
-
-  let error
-  if (existingPlan) {
-    const { error: updateError } = await supabase
-      .from('weekly_plans')
-      .update({ workout_name: serialized })
-      .eq('id', existingPlan.id)
-    error = updateError
-  } else {
-    const { error: insertError } = await supabase
-      .from('weekly_plans')
-      .insert({
-        user_id: user.id,
-        day_of_week: dayOfWeek,
-        workout_name: serialized,
-      })
-    error = insertError
+  if (log) {
+    const setCount: number = log.workout_sets?.[0]?.count ?? 0
+    // A day with logged sets keeps its row (the sets belong to it); only its split changes.
+    const { error } =
+      setCount > 0
+        ? await supabase.from('workout_logs').update({ split: fallback }).eq('id', log.id)
+        : await supabase.from('workout_logs').delete().eq('id', log.id)
+    if (error) return dbFail('resetScheduleDay', error, 'Could not reset the day. Please try again.')
   }
 
-  if (error) {
-    console.error('Error updating day split:', error)
-    throw new Error('Nu s-a putut salva programul.')
-  }
+  revalidateSchedule()
+  return ok(fallback)
+}
 
-  revalidatePath('/schedule')
-  revalidatePath('/calendar')
-  revalidatePath('/plan')
-  revalidatePath('/planner')
-  revalidatePath('/tracker')
-  revalidatePath('/dashboard')
+/** Sets the split a weekday uses whenever a date has no plan of its own. */
+export async function saveWeeklyDefault(day: number, split: SplitType): Promise<ActionResult> {
+  if (!Number.isInteger(day) || day < 0 || day > 6) return fail('Invalid weekday.')
+  if (!isSplitType(split)) return fail('Unknown workout type.')
 
-  return { success: true }
+  const { user, supabase } = await getSession()
+  const { error } = await supabase
+    .from('weekly_plans')
+    .upsert({ user_id: user.id, day_of_week: day, split }, { onConflict: 'user_id,day_of_week' })
+  if (error) return dbFail('saveWeeklyDefault', error, 'Could not save the weekly plan. Please try again.')
+
+  revalidateSchedule()
+  return ok()
 }

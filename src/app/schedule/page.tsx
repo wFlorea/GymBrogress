@@ -1,28 +1,32 @@
-import { getCalendarPlans } from '@/app/calendar/actions'
-import { getRoutineTemplates } from '@/app/plan/actions'
+import { Page, PageHeader } from '@/components/ui/Page'
+import { resolveRoutine } from '@/lib/routines'
+import { PLANNING_WEEKS, planningWindow } from '@/lib/schedule'
+import { SPLIT_OPTIONS } from '@/lib/splits'
+import { getDatePlans, getRoutineTemplates, getWeeklyPlan } from '@/lib/data/plans'
+import { getToday } from '@/lib/data/session'
+import type { SplitType } from '@/lib/types'
 import { ScheduleClient } from './ScheduleClient'
 
-export const dynamic = 'force-dynamic'
-
 export default async function SchedulePage() {
-  const [calendarPlans, routineTemplates] = await Promise.all([
-    getCalendarPlans(),
+  const today = await getToday()
+  const { weekStart, last } = planningWindow(today)
+  const [weeklyPlan, datePlans, templates] = await Promise.all([
+    getWeeklyPlan(),
+    getDatePlans(weekStart, last),
     getRoutineTemplates(),
   ])
 
-  return (
-    <div className="p-4 pt-8 pb-24 max-w-lg mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-black text-[var(--color-primary)]">Program Săptămânal</h1>
-        <p className="text-[var(--color-muted)] text-sm mt-1">
-          Vizualizarea săptămânii curente, sincronizată automat cu planificarea din Calendar.
-        </p>
-      </div>
+  const exerciseCounts = Object.fromEntries(
+    SPLIT_OPTIONS.map((option) => [option.id, resolveRoutine(option.id, templates).length])
+  ) as Record<SplitType, number>
 
-      <ScheduleClient
-        calendarPlans={calendarPlans}
-        routineTemplates={routineTemplates}
+  return (
+    <Page>
+      <PageHeader
+        title="Schedule"
+        subtitle={`Pick a workout for each day, up to ${PLANNING_WEEKS} weeks ahead. Days you don't change follow your repeating week.`}
       />
-    </div>
+      <ScheduleClient today={today} weeklyPlan={weeklyPlan} datePlans={datePlans} exerciseCounts={exerciseCounts} />
+    </Page>
   )
 }

@@ -1,318 +1,327 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import {
-  DAYS_OF_WEEK,
-  SPLIT_OPTIONS,
-  SplitType,
-  WorkStatus,
-  CalendarPlansMap,
-  RoutineTemplatesMap,
-  getExercisesForSplit,
-} from '@/lib/types'
-import Link from 'next/link'
-import {
-  Calendar as CalendarIcon,
-  ChevronLeft,
-  ChevronRight,
-  Layers,
-  ArrowRight,
-  Lock,
-  Sparkles,
-  Dumbbell,
-  Coffee,
-} from 'lucide-react'
+import { useOptimistic, useState, useTransition, type ReactNode } from 'react'
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Loader2, Lock, RotateCcw } from 'lucide-react'
+import { Alert } from '@/components/ui/Card'
+import { DAYS_OF_WEEK, addDays, formatDate } from '@/lib/date'
+import { plural } from '@/lib/format'
+import { PLANNING_WEEKS, planningWindow, splitForDate } from '@/lib/schedule'
+import { REST_DAY, SPLIT_OPTIONS, getSplitOption } from '@/lib/splits'
+import type { ActionResult, DatePlans, IsoDate, SplitType, WeeklyPlan } from '@/lib/types'
+import { resetScheduleDay, saveScheduleDay, saveWeeklyDefault } from './actions'
+
+const WEEK_LABELS = ['This week', 'Next week', 'In 2 weeks', 'In 3 weeks']
+
+type Mode = 'dates' | 'week'
 
 export function ScheduleClient({
-  calendarPlans,
-  routineTemplates,
+  today,
+  weeklyPlan,
+  datePlans,
+  exerciseCounts,
 }: {
-  calendarPlans: CalendarPlansMap
-  routineTemplates: RoutineTemplatesMap
+  today: IsoDate
+  weeklyPlan: WeeklyPlan
+  datePlans: DatePlans
+  exerciseCounts: Record<SplitType, number>
 }) {
-  // Week navigation offset (0 = current week, -1 = last week, +1 = next week)
-  const [weekOffset, setWeekOffset] = useState<number>(0)
+  const [mode, setMode] = useState<Mode>('dates')
+  const [weekOffset, setWeekOffset] = useState(0)
+  const [openKey, setOpenKey] = useState<string | null>(null)
+  const [savingKey, setSavingKey] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
 
-  // Current date
-  const now = useMemo(() => new Date(), [])
-  const todayIso = useMemo(() => {
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  }, [now])
-
-  // Compute Monday of the displayed week
-  const mondayOfWeek = useMemo(() => {
-    const currentDay = (now.getDay() + 6) % 7 // Monday = 0
-    const m = new Date(now)
-    m.setDate(now.getDate() - currentDay + weekOffset * 7)
-    return m
-  }, [now, weekOffset])
-
-  // Generate the 7 days of this week (Monday to Sunday)
-  const weekDays = useMemo(() => {
-    const days = []
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(mondayOfWeek)
-      d.setDate(mondayOfWeek.getDate() + i)
-      const dateIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-
-      const dayName = DAYS_OF_WEEK[i]
-      const formattedDate = d.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' })
-      const isToday = dateIso === todayIso
-
-      // Lookup in calendar plans
-      const plan = calendarPlans[dateIso]
-      const workStatus: WorkStatus = plan?.workStatus || 'none'
-      const split: SplitType = plan?.split || 'Rest Day'
-
-      const splitConfig =
-        SPLIT_OPTIONS.find((s) => s.id === split) || SPLIT_OPTIONS.find((s) => s.id === 'Rest Day')!
-      const isRest = splitConfig.id === 'Rest Day'
-      const exercises = getExercisesForSplit(split, routineTemplates)
-
-      days.push({
-        dayName,
-        dateIso,
-        formattedDate,
-        isToday,
-        workStatus,
-        split,
-        splitConfig,
-        isRest,
-        hasCustomPlan: !!plan,
-        exercises,
-      })
+  const [plans, setOptimisticPlan] = useOptimistic(
+    datePlans,
+    (state, { date, split }: { date: IsoDate; split: SplitType | null }) => {
+      const next = { ...state }
+      if (split) next[date] = split
+      else delete next[date]
+      return next
     }
-    return days
-  }, [mondayOfWeek, todayIso, calendarPlans, routineTemplates])
+  )
+  const [week, setOptimisticWeekday] = useOptimistic(
+    weeklyPlan,
+    (state, { day, split }: { day: number; split: SplitType }) => state.map((s, i) => (i === day ? split : s))
+  )
 
-  // Week range label (e.g. "19 Oct - 25 Oct 2026")
-  const weekRangeLabel = useMemo(() => {
-    const sunday = new Date(mondayOfWeek)
-    sunday.setDate(mondayOfWeek.getDate() + 6)
-
-    const startStr = mondayOfWeek.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' })
-    const endStr = sunday.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', year: 'numeric' })
-    return `${startStr} – ${endStr}`
-  }, [mondayOfWeek])
-
-  // Quick stats for this week
-  const weekStats = useMemo(() => {
-    let work = 0
-    let off = 0
-    let workouts = 0
-    let rest = 0
-
-    weekDays.forEach((d) => {
-      if (d.workStatus === 'work') work++
-      else if (d.workStatus === 'off') off++
-
-      if (d.isRest) rest++
-      else workouts++
+  function save(key: string, applyOptimistic: () => void, action: () => Promise<ActionResult<unknown>>) {
+    setOpenKey(null)
+    setError(null)
+    setSavingKey(key)
+    startTransition(async () => {
+      applyOptimistic()
+      const result = await action()
+      if (!result.ok) setError(result.error)
     })
+  }
 
-    return { work, off, workouts, rest }
-  }, [weekDays])
+  const describe = (split: SplitType) =>
+    split === REST_DAY ? 'Rest' : `${getSplitOption(split).name} · ${plural(exerciseCounts[split], 'exercise')}`
+
+  const { weekStart } = planningWindow(today)
+  const shownWeekStart = addDays(weekStart, weekOffset * 7)
+  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(shownWeekStart, i))
+  const workoutCount = weekDates.filter((date) => splitForDate(date, plans, week) !== REST_DAY).length
 
   return (
-    <div className="space-y-6">
-      {/* Top Switcher: Schedule vs Calendar */}
-      <div className="grid grid-cols-2 p-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl">
-        <button
-          type="button"
-          className="py-2.5 px-4 rounded-xl font-bold text-xs bg-[var(--color-primary)] text-white shadow-md shadow-[#FF4500]/20 flex items-center justify-center gap-1.5"
-        >
-          <CalendarIcon size={14} />
-          <span>Săptămânal</span>
-        </button>
-
-        <Link
-          href="/calendar"
-          className="py-2.5 px-4 rounded-xl font-bold text-xs text-zinc-400 hover:text-white hover:bg-zinc-800/60 transition-colors flex items-center justify-center gap-1.5"
-        >
-          <Layers size={14} />
-          <span>Calendar Lună</span>
-          <span className="text-[9px] bg-emerald-500/20 text-emerald-400 font-extrabold px-1.5 py-0.5 rounded-full border border-emerald-500/30">
-            EDITABIL
-          </span>
-        </Link>
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-1 rounded-2xl border border-border bg-surface p-1" role="tablist">
+        {(
+          [
+            ['dates', 'Dates'],
+            ['week', 'Repeating week'],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={mode === value}
+            onClick={() => {
+              setMode(value)
+              setOpenKey(null)
+            }}
+            className={`rounded-xl py-2 text-xs font-bold transition-colors ${
+              mode === value ? 'bg-primary text-white' : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      {/* Info Notice Banner */}
-      <div className="bg-[var(--color-surface)] p-4 sm:p-5 rounded-3xl border border-[var(--color-border)] shadow-md space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center text-blue-400 shrink-0 mt-0.5">
-              <Lock size={18} />
+      {error && <Alert>{error}</Alert>}
+
+      {mode === 'dates' ? (
+        <>
+          <div className="flex items-center justify-between rounded-2xl border border-border bg-surface p-3">
+            <WeekButton direction="previous" hidden={weekOffset === 0} onClick={() => setWeekOffset((w) => w - 1)} />
+            <div className="text-center">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-muted">{WEEK_LABELS[weekOffset]}</span>
+              <span className="text-sm font-extrabold text-white">
+                {formatDate(weekDates[0], { day: 'numeric', month: 'short' })} –{' '}
+                {formatDate(weekDates[6], { day: 'numeric', month: 'short', year: 'numeric' })}
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-bold text-sm text-white">Program Săptămânal (Vizualizare)</h2>
-                <span className="text-[10px] bg-zinc-800 text-zinc-400 font-bold px-2 py-0.5 rounded-full">
-                  Read-Only
+            <WeekButton
+              direction="next"
+              hidden={weekOffset === PLANNING_WEEKS - 1}
+              onClick={() => setWeekOffset((w) => w + 1)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between px-1 text-xs font-bold">
+            <span className="uppercase tracking-wider text-muted">
+              Week {weekOffset + 1} of {PLANNING_WEEKS}
+            </span>
+            <span className="text-primary">{plural(workoutCount, 'workout')}</span>
+          </div>
+
+          <ul className="space-y-2.5">
+            {weekDates.map((date, day) => {
+              const split = splitForDate(date, plans, week)
+              const isCustom = plans[date] !== undefined && plans[date] !== week[day]
+              return (
+                <DayRow
+                  key={date}
+                  split={split}
+                  title={DAYS_OF_WEEK[day]}
+                  detail={formatDate(date, { day: 'numeric', month: 'short' })}
+                  description={describe(split)}
+                  isToday={date === today}
+                  isPast={date < today}
+                  isCustom={isCustom}
+                  isOpen={openKey === date}
+                  isSaving={isPending && savingKey === date}
+                  onToggle={() => setOpenKey(openKey === date ? null : date)}
+                >
+                  <SplitPicker
+                    selected={split}
+                    onSelect={(next) =>
+                      next === split
+                        ? setOpenKey(null)
+                        : save(date, () => setOptimisticPlan({ date, split: next }), () => saveScheduleDay(date, next))
+                    }
+                  />
+                  {isCustom && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        save(date, () => setOptimisticPlan({ date, split: null }), () => resetScheduleDay(date))
+                      }
+                      className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-700 py-2.5 text-xs font-bold text-zinc-400 transition-colors hover:text-white"
+                    >
+                      <RotateCcw size={13} /> Reset to weekly default ({getSplitOption(week[day]).name})
+                    </button>
+                  )}
+                </DayRow>
+              )
+            })}
+          </ul>
+        </>
+      ) : (
+        <>
+          <p className="px-1 text-xs text-muted">
+            Your default week. Any date without its own plan uses the workout set here.
+          </p>
+          <ul className="space-y-2.5">
+            {week.map((split, day) => {
+              const key = `weekday-${day}`
+              return (
+                <DayRow
+                  key={key}
+                  split={split}
+                  title={DAYS_OF_WEEK[day]}
+                  description={describe(split)}
+                  isOpen={openKey === key}
+                  isSaving={isPending && savingKey === key}
+                  onToggle={() => setOpenKey(openKey === key ? null : key)}
+                >
+                  <SplitPicker
+                    selected={split}
+                    onSelect={(next) =>
+                      next === split
+                        ? setOpenKey(null)
+                        : save(key, () => setOptimisticWeekday({ day, split: next }), () => saveWeeklyDefault(day, next))
+                    }
+                  />
+                </DayRow>
+              )
+            })}
+          </ul>
+        </>
+      )}
+    </div>
+  )
+}
+
+function WeekButton({ direction, hidden, onClick }: { direction: 'previous' | 'next'; hidden: boolean; onClick: () => void }) {
+  if (hidden) return <span className="w-[34px]" />
+  const Icon = direction === 'previous' ? ChevronLeft : ChevronRight
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`${direction === 'previous' ? 'Previous' : 'Next'} week`}
+      className="rounded-xl bg-zinc-800 p-2 text-zinc-300 transition-colors hover:text-white"
+    >
+      <Icon size={18} />
+    </button>
+  )
+}
+
+function DayRow({
+  split,
+  title,
+  detail,
+  description,
+  isToday = false,
+  isPast = false,
+  isCustom = false,
+  isOpen,
+  isSaving,
+  onToggle,
+  children,
+}: {
+  split: SplitType
+  title: string
+  detail?: string
+  description: string
+  isToday?: boolean
+  isPast?: boolean
+  isCustom?: boolean
+  isOpen: boolean
+  isSaving: boolean
+  onToggle: () => void
+  children: ReactNode
+}) {
+  const isRest = split === REST_DAY
+  return (
+    <li
+      className={`overflow-hidden rounded-2xl border transition-all ${
+        isPast
+          ? 'border-border bg-surface/50 opacity-50'
+          : isToday
+            ? 'border-primary bg-primary/10'
+            : isRest
+              ? 'border-border bg-surface/70'
+              : 'border-primary/30 bg-surface'
+      }`}
+    >
+      <button
+        type="button"
+        disabled={isPast}
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        className="flex w-full items-center justify-between gap-3 p-4 text-left disabled:cursor-not-allowed"
+      >
+        <div className="flex min-w-0 items-center gap-3.5">
+          <div
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl ${
+              isRest ? 'bg-zinc-800/80' : 'bg-primary/20'
+            }`}
+            aria-hidden
+          >
+            {getSplitOption(split).emoji}
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-base font-extrabold text-white">{title}</span>
+              {detail && <span className="text-xs font-semibold text-muted">{detail}</span>}
+              {isToday && (
+                <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-black uppercase text-white">Today</span>
+              )}
+              {isCustom && (
+                <span className="rounded-full border border-zinc-600 px-2 py-0.5 text-[10px] font-bold uppercase text-zinc-300">
+                  Custom
                 </span>
-              </div>
-              <p className="text-xs text-[var(--color-muted)] mt-1 leading-relaxed">
-                Zilele de mai jos sunt preluate direct din <strong>Calendar</strong>. Pentru a schimba tura de muncă sau antrenamentul, modifică direct din calendar.
-              </p>
+              )}
             </div>
+            <span className="text-xs text-muted">{description}</span>
           </div>
         </div>
 
-        <Link
-          href="/calendar"
-          className="w-full py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 shadow-md shadow-[#FF4500]/20"
-        >
-          <Layers size={15} />
-          <span>Deschide Calendarul pentru Modificări</span>
-          <ArrowRight size={15} />
-        </Link>
-      </div>
+        {isPast ? (
+          <Lock size={16} className="shrink-0 text-muted" aria-label="Past day" />
+        ) : isSaving ? (
+          <Loader2 size={18} className="shrink-0 animate-spin text-primary" aria-label="Saving" />
+        ) : (
+          <ChevronDown size={18} className={`shrink-0 text-muted transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        )}
+      </button>
 
-      {/* Week Navigator */}
-      <div className="flex items-center justify-between p-3 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
-        <button
-          type="button"
-          onClick={() => setWeekOffset(weekOffset - 1)}
-          className="p-2 rounded-xl bg-zinc-800 text-zinc-300 hover:text-white transition-colors"
-          title="Săptămâna anterioară"
-        >
-          <ChevronLeft size={18} />
-        </button>
+      {isOpen && <div className="px-3 pb-3">{children}</div>}
+    </li>
+  )
+}
 
-        <div className="text-center">
-          <span className="text-[10px] uppercase font-bold text-[var(--color-muted)] tracking-wider block">
-            {weekOffset === 0 ? 'Săptămâna Curentă' : weekOffset === 1 ? 'Săptămâna Viitoare' : 'Săptămână'}
-          </span>
-          <span className="text-sm font-extrabold text-white">{weekRangeLabel}</span>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setWeekOffset(weekOffset + 1)}
-          className="p-2 rounded-xl bg-zinc-800 text-zinc-300 hover:text-white transition-colors"
-          title="Săptămâna viitoare"
-        >
-          <ChevronRight size={18} />
-        </button>
-      </div>
-
-      {/* Weekly Stats */}
-      <div className="grid grid-cols-4 gap-2 text-center">
-        <div className="bg-[#15151c] p-2.5 rounded-xl border border-[var(--color-border)]">
-          <span className="text-sm font-black text-blue-400 block">{weekStats.work}</span>
-          <span className="text-[9px] uppercase font-bold text-zinc-400 block mt-0.5">La Muncă</span>
-        </div>
-        <div className="bg-[#15151c] p-2.5 rounded-xl border border-[var(--color-border)]">
-          <span className="text-sm font-black text-emerald-400 block">{weekStats.off}</span>
-          <span className="text-[9px] uppercase font-bold text-zinc-400 block mt-0.5">Zile Libere</span>
-        </div>
-        <div className="bg-[#15151c] p-2.5 rounded-xl border border-[var(--color-border)]">
-          <span className="text-sm font-black text-[#FF4500] block">{weekStats.workouts}</span>
-          <span className="text-[9px] uppercase font-bold text-zinc-400 block mt-0.5">Antrenamente</span>
-        </div>
-        <div className="bg-[#15151c] p-2.5 rounded-xl border border-[var(--color-border)]">
-          <span className="text-sm font-black text-amber-400 block">{weekStats.rest}</span>
-          <span className="text-[9px] uppercase font-bold text-zinc-400 block mt-0.5">Odihnă</span>
-        </div>
-      </div>
-
-      {/* 7 Days Read-Only List */}
-      <div className="space-y-2.5">
-        {weekDays.map((day) => {
-          return (
-            <Link
-              key={day.dateIso}
-              href="/calendar"
-              className={`p-4 rounded-2xl border transition-all block relative overflow-hidden group ${
-                day.isToday
-                  ? 'border-[#FF4500] bg-[#FF4500]/10 shadow-md shadow-[#FF4500]/15'
-                  : day.isRest
-                  ? 'bg-[var(--color-surface)]/70 border-[var(--color-border)] hover:border-zinc-500'
-                  : 'bg-[var(--color-surface)] border-[#FF4500]/30 hover:border-[var(--color-primary)]'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                {/* Left: Day & Date & Split Info */}
-                <div className="flex items-center gap-3.5">
-                  <div
-                    className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 ${
-                      day.isRest
-                        ? 'bg-zinc-800/80 text-zinc-400'
-                        : 'bg-[#FF4500]/20 text-white shadow-inner'
-                    }`}
-                  >
-                    {day.splitConfig.emoji}
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-base text-white">{day.dayName}</span>
-                      <span className="text-xs text-[var(--color-muted)] font-semibold">
-                        ({day.formattedDate})
-                      </span>
-                      {day.isToday && (
-                        <span className="text-[9px] bg-[#FF4500] text-white font-black px-2 py-0.5 rounded-full uppercase">
-                          Azi
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 mt-1">
-                      {/* Work Badge */}
-                      {day.workStatus === 'work' && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-950/70 text-blue-300 border border-blue-800/50 flex items-center gap-1">
-                          <span>💼</span> La Muncă
-                        </span>
-                      )}
-                      {day.workStatus === 'off' && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-950/70 text-emerald-300 border border-emerald-800/50 flex items-center gap-1">
-                          <span>🏖️</span> Zi Liberă
-                        </span>
-                      )}
-
-                      {/* Workout exercises count */}
-                      {!day.isRest && day.exercises.length > 0 && (
-                        <span className="text-[10px] text-zinc-400 bg-zinc-800/90 px-2 py-0.5 rounded-md">
-                          {day.exercises.length} exerciții
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right: Split Badge & Arrow */}
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`text-xs font-bold px-3 py-1.5 rounded-full border ${
-                      day.isRest
-                        ? 'bg-zinc-800 text-zinc-400 border-zinc-700'
-                        : 'bg-[#FF4500]/15 text-[var(--color-primary)] border-[#FF4500]/30'
-                    }`}
-                  >
-                    {day.splitConfig.name}
-                  </span>
-                  <ChevronRight
-                    size={18}
-                    className="text-[var(--color-muted)] group-hover:text-white group-hover:translate-x-0.5 transition-all"
-                  />
-                </div>
-              </div>
-            </Link>
-          )
-        })}
-      </div>
-
-      {/* Footer Action */}
-      <div className="pt-2">
-        <Link
-          href="/calendar"
-          className="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold py-4 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#FF4500]/25 text-sm"
-        >
-          <Layers size={17} />
-          <span>Modifică zilele în Calendar</span>
-          <ArrowRight size={17} />
-        </Link>
-      </div>
+function SplitPicker({ selected, onSelect }: { selected: SplitType; onSelect: (split: SplitType) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {SPLIT_OPTIONS.map((option) => {
+        const isSelected = option.id === selected
+        return (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => onSelect(option.id)}
+            aria-pressed={isSelected}
+            className={`flex items-center gap-2 rounded-xl border p-2.5 text-xs font-bold transition-colors ${
+              isSelected
+                ? 'border-primary bg-primary/15 text-white'
+                : 'border-border bg-zinc-900/60 text-zinc-300 hover:border-zinc-500'
+            }`}
+          >
+            <span className="text-base" aria-hidden>
+              {option.emoji}
+            </span>
+            <span className="flex-1 text-left">{option.name}</span>
+            {isSelected && <Check size={14} className="text-primary" />}
+          </button>
+        )
+      })}
     </div>
   )
 }

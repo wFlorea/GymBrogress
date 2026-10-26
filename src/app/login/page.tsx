@@ -1,11 +1,7 @@
 import { LoginForm } from './LoginForm'
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ message: string }>
-}) {
-  const { message } = await searchParams
+export const metadata = { title: 'Sign in' }
 
-  return <LoginForm serverMessage={message} />
+export default function LoginPage() {
+  return <LoginForm />
 }

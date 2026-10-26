@@ -4,41 +4,83 @@
   --color-background: #121212;
   --color-foreground: #ffffff;
 
-  /* 30% - Secondary/Cards */
+  /* Cards and raised surfaces */
   --color-surface: #252525;
   --color-surface-hover: #333333;
+  /* Rows, list items and inputs that sit inside a card */
+  --color-sunken: #171717;
 
-  /* 10% - Accent */
+  /* Accent */
   --color-primary: #FF4500;
   --color-primary-hover: #e63e00;
 
-  /* Utilities */
   --color-muted: #888888;
   --color-border: #333333;
   --color-error: #ef4444;
   --color-success: #22c55e;
+
+  --animate-fade-in: fade-in 150ms ease-out;
+  --animate-slide-up: slide-up 200ms ease-out;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(1rem);
+    }
+  }
+}
+
+/* Space for the iPhone home indicator under fixed bars. */
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Bottom padding for pages, so content clears the bottom navigation. */
+@utility pb-page {
+  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 :root {
-  --background: #121212;
-  --foreground: #ffffff;
   color-scheme: dark;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Base styles for scrollbars */
+/* Number inputs: no spinner arrows, the values are typed. */
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--background);
+  background: var(--color-background);
 }
 
 ::-webkit-scrollbar-thumb {

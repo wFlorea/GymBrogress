@@ -2,39 +2,44 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Calendar, CalendarDays, ClipboardList, Dumbbell, User } from 'lucide-react'
+import { CalendarDays, ClipboardList, Dumbbell, Home, User } from 'lucide-react'
+
+const NAV_ITEMS = [
+  { name: 'Home', href: '/dashboard', icon: Home },
+  { name: 'Schedule', href: '/schedule', icon: CalendarDays },
+  { name: 'Plan', href: '/plan', icon: ClipboardList },
+  { name: 'Workout', href: '/tracker', icon: Dumbbell },
+  { name: 'Profile', href: '/profile', icon: User },
+]
+
+/** Pages that belong to a tab without being under its path. */
+const TAB_ALIASES: Record<string, string> = { '/exercises': '/profile' }
 
 export function BottomNav() {
   const pathname = usePathname()
-
   if (pathname === '/login') return null
 
-  const navItems = [
-    { name: 'Acasă', href: '/dashboard', icon: Home },
-    { name: 'Schedule', href: '/schedule', icon: Calendar },
-    { name: 'Calendar', href: '/calendar', icon: CalendarDays },
-    { name: 'Plan', href: '/plan', icon: ClipboardList },
-    { name: 'Tracker', href: '/tracker', icon: Dumbbell },
-    { name: 'Profil', href: '/profile', icon: User },
-  ]
+  const current = TAB_ALIASES[pathname] ?? pathname
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-[var(--color-surface)]/95 backdrop-blur-md border-t border-[var(--color-border)] pb-safe shadow-2xl">
-      <div className="flex justify-around items-center h-16 max-w-lg mx-auto">
-        {navItems.map((item) => {
-          const Icon = item.icon
-          const isActive = pathname.startsWith(item.href)
-          
+    <nav
+      aria-label="Main"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 pb-safe shadow-2xl backdrop-blur-md"
+    >
+      <div className="mx-auto flex h-16 max-w-lg items-center justify-around">
+        {NAV_ITEMS.map(({ name, href, icon: Icon }) => {
+          const isActive = current === href || current.startsWith(`${href}/`)
           return (
-            <Link 
-              key={item.href} 
-              href={item.href}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-90 transition-transform ${
-                isActive ? 'text-[var(--color-primary)] font-bold' : 'text-[var(--color-muted)] hover:text-white transition-colors'
+            <Link
+              key={href}
+              href={href}
+              aria-current={isActive ? 'page' : undefined}
+              className={`flex h-full w-full flex-col items-center justify-center gap-1 transition-transform active:scale-90 ${
+                isActive ? 'font-bold text-primary' : 'text-muted transition-colors hover:text-white'
               }`}
             >
-              <Icon size={19} className={isActive ? 'stroke-[2.5px]' : ''} />
-              <span className="text-[9px] sm:text-[10px] tracking-tight">{item.name}</span>
+              <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+              <span className="text-[10px] tracking-tight">{name}</span>
             </Link>
           )
         })}

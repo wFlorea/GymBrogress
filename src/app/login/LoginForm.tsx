@@ -1,253 +1,241 @@
 'use client'
 
-import { useState } from 'react'
+import { useActionState, useState, type ComponentProps, type ReactNode } from 'react'
+import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock, LogIn, Mail, User, UserPlus, type LucideIcon } from 'lucide-react'
+import { Alert } from '@/components/ui/Card'
+import { SubmitButton } from '@/components/ui/SubmitButton'
+import { inputStyles } from '@/components/ui/styles'
 import { login, signup } from './actions'
-import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle2, UserPlus, LogIn, User } from 'lucide-react'
+import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH } from './auth-state'
 
-export function LoginForm({ serverMessage }: { serverMessage?: string }) {
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
+type Mode = 'login' | 'signup'
+
+export function LoginForm() {
+  const [mode, setMode] = useState<Mode>('login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [clientError, setClientError] = useState<string | null>(null)
+  const [loginState, loginAction] = useActionState(login, null)
+  const [signupState, signupAction] = useActionState(signup, null)
 
-  const isPasswordMismatch = mode === 'signup' && confirmPassword.length > 0 && password !== confirmPassword
-  const isPasswordMatch = mode === 'signup' && confirmPassword.length > 0 && password === confirmPassword
+  const isSignup = mode === 'signup'
+  const state = isSignup ? signupState : loginState
+  const passwordsChecked = isSignup && confirmPassword.length > 0
+  const passwordsMatch = password === confirmPassword
+  const canSignUp = name.trim().length > 0 && password.length >= MIN_PASSWORD_LENGTH && passwordsMatch
 
-  const handleModeChange = (newMode: 'login' | 'signup') => {
-    setMode(newMode)
-    setClientError(null)
+  function switchMode(next: Mode) {
+    setMode(next)
     setConfirmPassword('')
   }
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    setClientError(null)
-
-    if (mode === 'signup') {
-      if (!name.trim()) {
-        e.preventDefault()
-        setClientError('Te rugăm să introduci un nume sau nickname.')
-        return
-      }
-
-      if (password.length < 6) {
-        e.preventDefault()
-        setClientError('Parola trebuie să aibă cel puțin 6 caractere.')
-        return
-      }
-
-      if (password !== confirmPassword) {
-        e.preventDefault()
-        setClientError('Parolele introduse nu coincid! Te rugăm să le verifici.')
-        return
-      }
-    }
-  }
-
-  const displayedMessage = clientError || serverMessage
-
   return (
-    <div className="flex-1 flex flex-col w-full px-6 sm:max-w-md justify-center min-h-screen bg-[var(--color-background)] mx-auto py-12">
-      {/* Brand Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-extrabold text-[var(--color-primary)] tracking-tight">
-          GymBrogress
-        </h1>
-        <p className="text-[var(--color-muted)] text-sm mt-2">
-          Urmărește-ți progresul și antrenează-te ca un pro.
-        </p>
+    <div className="mx-auto flex min-h-screen w-full flex-col justify-center px-6 py-12 sm:max-w-md">
+      <div className="mb-8 text-center">
+        <h1 className="text-4xl font-extrabold tracking-tight text-primary">GymBrogress</h1>
+        <p className="mt-2 text-sm text-muted">Plan your training and track every set.</p>
       </div>
 
-      {/* Card */}
-      <div className="bg-[var(--color-surface)] p-6 rounded-2xl border border-[var(--color-border)] shadow-xl">
-        {/* Mode Selector Tabs */}
-        <div className="grid grid-cols-2 p-1 bg-[#121212] rounded-xl mb-6 border border-[var(--color-border)]">
-          <button
-            type="button"
-            onClick={() => handleModeChange('login')}
-            className={`py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
-              mode === 'login'
-                ? 'bg-[var(--color-surface)] text-white shadow-md'
-                : 'text-[var(--color-muted)] hover:text-white'
-            }`}
-          >
-            <LogIn size={16} /> Intră în cont
-          </button>
-          <button
-            type="button"
-            onClick={() => handleModeChange('signup')}
-            className={`py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
-              mode === 'signup'
-                ? 'bg-[var(--color-surface)] text-white shadow-md'
-                : 'text-[var(--color-muted)] hover:text-white'
-            }`}
-          >
-            <UserPlus size={16} /> Creează cont
-          </button>
+      <div className="rounded-2xl border border-border bg-surface p-6 shadow-xl">
+        <div className="mb-6 grid grid-cols-2 rounded-xl border border-border bg-background p-1" role="tablist">
+          <ModeTab active={!isSignup} icon={LogIn} onClick={() => switchMode('login')}>
+            Sign in
+          </ModeTab>
+          <ModeTab active={isSignup} icon={UserPlus} onClick={() => switchMode('signup')}>
+            Create account
+          </ModeTab>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Name / Nickname (Only in Signup Mode) */}
-          {mode === 'signup' && (
-            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]" htmlFor="name">
-                Nume / Nickname
-              </label>
-              <div className="relative">
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="ex: Alex sau Champ"
-                  required
-                  className="w-full rounded-xl pl-10 pr-4 py-3 bg-[#121212] border border-[var(--color-border)] text-white placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-primary)] transition-colors text-sm"
-                />
-                <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
-              </div>
-            </div>
+        <form action={isSignup ? signupAction : loginAction} className="flex flex-col gap-4">
+          {isSignup && (
+            <Field
+              label="Name or nickname"
+              icon={User}
+              name="name"
+              autoComplete="nickname"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Alex"
+              maxLength={MAX_NAME_LENGTH}
+              required
+            />
           )}
 
-          {/* Email */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]" htmlFor="email">
-              Adresă Email
-            </label>
-            <div className="relative">
-              <input
-                id="email"
-                name="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="exemplu@email.com"
-                required
-                className="w-full rounded-xl pl-10 pr-4 py-3 bg-[#121212] border border-[var(--color-border)] text-white placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-primary)] transition-colors text-sm"
-              />
-              <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
-            </div>
-          </div>
+          <Field
+            label="Email"
+            icon={Mail}
+            name="email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+          />
 
-          {/* Password */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]" htmlFor="password">
-              Parolă
-            </label>
-            <div className="relative">
-              <input
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                minLength={6}
-                className="w-full rounded-xl pl-10 pr-11 py-3 bg-[#121212] border border-[var(--color-border)] text-white placeholder:text-[var(--color-muted)] focus:outline-none focus:border-[var(--color-primary)] transition-colors text-sm"
-              />
-              <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--color-muted)] hover:text-white transition-colors"
-                title={showPassword ? 'Ascunde parola' : 'Afișează parola'}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-            {mode === 'signup' && (
-              <p className="text-[11px] text-[var(--color-muted)]">
-                Minim 6 caractere.
-              </p>
+          <Field
+            label="Password"
+            icon={Lock}
+            name="password"
+            secret
+            autoComplete={isSignup ? 'new-password' : 'current-password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            minLength={isSignup ? MIN_PASSWORD_LENGTH : undefined}
+            hint={isSignup ? `At least ${MIN_PASSWORD_LENGTH} characters.` : undefined}
+            required
+          />
+
+          {isSignup && (
+            <Field
+              label="Confirm password"
+              icon={Lock}
+              name="confirmPassword"
+              secret
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••"
+              tone={passwordsChecked ? (passwordsMatch ? 'valid' : 'invalid') : undefined}
+              hint={
+                passwordsChecked &&
+                (passwordsMatch ? (
+                  <span className="flex items-center gap-1.5 text-emerald-400">
+                    <CheckCircle2 size={14} /> Passwords match.
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-red-400">
+                    <AlertCircle size={14} /> Passwords don’t match.
+                  </span>
+                ))
+              }
+              required
+            />
+          )}
+
+          {state?.error && <Alert>{state.error}</Alert>}
+          {state?.notice && <Alert tone="success">{state.notice}</Alert>}
+
+          <div className="mt-2">
+            {isSignup ? (
+              <SignupButton disabled={!canSignUp} />
+            ) : (
+              <SubmitButton pendingLabel="Signing in…">
+                <LogIn size={18} /> Sign in
+              </SubmitButton>
             )}
           </div>
-
-          {/* Confirm Password (Only in Signup Mode) */}
-          {mode === 'signup' && (
-            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]" htmlFor="confirmPassword">
-                Confirmă Parola (Introdu din nou)
-              </label>
-              <div className="relative">
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  className={`w-full rounded-xl pl-10 pr-11 py-3 bg-[#121212] border text-white placeholder:text-[var(--color-muted)] focus:outline-none transition-colors text-sm ${
-                    isPasswordMismatch 
-                      ? 'border-red-500 focus:border-red-500' 
-                      : isPasswordMatch 
-                        ? 'border-emerald-500 focus:border-emerald-500' 
-                        : 'border-[var(--color-border)] focus:border-[var(--color-primary)]'
-                  }`}
-                />
-                <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--color-muted)] hover:text-white transition-colors"
-                  title={showConfirmPassword ? 'Ascunde parola' : 'Afișează parola'}
-                >
-                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-
-              {/* Match Feedback Badge */}
-              {isPasswordMismatch && (
-                <div className="flex items-center gap-1.5 text-xs text-red-400 mt-1">
-                  <AlertCircle size={14} />
-                  <span>Parolele nu coincid!</span>
-                </div>
-              )}
-              {isPasswordMatch && (
-                <div className="flex items-center gap-1.5 text-xs text-emerald-400 mt-1">
-                  <CheckCircle2 size={14} />
-                  <span>Parolele coincid perfect.</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Error Message */}
-          {displayedMessage && (
-            <div className="mt-2 p-3 bg-red-950/40 border border-red-800/60 rounded-xl text-red-400 text-xs flex items-center gap-2">
-              <AlertCircle size={16} className="shrink-0" />
-              <span>{displayedMessage}</span>
-            </div>
-          )}
-
-          {/* Submit Button */}
-          {mode === 'login' ? (
-            <button
-              formAction={login}
-              className="mt-2 w-full bg-[var(--color-primary)] rounded-xl py-3.5 text-white font-bold hover:bg-[var(--color-primary-hover)] transition-all shadow-lg shadow-[#FF4500]/25 active:scale-[0.98] text-sm flex items-center justify-center gap-2"
-            >
-              <LogIn size={18} /> Intră în cont
-            </button>
-          ) : (
-            <button
-              formAction={signup}
-              disabled={isPasswordMismatch || password.length < 6 || !name.trim()}
-              className={`mt-2 w-full rounded-xl py-3.5 font-bold transition-all shadow-lg text-sm flex items-center justify-center gap-2 ${
-                isPasswordMismatch || password.length < 6 || !name.trim()
-                  ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-700'
-                  : 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] shadow-[#FF4500]/25 active:scale-[0.98]'
-              }`}
-            >
-              <UserPlus size={18} /> Înregistrează contul
-            </button>
-          )}
         </form>
       </div>
+    </div>
+  )
+}
+
+function SignupButton({ disabled }: { disabled: boolean }) {
+  if (disabled) {
+    return (
+      <button
+        type="submit"
+        disabled
+        className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800 py-3.5 font-bold text-zinc-500"
+      >
+        <UserPlus size={18} /> Create account
+      </button>
+    )
+  }
+  return (
+    <SubmitButton pendingLabel="Creating account…">
+      <UserPlus size={18} /> Create account
+    </SubmitButton>
+  )
+}
+
+function ModeTab({
+  active,
+  icon: Icon,
+  onClick,
+  children,
+}: {
+  active: boolean
+  icon: LucideIcon
+  onClick: () => void
+  children: string
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-all ${
+        active ? 'bg-surface text-white shadow-md' : 'text-muted hover:text-white'
+      }`}
+    >
+      <Icon size={16} /> {children}
+    </button>
+  )
+}
+
+// A ring, so it doesn't fight the border colours in inputStyles.
+const TONE_RINGS = {
+  valid: 'ring-1 ring-emerald-500',
+  invalid: 'ring-1 ring-red-500',
+} as const
+
+function Field({
+  label,
+  icon: Icon,
+  name,
+  hint,
+  secret = false,
+  tone,
+  type = 'text',
+  ...input
+}: Omit<ComponentProps<'input'>, 'id'> & {
+  label: string
+  icon: LucideIcon
+  name: string
+  hint?: ReactNode
+  secret?: boolean
+  tone?: keyof typeof TONE_RINGS
+}) {
+  const [revealed, setRevealed] = useState(false)
+  const hintId = `${name}-hint`
+
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={name} className="text-xs font-semibold uppercase tracking-wider text-muted">
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          id={name}
+          name={name}
+          type={secret && !revealed ? 'password' : secret ? 'text' : type}
+          aria-describedby={hint ? hintId : undefined}
+          aria-invalid={tone === 'invalid' || undefined}
+          className={`${inputStyles} pl-10 ${secret ? 'pr-11' : ''} ${tone ? TONE_RINGS[tone] : ''}`}
+          {...input}
+        />
+        <Icon size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+        {secret && (
+          <button
+            type="button"
+            onClick={() => setRevealed(!revealed)}
+            aria-label={revealed ? 'Hide password' : 'Show password'}
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted transition-colors hover:text-white"
+          >
+            {revealed ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        )}
+      </div>
+      {hint && (
+        <div id={hintId} className="text-[11px] text-muted">
+          {hint}
+        </div>
+      )}
     </div>
   )
 }

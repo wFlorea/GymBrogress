@@ -1,21 +1,23 @@
 import type { Metadata, Viewport } from 'next'
+import type { ReactNode } from 'react'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { BottomNav } from '@/components/BottomNav'
+import { TimezoneSync } from '@/components/TimezoneSync'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const viewport: Viewport = {
-  themeColor: '#121212',
+  themeColor: '#FF4500',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
   viewportFit: 'cover',
 }
 
 export const metadata: Metadata = {
-  title: 'GymBrogress',
+  title: { default: 'GymBrogress', template: '%s · GymBrogress' },
   description: 'Track your gym progress and plan your workouts.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
@@ -34,18 +36,13 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ro">
-      <body className={`${inter.className} pb-16`}>
-        <main className="min-h-screen bg-[var(--background)]">
-          {children}
-        </main>
+    <html lang="en">
+      <body className={inter.className}>
+        <main className="min-h-screen bg-background">{children}</main>
         <BottomNav />
+        <TimezoneSync />
       </body>
     </html>
   )
