@@ -1,17 +1,21 @@
 'use client'
 
 import { useActionState, useState, type ComponentProps, type ReactNode } from 'react'
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock, LogIn, Mail, User, UserPlus, type LucideIcon } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock, Mail, User, type LucideIcon } from 'lucide-react'
 import { Alert } from '@/components/ui/Card'
+import { PlateMark } from '@/components/ui/PlateMark'
 import { SubmitButton } from '@/components/ui/SubmitButton'
-import { inputStyles } from '@/components/ui/styles'
 import { login, signup } from './actions'
 import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH } from './auth-state'
 
 type Mode = 'login' | 'signup'
 
-export function LoginForm() {
-  const [mode, setMode] = useState<Mode>('login')
+// Pill-shaped, like the buttons.
+const pillInputStyles =
+  'h-13 w-full rounded-full border border-transparent bg-black/40 pl-12 pr-5 text-sm text-white shadow-inner placeholder:text-muted transition-colors focus:border-primary focus:outline-none'
+
+export function LoginForm({ initialMode = 'login' }: { initialMode?: Mode }) {
+  const [mode, setMode] = useState<Mode>(initialMode)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -31,20 +35,16 @@ export function LoginForm() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen w-full flex-col justify-center px-6 py-12 sm:max-w-md">
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl font-extrabold tracking-tight text-primary">GymBrogress</h1>
-        <p className="mt-2 text-sm text-muted">Plan your training and track every set.</p>
-      </div>
+    <div className="bg-glow relative min-h-dvh overflow-hidden">
+      {/* Faint plates cut off at the edges, like weights left on the floor. */}
+      <PlateMark size={140} className="pointer-events-none absolute -left-16 top-[18%] text-white/[0.04]" />
+      <PlateMark size={180} className="pointer-events-none absolute -right-20 bottom-[12%] text-white/[0.04]" />
 
-      <div className="rounded-2xl border border-border bg-surface p-6 shadow-xl">
-        <div className="mb-6 grid grid-cols-2 rounded-xl border border-border bg-background p-1" role="tablist">
-          <ModeTab active={!isSignup} icon={LogIn} onClick={() => switchMode('login')}>
-            Sign in
-          </ModeTab>
-          <ModeTab active={isSignup} icon={UserPlus} onClick={() => switchMode('signup')}>
-            Create account
-          </ModeTab>
+      <div className="relative mx-auto flex min-h-dvh w-full flex-col justify-center px-8 py-12 sm:max-w-md">
+        <div className="mb-10 text-center">
+          <PlateMark size={56} className="mx-auto text-primary" />
+          <h1 className="mt-4 font-display text-[2rem] font-bold">GymBrogress</h1>
+          <p className="mt-1 text-sm italic text-muted">Plan your training and track every set.</p>
         </div>
 
         <form action={isSignup ? signupAction : loginAction} className="flex flex-col gap-4">
@@ -56,7 +56,6 @@ export function LoginForm() {
               autoComplete="nickname"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Alex"
               maxLength={MAX_NAME_LENGTH}
               required
             />
@@ -70,7 +69,6 @@ export function LoginForm() {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
             required
           />
 
@@ -82,7 +80,6 @@ export function LoginForm() {
             autoComplete={isSignup ? 'new-password' : 'current-password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
             minLength={isSignup ? MIN_PASSWORD_LENGTH : undefined}
             hint={isSignup ? `At least ${MIN_PASSWORD_LENGTH} characters.` : undefined}
             required
@@ -97,7 +94,6 @@ export function LoginForm() {
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••"
               tone={passwordsChecked ? (passwordsMatch ? 'valid' : 'invalid') : undefined}
               hint={
                 passwordsChecked &&
@@ -118,16 +114,27 @@ export function LoginForm() {
           {state?.error && <Alert>{state.error}</Alert>}
           {state?.notice && <Alert tone="success">{state.notice}</Alert>}
 
-          <div className="mt-2">
+          <div className="mt-4">
             {isSignup ? (
               <SignupButton disabled={!canSignUp} />
             ) : (
               <SubmitButton pendingLabel="Signing in…">
-                <LogIn size={18} /> Sign in
+                Sign in
               </SubmitButton>
             )}
           </div>
         </form>
+
+        <p className="mt-10 text-center text-sm text-muted">
+          {isSignup ? 'Have an account? ' : 'New here? '}
+          <button
+            type="button"
+            onClick={() => switchMode(isSignup ? 'login' : 'signup')}
+            className="font-semibold text-primary hover:underline"
+          >
+            {isSignup ? 'Sign in' : 'Create account'}
+          </button>
+        </p>
       </div>
     </div>
   )
@@ -139,46 +146,20 @@ function SignupButton({ disabled }: { disabled: boolean }) {
       <button
         type="submit"
         disabled
-        className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800 py-3.5 font-bold text-zinc-500"
+        className="flex h-13 w-full cursor-not-allowed items-center justify-center rounded-full bg-surface font-semibold text-muted"
       >
-        <UserPlus size={18} /> Create account
+        Create account
       </button>
     )
   }
   return (
     <SubmitButton pendingLabel="Creating account…">
-      <UserPlus size={18} /> Create account
+      Create account
     </SubmitButton>
   )
 }
 
-function ModeTab({
-  active,
-  icon: Icon,
-  onClick,
-  children,
-}: {
-  active: boolean
-  icon: LucideIcon
-  onClick: () => void
-  children: string
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-all ${
-        active ? 'bg-surface text-white shadow-md' : 'text-muted hover:text-white'
-      }`}
-    >
-      <Icon size={16} /> {children}
-    </button>
-  )
-}
-
-// A ring, so it doesn't fight the border colours in inputStyles.
+// A ring, so it doesn't fight the focus border colour.
 const TONE_RINGS = {
   valid: 'ring-1 ring-emerald-500',
   invalid: 'ring-1 ring-red-500',
@@ -206,7 +187,8 @@ function Field({
 
   return (
     <div className="space-y-1.5">
-      <label htmlFor={name} className="text-xs font-semibold uppercase tracking-wider text-muted">
+      {/* The placeholder shows the label; this keeps it for screen readers. */}
+      <label htmlFor={name} className="sr-only">
         {label}
       </label>
       <div className="relative">
@@ -216,23 +198,24 @@ function Field({
           type={secret && !revealed ? 'password' : secret ? 'text' : type}
           aria-describedby={hint ? hintId : undefined}
           aria-invalid={tone === 'invalid' || undefined}
-          className={`${inputStyles} pl-10 ${secret ? 'pr-11' : ''} ${tone ? TONE_RINGS[tone] : ''}`}
+          className={`${pillInputStyles} ${secret ? 'pr-12' : ''} ${tone ? TONE_RINGS[tone] : ''}`}
+          placeholder={label}
           {...input}
         />
-        <Icon size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+        <Icon size={18} className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-muted" />
         {secret && (
           <button
             type="button"
             onClick={() => setRevealed(!revealed)}
             aria-label={revealed ? 'Hide password' : 'Show password'}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted transition-colors hover:text-white"
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-muted transition-colors hover:text-white"
           >
             {revealed ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         )}
       </div>
       {hint && (
-        <div id={hintId} className="text-[11px] text-muted">
+        <div id={hintId} className="px-5 text-[11px] text-muted">
           {hint}
         </div>
       )}

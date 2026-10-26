@@ -1,8 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { WELCOME_SEEN_COOKIE } from '@/lib/welcome'
 
 /** Pages that work without an account; everything else needs a session. */
-const PUBLIC_PATHS = ['/login']
+const PUBLIC_PATHS = ['/login', '/welcome']
 
 const isPublic = (pathname: string) => PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))
 
@@ -16,7 +17,7 @@ function redirectTo(request: NextRequest, pathname: string, from: NextResponse) 
   return response
 }
 
-/** Refreshes the Supabase session on every request and keeps signed-out visitors on /login. */
+/** Refreshes the Supabase session on every request and keeps signed-out visitors on /welcome (first visit) or /login. */
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
 
@@ -38,7 +39,10 @@ export async function proxy(request: NextRequest) {
   const signedIn = Boolean(data?.claims?.sub)
   const { pathname } = request.nextUrl
 
-  if (!signedIn && !isPublic(pathname)) return redirectTo(request, '/login', response)
+  if (!signedIn && !isPublic(pathname)) {
+    const seenWelcome = request.cookies.has(WELCOME_SEEN_COOKIE)
+    return redirectTo(request, seenWelcome ? '/login' : '/welcome', response)
+  }
   if (signedIn && isPublic(pathname)) return redirectTo(request, '/dashboard', response)
   return response
 }
