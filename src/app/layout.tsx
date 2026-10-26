@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { BottomNav } from '@/components/BottomNav'
 import { TimezoneSync } from '@/components/TimezoneSync'
+import { lora } from './fonts'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -39,7 +40,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={`${inter.className} ${lora.variable}`}>
         <main className="min-h-screen bg-background">{children}</main>
         <BottomNav />
         <TimezoneSync />

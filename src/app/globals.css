@@ -21,6 +21,14 @@
 
   --animate-fade-in: fade-in 150ms ease-out;
   --animate-slide-up: slide-up 200ms ease-out;
+  --animate-plate-in: plate-in 900ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes plate-in {
+    from {
+      opacity: 0;
+      transform: rotate(-90deg) scale(0.85);
+    }
+  }
 
   @keyframes fade-in {
     from {
@@ -34,6 +42,20 @@
       transform: translateY(1rem);
     }
   }
+}
+
+/* next/font sets --font-lora on <body>, not :root, so resolve it where it's used (see src/app/fonts.ts). */
+@theme inline {
+  --font-display: var(--font-lora), Georgia, serif;
+}
+
+/* Soft accent light from the top of the screen (welcome and sign-in). */
+@utility bg-glow {
+  background-image: radial-gradient(
+    ellipse 90% 50% at 50% 0%,
+    color-mix(in oklab, var(--color-primary) 18%, transparent),
+    transparent
+  );
 }
 
 /* Space for the iPhone home indicator under fixed bars. */

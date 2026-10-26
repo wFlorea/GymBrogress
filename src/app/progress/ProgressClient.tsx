@@ -2,9 +2,9 @@
 
 import { useOptimistic, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { ChevronRight, Dumbbell, Plus, Star } from 'lucide-react'
+import { Dumbbell, Plus, Star } from 'lucide-react'
 import { ExerciseBrowser } from '@/components/ExerciseBrowser'
-import { Alert, EmptyState } from '@/components/ui/Card'
+import { Alert, EmptyState, cardStyles } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { SectionTitle } from '@/components/ui/Page'
 import { buttonStyles } from '@/components/ui/styles'
@@ -13,6 +13,13 @@ import { MUSCLE_GROUP_EMOJIS, getExercise } from '@/lib/exercises-data'
 import { formatKg } from '@/lib/format'
 import type { ExerciseHistory } from '@/lib/types'
 import { setTracked } from './actions'
+
+interface RowProps {
+  exerciseId: string
+  entry: ExerciseHistory | undefined
+  tracked: boolean
+  onToggle: () => void
+}
 
 export function ProgressClient({ history, trackedIds }: { history: ExerciseHistory[]; trackedIds: string[] }) {
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -38,39 +45,40 @@ export function ProgressClient({ history, trackedIds }: { history: ExerciseHisto
     })
   }
 
-  const row = (exerciseId: string) => (
-    <ExerciseRow
-      key={exerciseId}
-      exerciseId={exerciseId}
-      entry={historyById.get(exerciseId)}
-      tracked={isTracked(exerciseId)}
-      onToggle={() => toggle(exerciseId, !isTracked(exerciseId))}
-    />
-  )
+  const rowProps = (exerciseId: string): RowProps => ({
+    exerciseId,
+    entry: historyById.get(exerciseId),
+    tracked: isTracked(exerciseId),
+    onToggle: () => toggle(exerciseId, !isTracked(exerciseId)),
+  })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {error && <Alert>{error}</Alert>}
 
       <section>
         <div className="flex items-start justify-between gap-3">
-          <SectionTitle>Tracked</SectionTitle>
-          <button type="button" onClick={() => setPickerOpen(true)} className={`${buttonStyles.chip} -mt-1`}>
+          <SectionTitle subtitle="Your best lift for each pinned exercise">Tracked</SectionTitle>
+          <button type="button" onClick={() => setPickerOpen(true)} className={buttonStyles.chip}>
             <Plus size={13} /> Add
           </button>
         </div>
         {optimisticTracked.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border px-4 py-5 text-center text-xs leading-relaxed text-muted">
+          <p className="rounded-2xl border border-dashed border-white/10 px-4 py-5 text-center text-xs leading-relaxed text-muted">
             Pin the lifts you care about most: tap the <Star size={12} className="inline align-[-1px]" /> next to an
             exercise, or add one.
           </p>
         ) : (
-          <ul className="space-y-2">{optimisticTracked.map(row)}</ul>
+          <ul className="grid grid-cols-2 gap-3">
+            {optimisticTracked.map((id) => (
+              <TrackedCard key={id} {...rowProps(id)} />
+            ))}
+          </ul>
         )}
       </section>
 
       <section>
-        <SectionTitle>All exercises</SectionTitle>
+        <SectionTitle subtitle="Every exercise you have logged a set of">All exercises</SectionTitle>
         {history.length === 0 ? (
           <EmptyState
             icon={<Dumbbell size={32} />}
@@ -82,7 +90,11 @@ export function ProgressClient({ history, trackedIds }: { history: ExerciseHisto
             </Link>
           </EmptyState>
         ) : (
-          <ul className="space-y-2">{history.map((entry) => row(entry.exerciseId))}</ul>
+          <ul className={`${cardStyles} divide-y divide-white/5 overflow-hidden`}>
+            {history.map((entry) => (
+              <ExerciseRow key={entry.exerciseId} {...rowProps(entry.exerciseId)} />
+            ))}
+          </ul>
         )}
       </section>
 
@@ -93,48 +105,97 @@ export function ProgressClient({ history, trackedIds }: { history: ExerciseHisto
   )
 }
 
-function ExerciseRow({
-  exerciseId,
-  entry,
-  tracked,
-  onToggle,
-}: {
-  exerciseId: string
-  entry: ExerciseHistory | undefined
-  tracked: boolean
-  onToggle: () => void
-}) {
+function exerciseInfo(exerciseId: string, entry: ExerciseHistory | undefined) {
   const exercise = getExercise(exerciseId)
-  const name = exercise?.name ?? entry?.name ?? 'Exercise'
-  const details = entry
-    ? `${entry.bestWeight > 0 ? `Best ${formatKg(entry.bestWeight)}` : 'Bodyweight'} · ${formatDate(entry.lastDate, {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      })}`
-    : 'Not done yet'
+  return {
+    name: exercise?.name ?? entry?.name ?? 'Exercise',
+    emoji: exercise ? MUSCLE_GROUP_EMOJIS[exercise.muscle_group] : '🏋️',
+    lastDone: entry
+      ? `Last done ${formatDate(entry.lastDate, { day: 'numeric', month: 'short', year: 'numeric' })}`
+      : 'Not done yet',
+  }
+}
+
+/** Tracked lifts get a card each, with the best weight as the headline. */
+function TrackedCard({ exerciseId, entry, tracked, onToggle }: RowProps) {
+  const { name, emoji, lastDone } = exerciseInfo(exerciseId, entry)
 
   return (
-    <li className="flex items-center rounded-2xl border border-border bg-surface pr-2 transition-colors hover:border-primary">
-      <Link href={`/progress/${exerciseId}`} className="flex min-w-0 flex-1 items-center gap-3 p-3.5">
-        <span className="text-xl" aria-hidden>
-          {exercise ? MUSCLE_GROUP_EMOJIS[exercise.muscle_group] : '🏋️'}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-bold text-white">{name}</span>
-          <span className="text-[11px] text-muted">{details}</span>
-        </span>
-        <ChevronRight size={16} className="shrink-0 text-muted" />
-      </Link>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-pressed={tracked}
-        aria-label={tracked ? `Stop tracking ${name}` : `Track ${name}`}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted transition-colors hover:bg-zinc-800 hover:text-white active:scale-90"
+    <li className="relative">
+      <Link
+        href={`/progress/${exerciseId}`}
+        className={`${cardStyles} flex h-full flex-col p-4 transition-colors hover:border-primary/60`}
       >
-        <Star size={18} className={tracked ? 'fill-primary text-primary' : ''} />
-      </button>
+        <Emoji emoji={emoji} />
+        <span className="mt-3 line-clamp-2 text-sm font-semibold text-white">{name}</span>
+        <span className="mt-auto pt-3">
+          {entry &&
+            (entry.bestWeight > 0 ? (
+              <span className="block font-display text-2xl font-bold leading-none">{formatKg(entry.bestWeight)}</span>
+            ) : (
+              <span className="block text-sm font-semibold">Bodyweight</span>
+            ))}
+          <span className="mt-1 block text-[11px] text-muted">{lastDone}</span>
+        </span>
+      </Link>
+      <StarButton name={name} tracked={tracked} onToggle={onToggle} className="absolute right-2 top-2" />
     </li>
+  )
+}
+
+function ExerciseRow({ exerciseId, entry, tracked, onToggle }: RowProps) {
+  const { name, emoji, lastDone } = exerciseInfo(exerciseId, entry)
+
+  return (
+    <li className="flex items-center pr-2">
+      <Link
+        href={`/progress/${exerciseId}`}
+        className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 pr-2 transition-colors hover:bg-white/[0.03]"
+      >
+        <Emoji emoji={emoji} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-white">{name}</span>
+          <span className="text-[11px] text-muted">{lastDone}</span>
+        </span>
+        {entry && entry.bestWeight > 0 ? (
+          <span className="shrink-0 text-sm font-bold tabular-nums">{formatKg(entry.bestWeight)}</span>
+        ) : (
+          <span className="shrink-0 text-xs text-muted">Bodyweight</span>
+        )}
+      </Link>
+      <StarButton name={name} tracked={tracked} onToggle={onToggle} />
+    </li>
+  )
+}
+
+function Emoji({ emoji }: { emoji: string }) {
+  return (
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/5 text-lg" aria-hidden>
+      {emoji}
+    </span>
+  )
+}
+
+function StarButton({
+  name,
+  tracked,
+  onToggle,
+  className = '',
+}: {
+  name: string
+  tracked: boolean
+  onToggle: () => void
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={tracked}
+      aria-label={tracked ? `Stop tracking ${name}` : `Track ${name}`}
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-white/5 hover:text-white active:scale-90 ${className}`}
+    >
+      <Star size={18} className={tracked ? 'fill-primary text-primary' : ''} />
+    </button>
   )
 }

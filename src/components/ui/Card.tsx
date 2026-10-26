@@ -1,7 +1,23 @@
 import type { ReactNode } from 'react'
 
+/**
+ * The card look without padding, for links and lists that set their own.
+ * (Card's `p-5` can't be overridden with another `p-*` class.)
+ */
+export const cardStyles = 'rounded-2xl border border-white/5 bg-surface shadow-lg shadow-black/25'
+
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-border bg-surface p-5 shadow-sm ${className}`}>{children}</div>
+  return <div className={`${cardStyles} p-5 ${className}`}>{children}</div>
+}
+
+/** One number in a `<dl>` row of stats; the label sits under the value. */
+export function StatItem({ value, label, className = '' }: { value: ReactNode; label: ReactNode; className?: string }) {
+  return (
+    <div className="flex flex-col-reverse">
+      <dt className="mt-0.5 text-[11px] text-muted">{label}</dt>
+      <dd className={`text-xl font-bold ${className}`}>{value}</dd>
+    </div>
+  )
 }
 
 export function EmptyState({

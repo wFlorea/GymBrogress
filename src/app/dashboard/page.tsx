@@ -1,21 +1,11 @@
 import Link from 'next/link'
-import {
-  ArrowRight,
-  BookOpen,
-  Calendar,
-  CalendarX,
-  CheckCircle2,
-  ClipboardList,
-  Coffee,
-  Dumbbell,
-  Flame,
-  RotateCcw,
-} from 'lucide-react'
+import { ArrowRight, BookOpen, Calendar, ClipboardList, Coffee, Dumbbell, Flame } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Card } from '@/components/ui/Card'
-import { Page } from '@/components/ui/Page'
+import { Card, StatItem, cardStyles } from '@/components/ui/Card'
+import { Page, SectionTitle } from '@/components/ui/Page'
+import { PlateMark } from '@/components/ui/PlateMark'
 import { buttonStyles } from '@/components/ui/styles'
-import { DAYS_OF_WEEK, dayOfWeek, formatDate } from '@/lib/date'
+import { DAYS_OF_WEEK, addDays, dayOfWeek, formatDate, mondayOf } from '@/lib/date'
 import { EXERCISES } from '@/lib/exercises-data'
 import { plural } from '@/lib/format'
 import { resolveRoutine } from '@/lib/routines'
@@ -24,7 +14,13 @@ import { MAX_RESTORES_PER_MONTH, computeStreakStats } from '@/lib/streak'
 import { getRoutineTemplates, getWeeklyPlan } from '@/lib/data/plans'
 import { getDisplayName, getToday, requireUser } from '@/lib/data/session'
 import { getWorkoutHistory } from '@/lib/data/workouts'
-import type { DaySummary } from '@/lib/types'
+import type { DaySummary, IsoDate } from '@/lib/types'
+
+interface ChartDay {
+  date: IsoDate
+  label: string
+  sets: number
+}
 
 export default async function DashboardPage() {
   const [user, today, weeklyPlan, templates, history] = await Promise.all([
@@ -46,6 +42,13 @@ export default async function DashboardPage() {
   const totalCompletedSets = history.reduce((sum, day) => sum + day.completedSets, 0)
   const trainedToday = (todayLog?.completedSets ?? 0) > 0
 
+  const setsByDate = new Map(history.map((day) => [day.date, day.completedSets]))
+  const week: ChartDay[] = DAYS_OF_WEEK.map((name, i) => {
+    const date = addDays(mondayOf(today), i)
+    return { date, label: name.slice(0, 3), sets: setsByDate.get(date) ?? 0 }
+  })
+  const weekSets = week.reduce((sum, day) => sum + day.sets, 0)
+
   return (
     <Page>
       {missedYesterday && !trainedToday && (
@@ -56,31 +59,41 @@ export default async function DashboardPage() {
 
       <header className="mb-6 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="truncate text-2xl font-black text-primary">Hi, {getDisplayName(user)}! 💪</h1>
-          <p className="mt-1 text-sm text-muted">{formatDate(today, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <p className="text-sm text-muted">Welcome,</p>
+          <h1 className="truncate font-display text-[2rem] font-bold leading-tight">{getDisplayName(user)}</h1>
+          <p className="mt-0.5 text-xs text-muted">{formatDate(today, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
         {streak > 0 && (
-          <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-primary/30 bg-primary/15 px-3 py-1.5 text-sm font-bold text-primary">
+          <div className="mt-1 flex shrink-0 items-center gap-1.5 rounded-full border border-primary/30 bg-primary/15 px-3 py-1.5 text-sm font-bold text-primary">
             <Flame size={18} className="fill-primary" />
             {plural(streak, 'day')}
           </div>
         )}
       </header>
 
-      <Card className="mb-6 shadow-xl">
-        <div className="mb-3 flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted">
-            <Calendar size={14} className="text-primary" /> {DAYS_OF_WEEK[dayOfWeek(today)]}
-          </span>
-          {split !== REST_DAY && <WorkoutStatus day={todayLog} />}
-        </div>
+      <Card className="mb-8">
+        <h2 className="font-semibold">This week</h2>
+        <p className="mb-5 text-xs text-muted">
+          {plural(weekSets, 'set')} done, {totalCompletedSets} all time
+        </p>
+        <WeekChart days={week} today={today} />
+        <dl className="mt-5 grid grid-cols-3 border-t border-white/5 pt-4 text-center">
+          <StatItem value={streak} label="Day streak" />
+          <StatItem value={skippedDays} label="Missed workouts" />
+          <StatItem value={`${restoresLeftThisMonth}/${MAX_RESTORES_PER_MONTH}`} label="Restores left" />
+        </dl>
+      </Card>
+
+      <SectionTitle subtitle={DAYS_OF_WEEK[dayOfWeek(today)]}>Today</SectionTitle>
+      <Card className="relative mb-8 overflow-hidden">
+        <PlateMark size={180} className="pointer-events-none absolute -right-14 -top-12 text-white/[0.05]" />
 
         {split === REST_DAY ? (
-          <div className="space-y-4">
+          <div className="relative space-y-4">
             <div>
-              <h2 className="flex items-center gap-2 text-xl font-bold">
-                <Coffee size={22} className="text-amber-500" /> Rest & recovery day
-              </h2>
+              <h3 className="flex items-center gap-2 font-display text-2xl font-bold">
+                <Coffee size={22} className="text-amber-500" /> Rest day
+              </h3>
               <p className="mt-1.5 text-sm leading-relaxed text-muted">
                 Muscles grow while you recover. Get enough sleep, stay hydrated and eat balanced meals.
               </p>
@@ -95,56 +108,78 @@ export default async function DashboardPage() {
             </div>
           </div>
         ) : (
-          <div>
-            <div className="mb-1.5 flex items-center justify-between gap-2">
-              <h2 className="text-xl font-bold">
-                {getSplitOption(split).emoji} {getSplitOption(split).name}
-              </h2>
-              <span className="shrink-0 rounded-lg bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
-                {plural(exercises.length, 'exercise')}
-              </span>
-            </div>
-            <p className="mb-5 text-sm text-muted">{workoutSummary(todayLog)}</p>
+          <div className="relative">
+            <WorkoutStatus day={todayLog} />
+            <h3 className="mt-3 font-display text-2xl font-bold">
+              {getSplitOption(split).emoji} {getSplitOption(split).name}
+            </h3>
+            <p className="mt-1 text-sm text-muted">
+              {plural(exercises.length, 'exercise')}. {workoutSummary(todayLog)}
+            </p>
 
-            <Link href="/tracker" className={buttonStyles.primary}>
+            <Link href="/tracker" className={`${buttonStyles.primary} mt-5`}>
               <Dumbbell size={18} />
               {todayLog?.finished ? 'View workout' : todayLog?.totalSets ? 'Continue workout' : 'Start workout'}
-              <ArrowRight size={18} />
             </Link>
           </div>
         )}
       </Card>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Stat icon={<Flame size={22} className="fill-primary" />} tone="bg-primary/15 text-primary" value={streak} label="Day streak" />
-        <Stat icon={<CalendarX size={20} />} tone="bg-zinc-700/40 text-zinc-300" value={skippedDays} label="Missed workouts" />
-        <Stat
-          icon={<RotateCcw size={20} />}
-          tone="bg-blue-500/15 text-blue-400"
-          value={
-            <>
-              {restoresLeftThisMonth}
-              <span className="text-base text-muted">/{MAX_RESTORES_PER_MONTH}</span>
-            </>
-          }
-          label="Streak restores left this month"
-        />
-        <Stat icon={<CheckCircle2 size={22} />} tone="bg-emerald-500/15 text-emerald-400" value={totalCompletedSets} label="Sets completed" />
-      </div>
-
-      <nav className="mt-6 grid grid-cols-3 gap-3" aria-label="Shortcuts">
-        <QuickLink href="/schedule" icon={<Calendar size={17} />} tone="bg-blue-500/15 text-blue-400" title="Schedule" subtitle="Your training days" />
-        <QuickLink href="/plan" icon={<ClipboardList size={17} />} tone="bg-primary/15 text-primary" title="Plan" subtitle="Routine per split" />
-        <QuickLink href="/exercises" icon={<BookOpen size={17} />} tone="bg-emerald-500/15 text-emerald-400" title="Library" subtitle={plural(EXERCISES.length, 'exercise')} />
+      <SectionTitle subtitle="Set up your training">Shortcuts</SectionTitle>
+      <nav className="grid grid-cols-3 gap-3" aria-label="Shortcuts">
+        <QuickLink href="/schedule" icon={<Calendar size={18} />} title="Schedule" subtitle="Your training days" />
+        <QuickLink href="/plan" icon={<ClipboardList size={18} />} title="Plan" subtitle="Routine per split" />
+        <QuickLink href="/exercises" icon={<BookOpen size={18} />} title="Library" subtitle={plural(EXERCISES.length, 'exercise')} />
       </nav>
     </Page>
   )
 }
 
 function workoutSummary(day: DaySummary | undefined): string {
-  if (!day || day.totalSets === 0) return 'Ready for today’s session? Time to make progress!'
+  if (!day || day.totalSets === 0) return 'Ready when you are.'
   const progress = `${day.completedExercises} of ${plural(day.totalExercises, 'exercise')}`
   return day.finished ? `Great work! You completed ${progress}.` : `You have completed ${progress}.`
+}
+
+/** Completed sets for each day of this week. Today's bar is the accent; only it carries a number. */
+function WeekChart({ days, today }: { days: ChartDay[]; today: IsoDate }) {
+  const max = Math.max(1, ...days.map((day) => day.sets))
+  const empty = days.every((day) => day.sets === 0)
+
+  return (
+    <div className="relative">
+      {empty && (
+        <p className="absolute inset-x-0 top-10 text-center text-xs text-muted">No sets logged yet this week.</p>
+      )}
+      <ol className="flex items-end justify-between gap-1" aria-label="Sets completed each day this week">
+        {days.map((day) => {
+          const isToday = day.date === today
+          return (
+            <li key={day.date} title={`${day.label}: ${plural(day.sets, 'set')}`} className="flex flex-1 flex-col items-center">
+              {/* Bars top out at 80% so today's number fits above the tallest one. */}
+              <div className="flex h-28 w-full flex-col items-center justify-end">
+                {isToday && day.sets > 0 && <span className="mb-1 text-[11px] font-bold">{day.sets}</span>}
+                <span
+                  className={`w-2.5 rounded-t-full ${
+                    day.sets === 0
+                      ? 'h-1 rounded-full bg-white/10'
+                      : isToday
+                        ? 'bg-linear-to-t from-primary/30 to-primary shadow-[0_0_14px_-2px_var(--color-primary)]'
+                        : 'bg-linear-to-t from-white/5 to-white/70'
+                  }`}
+                  style={day.sets > 0 ? { height: `${(day.sets / max) * 80}%` } : undefined}
+                />
+              </div>
+              <span className={`mt-2 text-[11px] ${isToday ? 'font-bold text-white' : 'text-muted'}`}>
+                {day.label}
+                <span className="sr-only">: {plural(day.sets, 'set')}</span>
+              </span>
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
 }
 
 function WorkoutStatus({ day }: { day: DaySummary | undefined }) {
@@ -153,40 +188,18 @@ function WorkoutStatus({ day }: { day: DaySummary | undefined }) {
     : day && day.totalSets > 0
       ? ['In progress', 'border-primary/30 bg-primary/15 text-primary']
       : ['Not started', 'border-border bg-zinc-800 text-zinc-400']
-  return <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${tone}`}>{label}</span>
+  return <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium ${tone}`}>{label}</span>
 }
 
-function Stat({ icon, tone, value, label }: { icon: ReactNode; tone: string; value: ReactNode; label: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-surface p-4 text-center shadow-sm">
-      <div className={`mb-2 flex h-10 w-10 items-center justify-center rounded-full ${tone}`}>{icon}</div>
-      <span className="text-3xl font-extrabold">{value}</span>
-      <span className="mt-1 text-xs font-medium text-muted">{label}</span>
-    </div>
-  )
-}
-
-function QuickLink({
-  href,
-  icon,
-  tone,
-  title,
-  subtitle,
-}: {
-  href: string
-  icon: ReactNode
-  tone: string
-  title: string
-  subtitle: string
-}) {
+function QuickLink({ href, icon, title, subtitle }: { href: string; icon: ReactNode; title: string; subtitle: string }) {
   return (
     <Link
       href={href}
-      className="flex flex-col justify-between rounded-2xl border border-border bg-surface/70 p-3.5 transition-all hover:border-primary hover:bg-surface"
+      className={`${cardStyles} flex flex-col p-3.5 transition-colors hover:border-primary/60`}
     >
-      <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg ${tone}`}>{icon}</div>
-      <span className="block text-xs font-black text-white">{title}</span>
-      <span className="text-[10px] text-muted">{subtitle}</span>
+      <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">{icon}</span>
+      <span className="block text-sm font-semibold text-white">{title}</span>
+      <span className="text-[11px] leading-snug text-muted">{subtitle}</span>
     </Link>
   )
 }

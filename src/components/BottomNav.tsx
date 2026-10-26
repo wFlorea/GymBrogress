@@ -22,7 +22,7 @@ function tabPath(pathname: string): string {
 
 export function BottomNav() {
   const pathname = usePathname()
-  if (pathname === '/login') return null
+  if (pathname === '/login' || pathname === '/welcome') return null
 
   const current = tabPath(pathname)
 
@@ -39,8 +39,10 @@ export function BottomNav() {
               key={href}
               href={href}
               aria-current={isActive ? 'page' : undefined}
-              className={`flex h-full w-full flex-col items-center justify-center gap-1 transition-transform active:scale-90 ${
-                isActive ? 'font-bold text-primary' : 'text-muted transition-colors hover:text-white'
+              className={`relative flex h-full w-full flex-col items-center justify-center gap-1 transition-transform active:scale-90 ${
+                isActive
+                  ? 'font-bold text-primary before:absolute before:top-0 before:h-0.5 before:w-8 before:rounded-full before:bg-primary before:shadow-[0_0_12px_var(--color-primary)]'
+                  : 'text-muted transition-colors hover:text-white'
               }`}
             >
               <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />

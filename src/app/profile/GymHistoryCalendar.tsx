@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { cardStyles } from '@/components/ui/Card'
 import { addDays, addMonths, dayOfWeek, daysInMonth, firstOfMonth, formatDate, monthOf } from '@/lib/date'
 import { plural } from '@/lib/format'
 import type { IsoDate } from '@/lib/types'
@@ -21,7 +22,7 @@ export function GymHistoryCalendar({ today, gymDates }: { today: IsoDate; gymDat
   const firstLoggedMonth = gymDates.length > 0 ? monthOf([...gymDates].sort()[0]) : monthOf(today)
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4">
+    <div className={`${cardStyles} p-4`}>
       <div className="mb-4 flex items-center justify-between">
         <MonthButton
           label="Previous month"
@@ -56,9 +57,13 @@ export function GymHistoryCalendar({ today, gymDates }: { today: IsoDate; gymDat
             <span
               key={date}
               aria-label={`${formatDate(date, { day: 'numeric', month: 'long' })}${wentToGym ? ', trained' : ''}`}
-              className={`flex aspect-square items-center justify-center rounded-lg text-xs font-semibold ${
-                wentToGym ? 'bg-primary text-white' : date > today ? 'bg-zinc-800/40 text-zinc-600' : 'bg-zinc-800 text-zinc-400'
-              } ${date === today ? 'ring-2 ring-zinc-300' : ''}`}
+              className={`flex aspect-square items-center justify-center rounded-full text-xs font-semibold ${
+                wentToGym
+                  ? 'bg-primary text-white shadow-[0_0_12px_-3px_var(--color-primary)]'
+                  : date > today
+                    ? 'text-white/20'
+                    : 'bg-white/5 text-zinc-400'
+              } ${date === today ? 'ring-2 ring-white/70' : ''}`}
             >
               {Number(date.slice(8))}
             </span>
@@ -68,10 +73,10 @@ export function GymHistoryCalendar({ today, gymDates }: { today: IsoDate; gymDat
 
       <div className="mt-4 flex items-center justify-center gap-4 text-[10px] text-muted">
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-primary" /> Trained
+          <span className="h-3 w-3 rounded-full bg-primary" /> Trained
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-zinc-800" /> No workout
+          <span className="h-3 w-3 rounded-full bg-white/5" /> No workout
         </span>
       </div>
     </div>
@@ -95,7 +100,7 @@ function MonthButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent"
+      className="rounded-full p-1.5 text-zinc-400 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent"
     >
       {children}
     </button>
