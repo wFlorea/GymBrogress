@@ -64,8 +64,9 @@ export const getWorkoutDay = cache(async (date: IsoDate): Promise<WorkoutDay | n
 const LAST_PERFORMANCE_ROWS = 500
 
 /**
- * Reps and weight of each exercise's completed sets from the last day before `before` it was
- * done, in set order, so new sets can start from what the user lifted last time.
+ * Reps and weight of each exercise's sets from the last day before `before` it was done, in set
+ * order, so new sets can start from what the user lifted last time. A set counts once it is
+ * ticked off or has a weight entered, so values typed in without ticking aren't lost.
  */
 export async function getLastPerformance(exerciseIds: string[], before: IsoDate): Promise<Map<string, SetValues[]>> {
   const result = new Map<string, SetValues[]>()
@@ -78,7 +79,7 @@ export async function getLastPerformance(exerciseIds: string[], before: IsoDate)
     .eq('workout_logs.user_id', user.id)
     .lt('workout_logs.date', before)
     .in('exercise_id', exerciseIds)
-    .eq('is_completed', true)
+    .or('is_completed.eq.true,actual_weight.gt.0')
     .order('created_at', { ascending: false })
     .limit(LAST_PERFORMANCE_ROWS)
   if (error) throw new Error(`Could not load your previous sets: ${error.message}`)

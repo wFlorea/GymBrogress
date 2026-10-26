@@ -20,10 +20,11 @@ function revalidateWorkout({ tracker = false } = {}) {
 }
 
 /**
- * New sets for `exercises`, as many as the routine asks for. Each starts from the reps and weight
- * of the same set last time; extra sets repeat the last one. Nothing is ticked off.
+ * New sets that bring `exercises` up to as many as the routine asks for, after the sets they
+ * already have in `logged`. Each starts from the reps and weight of the same set last time;
+ * extra sets repeat the set before them. Nothing is ticked off.
  */
-async function seedSets(logId: string, exercises: PlannedExercise[], today: IsoDate) {
+async function seedSets(logId: string, exercises: PlannedExercise[], today: IsoDate, logged: WorkoutSet[] = []) {
   // Starting from defaults beats failing the whole workout when the history can't be read.
   const previous = await getLastPerformance(exercises.map((e) => e.id), today).catch((error) => {
     console.error('[seedSets]', error)
@@ -31,13 +32,16 @@ async function seedSets(logId: string, exercises: PlannedExercise[], today: IsoD
   })
   return exercises.flatMap((exercise) => {
     const last = previous.get(exercise.id) ?? []
-    return Array.from({ length: exercise.sets }, (_, i) => {
-      const values = last[i] ?? last.at(-1)
+    const current = sortSets(logged.filter((s) => s.exercise_id === exercise.id))
+    const lastNumber = current.at(-1)?.set_number ?? 0
+    return Array.from({ length: Math.max(exercise.sets - current.length, 0) }, (_, k) => {
+      const i = current.length + k
+      const values = last[i] ?? current.at(-1) ?? last.at(-1)
       return {
         workout_log_id: logId,
         exercise_id: exercise.id,
         exercise_name: exercise.name,
-        set_number: i + 1,
+        set_number: lastNumber + k + 1,
         actual_reps: values?.actual_reps ?? DEFAULT_REPS,
         actual_weight: values?.actual_weight ?? 0,
         is_completed: false,
@@ -219,8 +223,9 @@ async function renumberSets(
 }
 
 /**
- * Matches the session to the day's current routine: adds planned exercises that have no sets
- * and drops exercises that left the plan, unless they already have completed sets.
+ * Matches the session to the day's current routine: adds planned exercises that have no sets,
+ * tops up exercises with nothing ticked off to the planned number of sets, and drops exercises
+ * that left the plan, unless they already have completed sets.
  * Returns the session's sets afterwards.
  */
 export async function syncWithPlan(logId: string): Promise<ActionResult<WorkoutSet[]>> {
@@ -238,7 +243,6 @@ export async function syncWithPlan(logId: string): Promise<ActionResult<WorkoutS
   const sets: WorkoutSet[] = (log.workout_sets ?? []).map(toWorkoutSet)
   const planned = resolveRoutine(log.split, templates)
   const plannedIds = new Set(planned.map((e) => e.id))
-  const loggedIds = new Set(sets.map((s) => s.exercise_id))
   const completedIds = new Set(sets.filter((s) => s.is_completed).map((s) => s.exercise_id))
 
   const staleSetIds = sets
@@ -249,9 +253,13 @@ export async function syncWithPlan(logId: string): Promise<ActionResult<WorkoutS
     if (deleteError) return dbFail('syncWithPlan', deleteError)
   }
 
-  const missing = planned.filter((e) => !loggedIds.has(e.id))
-  if (missing.length > 0) {
-    const { error: insertError } = await supabase.from('workout_sets').insert(await seedSets(log.id, missing, today))
+  const behind = planned.filter(
+    (e) => !completedIds.has(e.id) && sets.filter((s) => s.exercise_id === e.id).length < e.sets
+  )
+  if (behind.length > 0) {
+    const { error: insertError } = await supabase
+      .from('workout_sets')
+      .insert(await seedSets(log.id, behind, today, sets))
     if (insertError) return dbFail('syncWithPlan', insertError)
   }
 

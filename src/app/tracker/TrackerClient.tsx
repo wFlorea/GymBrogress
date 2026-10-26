@@ -48,9 +48,13 @@ export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plan
   for (const exercise of plannedExercises) setsByExercise.set(exercise.id, [])
   for (const set of sets) setsByExercise.set(set.exercise_id, [...(setsByExercise.get(set.exercise_id) ?? []), set])
   const exerciseIds = [...setsByExercise.keys()]
-  const missingCount = plannedExercises.filter((e) => setsByExercise.get(e.id)!.length === 0).length
 
   const completed = sets.filter((s) => s.is_completed)
+  const completedIds = new Set(completed.map((s) => s.exercise_id))
+  // Planned exercises with nothing ticked off yet and fewer sets than the routine asks for, e.g. after it changed.
+  const behindCount = plannedExercises.filter(
+    (e) => !completedIds.has(e.id) && setsByExercise.get(e.id)!.length < e.sets
+  ).length
   const volumeKg = completed.reduce((sum, s) => sum + s.actual_weight * s.actual_reps, 0)
 
   const patchLocal = (setId: string, patch: Partial<WorkoutSet>) =>
@@ -171,11 +175,11 @@ export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plan
         </div>
       </div>
 
-      {missingCount > 0 && (
+      {behindCount > 0 && (
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/10 p-3.5">
           <p className="text-xs text-zinc-300">
-            {plural(missingCount, 'exercise')} from your {split.name} routine {missingCount === 1 ? 'has' : 'have'} no
-            sets yet.
+            {plural(behindCount, 'exercise')} from your {split.name} routine {behindCount === 1 ? 'has' : 'have'} fewer
+            sets than planned.
           </p>
           <button type="button" onClick={sync} disabled={isSyncing} className={`${buttonStyles.chip} shrink-0`}>
             <RotateCcw size={13} className={isSyncing ? 'animate-spin' : ''} /> Sync with plan
