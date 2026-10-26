@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { CalendarDays, ClipboardList, Dumbbell, Home, User } from 'lucide-react'
@@ -15,13 +16,15 @@ const NAV_ITEMS = [
 /** Sections (with their sub-pages) that belong to a tab without being under its path. */
 const TAB_ALIASES: Record<string, string> = { '/exercises': '/profile', '/progress': '/profile' }
 
-function tabPath(pathname: string): string {
+export function tabPath(pathname: string): string {
   const section = `/${pathname.split('/')[1] ?? ''}`
   return TAB_ALIASES[section] ?? pathname
 }
 
 export function BottomNav() {
   const pathname = usePathname()
+  // The tab the user tapped last; its icon jumps when that tab opens.
+  const [tapped, setTapped] = useState<string | null>(null)
   if (pathname === '/login' || pathname === '/welcome') return null
 
   const current = tabPath(pathname)
@@ -39,13 +42,14 @@ export function BottomNav() {
               key={href}
               href={href}
               aria-current={isActive ? 'page' : undefined}
-              className={`relative flex h-full w-full flex-col items-center justify-center gap-1 transition-transform active:scale-90 ${
+              onClick={() => setTapped(href)}
+              className={`press relative flex h-full w-full flex-col items-center justify-center gap-1 [--press-scale:0.85] ${
                 isActive
                   ? 'font-bold text-primary before:absolute before:top-0 before:h-0.5 before:w-8 before:rounded-full before:bg-primary before:shadow-[0_0_12px_var(--color-primary)]'
-                  : 'text-muted transition-colors hover:text-white'
+                  : 'text-muted hover:text-white'
               }`}
             >
-              <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+              <Icon size={20} strokeWidth={isActive ? 2.5 : 2} className={isActive && tapped === href ? 'animate-jump' : ''} />
               <span className="text-[10px] tracking-tight">{name}</span>
             </Link>
           )

@@ -19,9 +19,21 @@
   --color-error: #ef4444;
   --color-success: #22c55e;
 
+  /* Springs. These are fallbacks: browsers with linear() get real spring curves (see below). */
+  --ease-spring: cubic-bezier(0.3, 1.25, 0.5, 1);
+  --ease-bounce: cubic-bezier(0.3, 1.6, 0.5, 1);
+
   --animate-fade-in: fade-in 150ms ease-out;
   --animate-slide-up: slide-up 200ms ease-out;
   --animate-plate-in: plate-in 900ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-pop: pop 800ms var(--ease-bounce);
+  --animate-jump: jump 700ms var(--ease-bounce);
+  --animate-float-in: float-in 700ms var(--ease-bounce);
+  --animate-sheet-in: sheet-in 600ms var(--ease-spring);
+  --animate-sheet-out: sheet-out 220ms ease-in forwards;
+  --animate-dialog-in: dialog-in 600ms var(--ease-spring);
+  --animate-dialog-out: dialog-out 220ms ease-in forwards;
+  --animate-fade-out: fade-out 220ms ease-in forwards;
 
   @keyframes plate-in {
     from {
@@ -41,6 +53,119 @@
       opacity: 0;
       transform: translateY(1rem);
     }
+  }
+}
+
+/* Spring curves (Apple-style duration + bounce), sampled for linear(). */
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    /* 0.5s, bounce 0.25: settles with a small overshoot. Page and sheet motion. */
+    --ease-spring: linear(0, 0.017, 0.061, 0.125, 0.2, 0.283, 0.368, 0.451, 0.532, 0.607, 0.676, 0.738, 0.793, 0.841, 0.882, 0.916, 0.945, 0.968, 0.986, 1.001, 1.011, 1.019, 1.024, 1.027, 1.028, 1.028, 1.028, 1.026, 1.024, 1.022, 1.019, 1.017, 1.015, 1.012, 1.01, 1.008, 1.007, 1.005, 1.004, 1.003, 1);
+    /* 0.45s, bounce 0.5: a visible wobble. Pops, presses and small elements. */
+    --ease-bounce: linear(0, 0.042, 0.15, 0.297, 0.462, 0.627, 0.778, 0.907, 1.009, 1.084, 1.132, 1.157, 1.163, 1.154, 1.135, 1.111, 1.084, 1.057, 1.033, 1.012, 0.996, 0.985, 0.978, 0.974, 0.974, 0.975, 0.978, 0.983, 0.987, 0.991, 0.995, 0.998, 1.001, 1.003, 1.004, 1.004, 1.004, 1.004, 1.003, 1.003, 1);
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    scale: 0.5;
+  }
+}
+
+@keyframes jump {
+  from {
+    scale: 0.7;
+    translate: 0 4px;
+  }
+}
+
+@keyframes float-in {
+  from {
+    opacity: 0;
+    scale: 0.94;
+    translate: 0 1.5rem;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    translate: 0 100%;
+  }
+}
+
+@keyframes sheet-out {
+  to {
+    translate: 0 100%;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
+}
+
+@keyframes dialog-out {
+  to {
+    opacity: 0;
+    scale: 0.95;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Page transitions (see src/app/template.tsx): another tab rises in, a page deeper in its tab
+   pushes in from the right, and going back comes in from the left. The loading skeleton doesn't move. */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    scale: 0.98;
+    translate: 0 0.75rem;
+  }
+}
+
+@keyframes page-push {
+  from {
+    opacity: 0;
+    translate: 3rem 0;
+  }
+}
+
+@keyframes page-pop {
+  from {
+    opacity: 0;
+    translate: -3rem 0;
+  }
+}
+
+[data-enter='tab'] {
+  --page-enter: page-in;
+}
+[data-enter='forward'] {
+  --page-enter: page-push;
+}
+[data-enter='back'] {
+  --page-enter: page-pop;
+}
+[data-enter] > :not([aria-busy]) {
+  animation: var(--page-enter) 600ms var(--ease-spring) backwards;
+}
+
+/* Press feedback: squish while held, then spring back with a little bounce. */
+@utility press {
+  transition-property: color, background-color, border-color, box-shadow, opacity, scale;
+  transition-duration: 150ms, 150ms, 150ms, 150ms, 150ms, 600ms;
+  transition-timing-function: ease-out, ease-out, ease-out, ease-out, ease-out, var(--ease-bounce);
+  &:active:not(:disabled) {
+    scale: var(--press-scale, 0.95);
+    transition-duration: 150ms, 150ms, 150ms, 150ms, 150ms, 100ms;
+    transition-timing-function: ease-out;
   }
 }
 
@@ -112,4 +237,65 @@ input[type='number']::-webkit-outer-spin-button {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-muted);
+}
+
+/* Reduced motion: same timing, but nothing travels, scales or bounces; things only fade. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ease-spring: ease-out;
+    --ease-bounce: ease-out;
+  }
+  .press:active:not(:disabled) {
+    scale: 1;
+  }
+  @keyframes pop {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes jump {
+    from {
+      opacity: 0.6;
+    }
+  }
+  @keyframes float-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes sheet-out {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes dialog-out {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes page-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes page-push {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes page-pop {
+    from {
+      opacity: 0;
+    }
+  }
 }

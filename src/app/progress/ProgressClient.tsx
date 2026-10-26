@@ -24,6 +24,8 @@ interface RowProps {
 export function ProgressClient({ history, trackedIds }: { history: ExerciseHistory[]; trackedIds: string[] }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The lift tracked last, so its card floats into the grid.
+  const [newlyTracked, setNewlyTracked] = useState<string | null>(null)
   const [, startTransition] = useTransition()
   const [optimisticTracked, setOptimisticTracked] = useOptimistic(
     trackedIds,
@@ -38,6 +40,7 @@ export function ProgressClient({ history, trackedIds }: { history: ExerciseHisto
 
   function toggle(exerciseId: string, tracked: boolean) {
     setError(null)
+    if (tracked) setNewlyTracked(exerciseId)
     startTransition(async () => {
       setOptimisticTracked({ exerciseId, tracked })
       const result = await setTracked(exerciseId, tracked)
@@ -71,7 +74,7 @@ export function ProgressClient({ history, trackedIds }: { history: ExerciseHisto
         ) : (
           <ul className="grid grid-cols-2 gap-3">
             {optimisticTracked.map((id) => (
-              <TrackedCard key={id} {...rowProps(id)} />
+              <TrackedCard key={id} {...rowProps(id)} isNew={id === newlyTracked} />
             ))}
           </ul>
         )}
@@ -117,14 +120,14 @@ function exerciseInfo(exerciseId: string, entry: ExerciseHistory | undefined) {
 }
 
 /** Tracked lifts get a card each, with the best weight as the headline. */
-function TrackedCard({ exerciseId, entry, tracked, onToggle }: RowProps) {
+function TrackedCard({ exerciseId, entry, tracked, onToggle, isNew }: RowProps & { isNew: boolean }) {
   const { name, emoji, lastDone } = exerciseInfo(exerciseId, entry)
 
   return (
-    <li className="relative">
+    <li className={`relative ${isNew ? 'animate-float-in' : ''}`}>
       <Link
         href={`/progress/${exerciseId}`}
-        className={`${cardStyles} flex h-full flex-col p-4 transition-colors hover:border-primary/60`}
+        className={`${cardStyles} press flex h-full flex-col p-4 hover:border-primary/60 [--press-scale:0.97]`}
       >
         <Emoji emoji={emoji} />
         <span className="mt-3 line-clamp-2 text-sm font-semibold text-white">{name}</span>
@@ -187,15 +190,21 @@ function StarButton({
   onToggle: () => void
   className?: string
 }) {
+  // Only pop the star when it's tapped, not for lifts that were already tracked.
+  const [toggled, setToggled] = useState(false)
+
   return (
     <button
       type="button"
-      onClick={onToggle}
+      onClick={() => {
+        setToggled(true)
+        onToggle()
+      }}
       aria-pressed={tracked}
       aria-label={tracked ? `Stop tracking ${name}` : `Track ${name}`}
-      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-white/5 hover:text-white active:scale-90 ${className}`}
+      className={`press flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted hover:bg-white/5 hover:text-white [--press-scale:0.8] ${className}`}
     >
-      <Star size={18} className={tracked ? 'fill-primary text-primary' : ''} />
+      <Star size={18} className={tracked ? `fill-primary text-primary ${toggled ? 'animate-pop' : ''}` : ''} />
     </button>
   )
 }

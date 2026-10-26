@@ -169,7 +169,7 @@ export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plan
           aria-valuenow={completed.length}
         >
           <div
-            className="h-full rounded-full bg-primary transition-all"
+            className="h-full rounded-full bg-primary transition-[width] duration-700 ease-spring"
             style={{ width: `${sets.length ? (completed.length / sets.length) * 100 : 0}%` }}
           />
         </div>
@@ -251,7 +251,7 @@ export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plan
             type="button"
             onClick={finish}
             disabled={isFinishing}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-4 text-base font-extrabold text-white shadow-lg shadow-emerald-600/30 transition-all hover:bg-emerald-500 active:scale-[0.98] disabled:opacity-60"
+            className="press flex w-full animate-float-in items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-4 text-base font-extrabold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-500 disabled:opacity-60"
           >
             {isFinishing ? <Loader2 size={20} className="animate-spin" /> : <Trophy size={20} />} Finish workout
           </button>
@@ -332,6 +332,8 @@ function ExerciseCard({
   const ordered = [...sets].sort((a, b) => a.set_number - b.set_number)
   const doneCount = ordered.filter((s) => s.is_completed).length
   const allDone = ordered.length > 0 && doneCount === ordered.length
+  // Celebrate finishing the exercise only when it happens here, not for exercises already done on load.
+  const [toggled, setToggled] = useState(false)
 
   return (
     <section
@@ -346,7 +348,7 @@ function ExerciseCard({
             allDone ? 'bg-success/20 text-success' : 'bg-primary/15 text-primary'
           }`}
         >
-          {allDone ? <Check size={15} strokeWidth={3} /> : index + 1}
+          {allDone ? <Check size={15} strokeWidth={3} className={toggled ? 'animate-pop' : ''} /> : index + 1}
         </span>
         <div className="min-w-0">
           <h3 className="text-base font-extrabold text-white">{name}</h3>
@@ -369,7 +371,17 @@ function ExerciseCard({
           <p className="py-4 text-center text-xs text-muted">No sets yet. They start from what you lifted last time.</p>
         ) : (
           ordered.map((set, i) => (
-            <SetRow key={set.id} number={i + 1} set={set} onChange={onChange} onToggle={onToggle} onDelete={onDelete} />
+            <SetRow
+              key={set.id}
+              number={i + 1}
+              set={set}
+              onChange={onChange}
+              onToggle={(s) => {
+                setToggled(true)
+                onToggle(s)
+              }}
+              onDelete={onDelete}
+            />
           ))
         )}
 
@@ -377,7 +389,7 @@ function ExerciseCard({
           type="button"
           onClick={onAddSet}
           disabled={isAdding}
-          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-700 bg-zinc-900/60 py-2.5 text-xs font-bold text-zinc-400 transition-all hover:bg-zinc-800 hover:text-white active:scale-[0.99] disabled:opacity-60"
+          className="press mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-700 bg-zinc-900/60 py-2.5 text-xs font-bold text-zinc-400 hover:bg-zinc-800 hover:text-white [--press-scale:0.97] disabled:opacity-60"
         >
           {isAdding ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
           {ordered.length === 0 ? `Add ${plural(plannedSets, 'set')}` : `Add set ${ordered.length + 1}`}
@@ -403,6 +415,9 @@ function SetRow({
   onToggle: (set: WorkoutSet) => void
   onDelete: (set: WorkoutSet) => void
 }) {
+  // Only pop the tick when it's tapped, not for sets that were already done.
+  const [toggled, setToggled] = useState(false)
+
   return (
     <div
       className={`grid grid-cols-12 items-center gap-2 rounded-xl border p-2.5 transition-colors ${
@@ -443,22 +458,25 @@ function SetRow({
       <div className="col-span-3 flex items-center justify-center gap-1.5">
         <button
           type="button"
-          onClick={() => onToggle(set)}
+          onClick={() => {
+            setToggled(true)
+            onToggle(set)
+          }}
           aria-pressed={set.is_completed}
           aria-label={`Set ${number} done`}
-          className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all active:scale-90 ${
+          className={`press flex h-9 w-9 items-center justify-center rounded-xl [--press-scale:0.82] ${
             set.is_completed
               ? 'bg-success text-white shadow-md shadow-success/30'
               : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
           }`}
         >
-          <Check size={18} strokeWidth={3} />
+          <Check size={18} strokeWidth={3} className={toggled && set.is_completed ? 'animate-pop' : ''} />
         </button>
         <button
           type="button"
           onClick={() => onDelete(set)}
           aria-label={`Delete set ${number}`}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-red-950/30 hover:text-red-400"
+          className="press flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-red-950/30 hover:text-red-400 [--press-scale:0.85]"
         >
           <Trash2 size={14} />
         </button>
@@ -481,7 +499,7 @@ function RestTimerBar({
   const minutes = Math.floor(secondsLeft / 60)
   const seconds = String(secondsLeft % 60).padStart(2, '0')
   return (
-    <div className="fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-lg animate-slide-up overflow-hidden rounded-2xl border border-primary/50 bg-zinc-900/95 shadow-2xl backdrop-blur-md">
+    <div className="fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-lg animate-float-in overflow-hidden rounded-2xl border border-primary/50 bg-zinc-900/95 shadow-2xl backdrop-blur-md">
       <div className="flex items-center justify-between p-3.5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-primary">
@@ -498,7 +516,7 @@ function RestTimerBar({
           <button
             type="button"
             onClick={onAdd}
-            className="rounded-xl bg-zinc-800 px-2.5 py-1.5 text-xs font-bold text-white transition-colors hover:bg-zinc-700"
+            className="press rounded-xl bg-zinc-800 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-zinc-700 [--press-scale:0.88]"
           >
             +30s
           </button>
@@ -506,7 +524,7 @@ function RestTimerBar({
             type="button"
             onClick={onStop}
             aria-label="Skip rest"
-            className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-800 text-zinc-400 transition-colors hover:text-white"
+            className="press flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-800 text-zinc-400 hover:text-white [--press-scale:0.85]"
           >
             <X size={16} />
           </button>
@@ -514,7 +532,7 @@ function RestTimerBar({
       </div>
       <div className="h-1 bg-zinc-800">
         <div
-          className="h-full bg-primary transition-[width] duration-300 ease-linear"
+          className="h-full bg-primary transition-[width] duration-1000 ease-linear"
           style={{ width: `${total ? (secondsLeft / total) * 100 : 0}%` }}
         />
       </div>

@@ -90,7 +90,7 @@ export function WelcomeClient() {
               className="group p-1.5"
             >
               <span
-                className={`block h-1.5 rounded-full transition-all duration-300 ${
+                className={`block h-1.5 rounded-full transition-all duration-500 ease-spring ${
                   i === index ? 'w-6 bg-primary' : 'w-1.5 bg-white/20 group-hover:bg-white/40'
                 }`}
               />
@@ -102,7 +102,7 @@ export function WelcomeClient() {
           <Link
             href="/login?mode=signup"
             onClick={markWelcomeSeen}
-            className="flex h-13 w-full items-center justify-center rounded-full bg-primary font-semibold text-white shadow-lg shadow-primary/30 transition-all hover:bg-primary-hover active:scale-[0.98]"
+            className="press flex h-13 w-full items-center justify-center rounded-full bg-primary font-semibold text-white shadow-lg shadow-primary/30 hover:bg-primary-hover"
           >
             Create account
           </Link>
@@ -110,7 +110,7 @@ export function WelcomeClient() {
           <button
             type="button"
             onClick={() => goTo(index + 1)}
-            className="flex h-13 w-full items-center justify-center rounded-full border-2 border-primary bg-primary/5 font-semibold text-primary transition-all hover:bg-primary/15 active:scale-[0.98]"
+            className="press flex h-13 w-full items-center justify-center rounded-full border-2 border-primary bg-primary/5 font-semibold text-primary hover:bg-primary/15"
           >
             Next
           </button>

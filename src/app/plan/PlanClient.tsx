@@ -215,7 +215,7 @@ export function PlanClient({
                     <button
                       type="button"
                       onClick={() => setPickerSplit(split)}
-                      className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/40 py-3 text-xs font-bold text-primary transition-all hover:bg-primary/10 active:scale-[0.99]"
+                      className="press mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/40 py-3 text-xs font-bold text-primary hover:bg-primary/10 [--press-scale:0.97]"
                     >
                       <Plus size={16} /> Add exercise to {option.name}
                     </button>
@@ -273,7 +273,7 @@ function SetStepper({
   onChange: (value: number) => void
 }) {
   const stepButton =
-    'flex h-6 w-7 items-center justify-center rounded-md text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white active:scale-90 disabled:opacity-30 disabled:hover:bg-transparent'
+    'press flex h-6 w-7 items-center justify-center rounded-md text-zinc-300 hover:bg-zinc-700 hover:text-white [--press-scale:0.8] disabled:opacity-30 disabled:hover:bg-transparent'
   return (
     <div className="flex shrink-0 items-center gap-0.5 rounded-xl border border-border bg-surface py-0.5 pl-2 pr-0.5">
       <div className="w-7 text-center leading-none" aria-live="polite">

@@ -31,6 +31,8 @@ export function ExerciseBrowser({
   const hasRecommended = recommended !== undefined && recommended.length > 0
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>(hasRecommended ? 'recommended' : 'all')
+  // The exercise added last, so its tick pops in.
+  const [justAdded, setJustAdded] = useState<string | null>(null)
 
   const matchesFilter = (e: Exercise) =>
     filter === 'all' || (filter === 'recommended' ? recommended!.includes(e.muscle_group) : e.muscle_group === filter)
@@ -104,16 +106,23 @@ export function ExerciseBrowser({
                 {onAdd && (
                   <button
                     type="button"
-                    onClick={() => onAdd(exercise)}
+                    onClick={() => {
+                      setJustAdded(exercise.id)
+                      onAdd(exercise)
+                    }}
                     disabled={added}
                     aria-label={added ? `${exercise.name} already added` : `Add ${exercise.name}`}
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all ${
+                    className={`press flex h-9 w-9 shrink-0 items-center justify-center rounded-xl [--press-scale:0.85] ${
                       added
                         ? 'cursor-default bg-success/20 text-success'
-                        : 'bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary-hover active:scale-95'
+                        : 'bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary-hover'
                     }`}
                   >
-                    {added ? <Check size={18} strokeWidth={3} /> : <Plus size={18} />}
+                    {added ? (
+                      <Check size={18} strokeWidth={3} className={justAdded === exercise.id ? 'animate-pop' : ''} />
+                    ) : (
+                      <Plus size={18} />
+                    )}
                   </button>
                 )}
               </li>
