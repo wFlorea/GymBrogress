@@ -7,7 +7,8 @@ import { PlanSlider } from '@/components/PlanSlider'
 import { AmountField } from '@/components/ui/AmountField'
 import { Alert } from '@/components/ui/Card'
 import { SubmitButton } from '@/components/ui/SubmitButton'
-import { goalWeightText, maintenanceCaloriesFor } from '@/lib/body'
+import { buttonStyles } from '@/components/ui/styles'
+import { goalWeightText, maintenanceCaloriesFor, missingForCalories } from '@/lib/body'
 import { formatKcal, formatKg } from '@/lib/format'
 import {
   FAT_SHARE,
@@ -42,6 +43,7 @@ export function GoalsForm({
   weightPlan,
   planPace,
   onSaved,
+  onAddDetails,
 }: {
   /** The user's body stats: the weight for the protein, all of them for the maintenance calories. */
   body: BodyStats
@@ -50,6 +52,8 @@ export function GoalsForm({
   weightPlan: WeightPlan
   planPace: PlanPace
   onSaved: () => void
+  /** Opens the details form, for the stats the maintenance still needs. */
+  onAddDetails?: () => void
 }) {
   const [fields, setFields] = useState<Fields>({
     goalWeight: textOf(goalWeight),
@@ -145,6 +149,18 @@ export function GoalsForm({
 
       <div className="space-y-3 border-t border-white/5 pt-4">
         <PlanSlider value={plan} onChange={(next) => choosePlan(next, pace)} />
+        {maintenance === null && (
+          <Alert tone="info">
+            Add your {new Intl.ListFormat('en-GB').format(missingForCalories(body))} in Your details
+            {onAddDetails ? '' : ' on the dashboard'} to work out your maintenance. Until then your plan can&apos;t set
+            your calories.
+            {onAddDetails && (
+              <button type="button" onClick={onAddDetails} className={`${buttonStyles.soft} mt-2.5 w-full py-2 text-xs`}>
+                Add details
+              </button>
+            )}
+          </Alert>
+        )}
         {plan !== 'maintain' && (
           <PaceDial
             label={`${WEIGHT_PLANS.find((option) => option.key === plan)?.label} pace`}
@@ -161,11 +177,11 @@ export function GoalsForm({
             )}
           </PaceDial>
         )}
-        <p className="text-[11px] leading-relaxed text-muted">
-          {maintenance === null
-            ? 'Add your weight, height, age, sex and activity level on the dashboard, and your plan fills in the calories below.'
-            : `Your maintenance is ${formatKcal(maintenance)} a day. Your plan fills in the calories below.`}
-        </p>
+        {maintenance !== null && (
+          <p className="text-[11px] leading-relaxed text-muted">
+            Your maintenance is {formatKcal(maintenance)} a day. Your plan fills in the calories below.
+          </p>
+        )}
       </div>
 
       <div className="space-y-3 border-t border-white/5 pt-4">

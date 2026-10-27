@@ -48,6 +48,17 @@ export function maintenanceCaloriesFor({ weight, height, age, sex, activity }: B
   return Math.round((bmrOf(weight, height, age, sex) * level.multiplier) / 100) * 100
 }
 
+/** What `maintenanceCaloriesFor` still needs, by name: "sex", "activity level"… */
+export function missingForCalories({ weight, height, age, sex, activity }: BodyStats): string[] {
+  return [
+    weight === null && 'weight',
+    height === null && 'height',
+    age === null && 'age',
+    sex === null && 'sex',
+    activity === null && 'activity level',
+  ].filter((name) => name !== false)
+}
+
 /** The WHO adult BMI ranges; each runs up to (not including) `below`. */
 export const BMI_CATEGORIES = [
   { below: 18.5, label: 'Underweight' },

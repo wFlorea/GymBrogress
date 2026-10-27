@@ -16,6 +16,7 @@ import {
   bmiCategory,
   bmiOf,
   maintenanceCaloriesFor,
+  missingForCalories,
 } from '@/lib/body'
 import { formatKcal } from '@/lib/format'
 import { MACROS, WEIGHT_PLANS, parseAmount, recommendedGoals } from '@/lib/nutrition'
@@ -65,13 +66,7 @@ export function BodyForm({
   const stats = { weight: validWeight, height: validHeight, age: validAge, sex, bodyFat, activity }
   const maintenance = maintenanceCaloriesFor(stats)
   const goals = recommendedGoals(stats, weightPlan, planPace)
-  const missing = [
-    validWeight === null && 'weight',
-    validHeight === null && 'height',
-    validAge === null && 'age',
-    sex === null && 'sex',
-    activity === null && 'activity level',
-  ].filter((name) => name !== false)
+  const missing = missingForCalories(stats)
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

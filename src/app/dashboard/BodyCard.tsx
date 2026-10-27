@@ -112,6 +112,7 @@ export function BodyCard({
           weightPlan={weightPlan}
           planPace={planPace}
           onSaved={() => setSheet(null)}
+          onAddDetails={() => open('body')}
         />
       </Modal>
     </>

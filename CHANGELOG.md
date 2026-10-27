@@ -7,6 +7,11 @@ bottom of the Profile page.
 - **Fixes only** raise the last number: v1.1.1, v1.1.2, …
 - **A big overhaul** raises the first number: v2.0
 
+## v1.3.1 (2026-10-27)
+
+- **Weight plan:** when your maintenance can't be worked out yet (no sex picked, say), the goals sheet now says
+  exactly what's missing, with a button to add it, instead of leaving the calories as they were without a word.
+
 ## v1.3 (2026-10-27)
 
 Daily calories worked out from your body, and a plan to cut, maintain or bulk.
