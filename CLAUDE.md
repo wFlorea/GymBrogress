@@ -16,7 +16,7 @@ calorie and macro recommendations.
 - `src/app/<route>/page.tsx` = server component; `*Client.tsx` = interactive UI; `actions.ts` = server actions
 - Routes: dashboard, schedule, plan, tracker, food, exercises, progress, profile, login, welcome
 - `src/lib/types.ts` = shared types; feature constants and helpers sit next to it:
-  `splits.ts`, `routines.ts`, `exercises-data.ts` (static exercise list), `date.ts`, `schedule.ts`, `streak.ts`, `sets.ts`, `format.ts`,
+  `splits.ts`, `routines.ts`, `exercises-data.ts` (static exercise list), `date.ts`, `schedule.ts`, `streak.ts`, `sets.ts`, `format.ts`, `site.ts` (the live URL),
   `nutrition.ts` (meals, macros, calorie maths, macro split from calories), `body.ts` (BMI, body stat limits, activity levels), `foods-data.ts` (built-in common foods per 100 g, from USDA FoodData Central)
 - `src/lib/data/` = server-only data access (session, plans, workouts, food, settings, `open-food-facts.ts` product search)
   and `ActionResult` helpers for server actions

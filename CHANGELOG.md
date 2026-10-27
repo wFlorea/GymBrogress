@@ -7,6 +7,12 @@ bottom of the Profile page.
 - **Fixes only** raise the last number: v1.1.1, v1.1.2, …
 - **A big overhaul** raises the first number: v2.0
 
+## v1.2.1 (2026-10-27)
+
+- **Search engines:** the site now has a robots.txt and a sitemap, a clearer title and description, and tells
+  Google its name (GymBrogress, also known as Gym Florea), so it can show up when people search for it.
+- **Link previews:** sharing the link in a chat shows the app's name, description and icon.
+
 ## v1.2 (2026-10-27)
 
 More about your body, ready for calorie recommendations later.
