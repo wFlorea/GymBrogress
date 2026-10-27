@@ -9,7 +9,7 @@ import { Modal } from '@/components/ui/Modal'
 import { buttonStyles } from '@/components/ui/styles'
 import { formatGrams, formatKcal } from '@/lib/format'
 import { MACROS, MEALS, MEAL_EMOJIS, MEAL_LABELS, sumNutrition } from '@/lib/nutrition'
-import type { FoodEntry, FoodItem, IsoDate, Meal, Nutrition, NutritionGoals } from '@/lib/types'
+import type { BodyStats, FoodEntry, FoodItem, IsoDate, Meal, Nutrition, NutritionGoals, PlanPace, WeightPlan } from '@/lib/types'
 import { deleteFoodEntry } from './actions'
 import { FoodSheet } from './FoodSheet'
 import { MacroLine } from './MacroLine'
@@ -22,16 +22,20 @@ export function FoodClient({
   entries,
   recentFoods,
   goals,
-  weight,
+  body,
   goalWeight,
+  weightPlan,
+  planPace,
 }: {
   date: IsoDate
   entries: FoodEntry[]
   recentFoods: FoodItem[]
   goals: NutritionGoals
-  /** The user's weight and goal weight in kg, for the goals form. */
-  weight: number | null
+  /** The user's body stats, goal weight and weight plan, for the goals form. */
+  body: BodyStats
   goalWeight: number | null
+  weightPlan: WeightPlan
+  planPace: PlanPace
 }) {
   // `sheet` outlives `sheetOpen` so the sheet keeps its content while it slides away.
   const [sheet, setSheet] = useState<Sheet | null>(null)
@@ -102,7 +106,15 @@ export function FoodClient({
       </Modal>
 
       <Modal open={goalsOpen} onClose={() => setGoalsOpen(false)} title="Your goals">
-        <GoalsForm key={formKey} weight={weight} goalWeight={goalWeight} goals={goals} onSaved={() => setGoalsOpen(false)} />
+        <GoalsForm
+          key={formKey}
+          body={body}
+          goalWeight={goalWeight}
+          goals={goals}
+          weightPlan={weightPlan}
+          planPace={planPace}
+          onSaved={() => setGoalsOpen(false)}
+        />
       </Modal>
     </div>
   )

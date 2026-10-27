@@ -136,7 +136,13 @@ export default async function DashboardPage() {
       <FoodToday totals={sumNutrition(foodToday)} goal={settings.nutritionGoals.calories} />
 
       <SectionTitle subtitle="Your BMI and your goal">Body</SectionTitle>
-      <BodyCard body={settings.body} goalWeight={settings.goalWeight} goals={settings.nutritionGoals} />
+      <BodyCard
+        body={settings.body}
+        goalWeight={settings.goalWeight}
+        goals={settings.nutritionGoals}
+        weightPlan={settings.weightPlan}
+        planPace={settings.planPace}
+      />
 
       <SectionTitle subtitle="Set up your training">Shortcuts</SectionTitle>
       <nav className="grid grid-cols-3 gap-3" aria-label="Shortcuts">

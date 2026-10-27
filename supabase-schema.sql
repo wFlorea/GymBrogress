@@ -67,7 +67,10 @@ CREATE TABLE user_settings (
   weight_kg DECIMAL CHECK (weight_kg BETWEEN 20 AND 400),
   height_cm DECIMAL CHECK (height_cm BETWEEN 100 AND 250),
   age INTEGER CHECK (age BETWEEN 13 AND 120),
+  sex TEXT CHECK (sex IN ('male', 'female')),
   goal_weight_kg DECIMAL CHECK (goal_weight_kg BETWEEN 20 AND 400),
+  weight_plan TEXT CHECK (weight_plan IN ('cut', 'maintain', 'bulk')),
+  plan_pace INTEGER CHECK (plan_pace IN (5, 10, 15, 20)),
   body_fat DECIMAL CHECK (body_fat BETWEEN 5 AND 50),
   activity_level TEXT CHECK (activity_level IN ('sedentary', 'light', 'moderate', 'very', 'extra')),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()

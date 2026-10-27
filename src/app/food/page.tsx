@@ -25,8 +25,10 @@ export default async function FoodPage({ searchParams }: { searchParams: Promise
         entries={entries}
         recentFoods={recentFoods}
         goals={settings.nutritionGoals}
-        weight={settings.body.weight}
+        body={settings.body}
         goalWeight={settings.goalWeight}
+        weightPlan={settings.weightPlan}
+        planPace={settings.planPace}
       />
     </Page>
   )

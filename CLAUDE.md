@@ -1,9 +1,9 @@
 # GymBrogress
 
 Fitness PWA: a workout schedule, a routine per workout type (split), a set-by-set workout tracker
-with a rest timer, streaks, gym history, a food log with calorie and macro goals, and body stats (BMI, body fat, activity level) with a goal weight.
-Planned: barcode scanning (v1.3), photo scanning of meals (v1.4), BMR calculator, weight goals with a deadline,
-calorie and macro recommendations.
+with a rest timer, streaks, gym history, a food log with calorie and macro goals, and body stats (BMI, body fat, sex, activity level)
+with a goal weight; the body stats set the daily calorie and macro goals (Mifflin–St Jeor BMR × activity level).
+Planned: barcode scanning (v1.4), photo scanning of meals (v1.5), weight goals with a deadline.
 
 ## Stack
 - Next.js 16 (App Router) + React 19 + TypeScript
@@ -17,11 +17,12 @@ calorie and macro recommendations.
 - Routes: dashboard, schedule, plan, tracker, food, exercises, progress, profile, login, welcome
 - `src/lib/types.ts` = shared types; feature constants and helpers sit next to it:
   `splits.ts`, `routines.ts`, `exercises-data.ts` (static exercise list), `date.ts`, `schedule.ts`, `streak.ts`, `sets.ts`, `format.ts`, `site.ts` (the live URL),
-  `nutrition.ts` (meals, macros, calorie maths, macro split from calories), `body.ts` (BMI, body stat limits, activity levels), `foods-data.ts` (built-in common foods per 100 g, from USDA FoodData Central)
+  `nutrition.ts` (meals, macros, calorie maths, macro split from calories, weight plans and paces), `body.ts` (BMI, body stat limits, sex, activity levels, BMR and daily calories), `foods-data.ts` (built-in common foods per 100 g, from USDA FoodData Central)
 - `src/lib/data/` = server-only data access (session, plans, workouts, food, settings, `open-food-facts.ts` product search)
   and `ActionResult` helpers for server actions
 - `src/components/ui/` = shared UI (Page, Card, Alert, Modal, SubmitButton, button/input styles);
-  `ExerciseBrowser.tsx` = searchable exercise list; `BottomNav.tsx` = bottom navigation (mobile-first)
+  `ExerciseBrowser.tsx` = searchable exercise list; `BottomNav.tsx` = bottom navigation (mobile-first);
+  `GoalsForm.tsx` = goals sheet, with `PlanSlider.tsx` (cut/maintain/bulk) and `PaceDial.tsx` (circle slider for the pace)
 - `src/proxy.ts` = refreshes the Supabase session and protects routes (Next 16 replacement for middleware)
 - `supabase-schema.sql` = current DB schema; `supabase/migrations/` = changes to apply (update both when tables change)
 

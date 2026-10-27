@@ -1,5 +1,6 @@
-// Food log constants and helpers.
-import type { Meal, Nutrition } from './types'
+// Food log constants and helpers, and the daily goals from the body stats and the weight plan.
+import { maintenanceCaloriesFor } from './body'
+import type { BodyStats, Meal, Nutrition, PlanPace, WeightPlan } from './types'
 
 export const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner', 'snack']
 
@@ -56,6 +57,63 @@ export function macrosForCalories(calories: number, weightKg: number): Omit<Nutr
   const fat = Math.round((calories * FAT_SHARE) / 9)
   const carbs = Math.max(0, Math.round((calories - protein * 4 - fat * 9) / 4))
   return { protein, carbs, fat }
+}
+
+export const WEIGHT_PLANS: { key: WeightPlan; label: string; description: string }[] = [
+  { key: 'cut', label: 'Cut', description: 'Eat under your maintenance to lose fat' },
+  { key: 'maintain', label: 'Maintain', description: 'Eat your maintenance to keep your weight' },
+  { key: 'bulk', label: 'Bulk', description: 'Eat over your maintenance to build muscle' },
+]
+
+/** From the gentlest to the most aggressive; `label` names the animal the pace dial shows for it. */
+export const PLAN_PACES: { value: PlanPace; label: string; description: string }[] = [
+  { value: 5, label: 'Snail', description: 'Slow and easy to stick to' },
+  { value: 10, label: 'Fox', description: 'Steady' },
+  { value: 15, label: 'Rabbit', description: 'Fast' },
+  { value: 20, label: 'Cheetah', description: 'Aggressive' },
+]
+
+/** The pace a cut or bulk starts at before the user picks one. */
+export const DEFAULT_PLAN_PACE: PlanPace = 10
+
+/** Roughly what a kg of body weight holds, in kcal. */
+const KCAL_PER_KG = 7700
+
+export function isWeightPlan(value: unknown): value is WeightPlan {
+  return WEIGHT_PLANS.some((plan) => plan.key === value)
+}
+
+export function isPlanPace(value: unknown): value is PlanPace {
+  return PLAN_PACES.some((pace) => pace.value === value)
+}
+
+/** The daily calories for a plan: maintenance, less `pace`% for a cut or plus `pace`% for a bulk, to the nearest hundred. */
+export function planCalories(maintenance: number, plan: WeightPlan, pace: PlanPace): number {
+  const change = plan === 'maintain' ? 0 : plan === 'cut' ? -pace : pace
+  return Math.round((maintenance * (1 + change / 100)) / 100) * 100
+}
+
+/** About how many kg a week eating `calories` a day instead of `maintenance` takes off (negative) or puts on. */
+export function weeklyWeightChange(calories: number, maintenance: number): number {
+  return ((calories - maintenance) * 7) / KCAL_PER_KG
+}
+
+/** A calorie goal and its macros (see `macrosForCalories`), kept within the limits a goal can have. */
+export function goalsForCalories(calories: number, weightKg: number): Nutrition {
+  const kept = Math.min(Math.max(calories, MIN_CALORIE_GOAL), MAX_CALORIES)
+  const { protein, carbs, fat } = macrosForCalories(kept, weightKg)
+  const capped = (grams: number) => Math.min(grams, MAX_MACRO_GRAMS)
+  return { calories: kept, protein: capped(protein), carbs: capped(carbs), fat: capped(fat) }
+}
+
+/**
+ * The daily calorie and macro goals the user's body stats and weight plan give: their maintenance (see
+ * `maintenanceCaloriesFor`) moved by the plan. Null until the stats they need are all entered.
+ */
+export function recommendedGoals(body: BodyStats, plan: WeightPlan, pace: PlanPace): Nutrition | null {
+  const maintenance = maintenanceCaloriesFor(body)
+  if (maintenance === null || body.weight === null) return null
+  return goalsForCalories(planCalories(maintenance, plan, pace), body.weight)
 }
 
 export function sumNutrition(items: Nutrition[]): Nutrition {

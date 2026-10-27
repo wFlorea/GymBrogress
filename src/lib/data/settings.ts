@@ -1,6 +1,7 @@
 import 'server-only'
 import { cache } from 'react'
-import { isActivityLevel } from '@/lib/body'
+import { isActivityLevel, isSex } from '@/lib/body'
+import { DEFAULT_PLAN_PACE, isPlanPace, isWeightPlan } from '@/lib/nutrition'
 import { isWorkoutSplit } from '@/lib/splits'
 import type { UserSettings } from '@/lib/types'
 import { getSession } from './session'
@@ -11,7 +12,7 @@ export const getUserSettings = cache(async (): Promise<UserSettings> => {
   const { data, error } = await supabase
     .from('user_settings')
     .select(
-      'split_order, tracked_exercise_ids, calorie_goal, protein_goal, carbs_goal, fat_goal, weight_kg, height_cm, age, goal_weight_kg, body_fat, activity_level'
+      'split_order, tracked_exercise_ids, calorie_goal, protein_goal, carbs_goal, fat_goal, weight_kg, height_cm, age, sex, goal_weight_kg, weight_plan, plan_pace, body_fat, activity_level'
     )
     .eq('user_id', user.id)
     .maybeSingle()
@@ -32,9 +33,12 @@ export const getUserSettings = cache(async (): Promise<UserSettings> => {
       weight: decimal(data?.weight_kg),
       height: decimal(data?.height_cm),
       age: data?.age ?? null,
+      sex: isSex(data?.sex) ? data.sex : null,
       bodyFat: decimal(data?.body_fat),
       activity: isActivityLevel(data?.activity_level) ? data.activity_level : null,
     },
     goalWeight: decimal(data?.goal_weight_kg),
+    weightPlan: isWeightPlan(data?.weight_plan) ? data.weight_plan : 'maintain',
+    planPace: isPlanPace(data?.plan_pace) ? data.plan_pace : DEFAULT_PLAN_PACE,
   }
 })

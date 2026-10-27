@@ -74,7 +74,15 @@ export interface UserSettings {
   body: BodyStats
   /** The weight the user is aiming for, in kg. */
   goalWeight: number | null
+  weightPlan: WeightPlan
+  planPace: PlanPace
 }
+
+/** What the user's weight should do: cut (eat under maintenance), maintain, or bulk (eat over it). */
+export type WeightPlan = 'cut' | 'maintain' | 'bulk'
+
+/** How far a cut or bulk moves the daily calories from maintenance, in %. */
+export type PlanPace = 5 | 10 | 15 | 20
 
 /** What the user entered about their body; null = not entered. */
 export interface BodyStats {
@@ -83,10 +91,13 @@ export interface BodyStats {
   /** cm */
   height: number | null
   age: number | null
+  sex: Sex | null
   /** % */
   bodyFat: number | null
   activity: ActivityLevel | null
 }
+
+export type Sex = 'male' | 'female'
 
 /** How much the user moves in a week, from least to most. */
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'very' | 'extra'

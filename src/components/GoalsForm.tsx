@@ -2,21 +2,27 @@
 
 import { useState, useTransition, type FormEvent } from 'react'
 import { saveGoals } from '@/app/dashboard/actions'
+import { PaceDial } from '@/components/PaceDial'
+import { PlanSlider } from '@/components/PlanSlider'
 import { AmountField } from '@/components/ui/AmountField'
 import { Alert } from '@/components/ui/Card'
 import { SubmitButton } from '@/components/ui/SubmitButton'
-import { goalWeightText } from '@/lib/body'
-import { formatKg } from '@/lib/format'
+import { goalWeightText, maintenanceCaloriesFor } from '@/lib/body'
+import { formatKcal, formatKg } from '@/lib/format'
 import {
   FAT_SHARE,
   MACROS,
   MIN_CALORIE_GOAL,
   PROTEIN_PER_KG,
+  WEIGHT_PLANS,
   caloriesFromMacros,
+  goalsForCalories,
   macrosForCalories,
   parseAmount,
+  planCalories,
+  weeklyWeightChange,
 } from '@/lib/nutrition'
-import type { Nutrition, NutritionGoals } from '@/lib/types'
+import type { BodyStats, Nutrition, NutritionGoals, PlanPace, WeightPlan } from '@/lib/types'
 
 type Macro = Exclude<keyof Nutrition, 'calories'>
 /** The fields as typed. */
@@ -25,19 +31,24 @@ type Fields = Record<keyof Nutrition | 'goalWeight', string>
 const textOf = (value: number | null) => (value === null ? '' : String(value))
 
 /**
- * The goal weight and the daily calorie and macro goals. When the user's weight is known, typing the calories fills in
- * the macros (see `macrosForCalories`); changing a macro adds the calories back up from the macros.
+ * The goal weight, the weight plan, and the daily calorie and macro goals. Picking a plan or its pace fills in the
+ * calories and macros from the user's maintenance (see `planCalories`). When the user's weight is known, typing the
+ * calories fills in the macros (see `macrosForCalories`); changing a macro adds the calories back up from the macros.
  */
 export function GoalsForm({
-  weight,
+  body,
   goalWeight,
   goals,
+  weightPlan,
+  planPace,
   onSaved,
 }: {
-  /** The user's weight in kg, for the protein. */
-  weight: number | null
+  /** The user's body stats: the weight for the protein, all of them for the maintenance calories. */
+  body: BodyStats
   goalWeight: number | null
   goals: NutritionGoals
+  weightPlan: WeightPlan
+  planPace: PlanPace
   onSaved: () => void
 }) {
   const [fields, setFields] = useState<Fields>({
@@ -47,10 +58,30 @@ export function GoalsForm({
     carbs: textOf(goals.carbs),
     fat: textOf(goals.fat),
   })
+  const [plan, setPlan] = useState(weightPlan)
+  const [pace, setPace] = useState(planPace)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
+  const { weight } = body
   const target = parseAmount(fields.goalWeight)
+  const maintenance = maintenanceCaloriesFor(body)
+  const planned = maintenance === null ? null : planCalories(maintenance, plan, pace)
+
+  /** Switches to a plan and pace, and fills in the calories and macros they give when the maintenance is known. */
+  function choosePlan(nextPlan: WeightPlan, nextPace: PlanPace) {
+    setPlan(nextPlan)
+    setPace(nextPace)
+    if (maintenance === null || weight === null) return
+    const next = goalsForCalories(planCalories(maintenance, nextPlan, nextPace), weight)
+    setFields((f) => ({
+      ...f,
+      calories: String(next.calories),
+      protein: String(next.protein),
+      carbs: String(next.carbs),
+      fat: String(next.fat),
+    }))
+  }
 
   function changeCalories(value: string) {
     const calories = parseAmount(value)
@@ -86,7 +117,7 @@ export function GoalsForm({
     const next: NutritionGoals = { calories: round(calories), protein: round(protein), carbs: round(carbs), fat: round(fat) }
     setError(null)
     startTransition(async () => {
-      const result = await saveGoals(target, next)
+      const result = await saveGoals(target, plan, pace, next)
       if (!result.ok) return setError(result.error)
       onSaved()
     })
@@ -110,6 +141,31 @@ export function GoalsForm({
             {target !== null && !Number.isNaN(target) && target > 0 && `: ${goalWeightText(weight, target)}`}.
           </p>
         )}
+      </div>
+
+      <div className="space-y-3 border-t border-white/5 pt-4">
+        <PlanSlider value={plan} onChange={(next) => choosePlan(next, pace)} />
+        {plan !== 'maintain' && (
+          <PaceDial
+            label={`${WEIGHT_PLANS.find((option) => option.key === plan)?.label} pace`}
+            value={pace}
+            onChange={(next) => choosePlan(plan, next)}
+          >
+            {maintenance !== null && planned !== null && (
+              <p className="mt-3 text-center text-[11px] leading-relaxed text-muted">
+                <span className="font-semibold text-white">{formatKcal(planned)} a day</span>,{' '}
+                {formatKcal(Math.abs(planned - maintenance))} {plan === 'cut' ? 'under' : 'over'} your maintenance: about{' '}
+                {Math.abs(weeklyWeightChange(planned, maintenance)).toLocaleString('en-GB', { maximumFractionDigits: 1 })} kg a
+                week {plan === 'cut' ? 'off' : 'on'}.
+              </p>
+            )}
+          </PaceDial>
+        )}
+        <p className="text-[11px] leading-relaxed text-muted">
+          {maintenance === null
+            ? 'Add your weight, height, age, sex and activity level on the dashboard, and your plan fills in the calories below.'
+            : `Your maintenance is ${formatKcal(maintenance)} a day. Your plan fills in the calories below.`}
+        </p>
       </div>
 
       <div className="space-y-3 border-t border-white/5 pt-4">

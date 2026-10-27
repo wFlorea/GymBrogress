@@ -11,11 +11,21 @@ import {
   MIN_HEIGHT_CM,
   MIN_WEIGHT_KG,
   isActivityLevel,
+  isSex,
 } from '@/lib/body'
-import { MACROS, MAX_CALORIES, MAX_MACRO_GRAMS, MIN_CALORIE_GOAL } from '@/lib/nutrition'
+import {
+  MACROS,
+  MAX_CALORIES,
+  MAX_MACRO_GRAMS,
+  MIN_CALORIE_GOAL,
+  isPlanPace,
+  isWeightPlan,
+  recommendedGoals,
+} from '@/lib/nutrition'
 import { dbFail, fail, ok } from '@/lib/data/action-result'
 import { getSession } from '@/lib/data/session'
-import type { ActionResult, BodyStats, NutritionGoals } from '@/lib/types'
+import { getUserSettings } from '@/lib/data/settings'
+import type { ActionResult, BodyStats, NutritionGoals, PlanPace, WeightPlan } from '@/lib/types'
 
 function revalidateGoals() {
   revalidatePath('/dashboard')
@@ -33,7 +43,11 @@ function isOptionalAmount(value: unknown, min: number, max: number): value is nu
 
 const tenth = (value: number | null) => (value === null ? null : Math.round(value * 10) / 10)
 
-/** Saves the weight, height and age used for the BMI, the body fat and the activity level; null clears one. */
+/**
+ * Saves the weight, height, age and sex, the body fat and the activity level; null clears one. Once the stats behind
+ * the daily calories are all there, the calorie and macro goals are set to the ones they and the user's weight plan
+ * give (see `recommendedGoals`).
+ */
 export async function saveBodyStats(body: BodyStats): Promise<ActionResult> {
   if (typeof body !== 'object' || body === null) return fail('Invalid details.')
   if (!isOptionalAmount(body.weight, MIN_WEIGHT_KG, MAX_WEIGHT_KG)) {
@@ -45,20 +59,32 @@ export async function saveBodyStats(body: BodyStats): Promise<ActionResult> {
   if (!isOptionalAmount(body.age, MIN_AGE, MAX_AGE) || (body.age !== null && !Number.isInteger(body.age))) {
     return fail(`Enter your age in whole years, from ${MIN_AGE} to ${MAX_AGE}, or leave it empty.`)
   }
+  if (body.sex !== null && !isSex(body.sex)) return fail('Pick male or female.')
   if (!isOptionalAmount(body.bodyFat, MIN_BODY_FAT, MAX_BODY_FAT)) {
     return fail(`Body fat must be between ${MIN_BODY_FAT}% and ${MAX_BODY_FAT}%.`)
   }
   if (body.activity !== null && !isActivityLevel(body.activity)) return fail('Pick one of the activity levels.')
 
+  const weight = tenth(body.weight)
+  const height = tenth(body.height)
+  const { weightPlan, planPace } = await getUserSettings()
+  const goals = recommendedGoals({ ...body, weight, height }, weightPlan, planPace)
   const { user, supabase } = await getSession()
   const { error } = await supabase.from('user_settings').upsert(
     {
       user_id: user.id,
-      weight_kg: tenth(body.weight),
-      height_cm: tenth(body.height),
+      weight_kg: weight,
+      height_cm: height,
       age: body.age,
+      sex: body.sex,
       body_fat: tenth(body.bodyFat),
       activity_level: body.activity,
+      ...(goals && {
+        calorie_goal: goals.calories,
+        protein_goal: goals.protein,
+        carbs_goal: goals.carbs,
+        fat_goal: goals.fat,
+      }),
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'user_id' }
@@ -69,11 +95,18 @@ export async function saveBodyStats(body: BodyStats): Promise<ActionResult> {
   return ok()
 }
 
-/** Saves the goal weight and the daily calorie and macro goals; null clears a goal. */
-export async function saveGoals(goalWeight: number | null, goals: NutritionGoals): Promise<ActionResult> {
+/** Saves the goal weight, the weight plan and its pace, and the daily calorie and macro goals; null clears a goal. */
+export async function saveGoals(
+  goalWeight: number | null,
+  plan: WeightPlan,
+  pace: PlanPace,
+  goals: NutritionGoals
+): Promise<ActionResult> {
   if (!isOptionalAmount(goalWeight, MIN_WEIGHT_KG, MAX_WEIGHT_KG)) {
     return fail(`Set a goal weight between ${MIN_WEIGHT_KG} and ${MAX_WEIGHT_KG} kg, or leave it empty.`)
   }
+  if (!isWeightPlan(plan)) return fail('Pick cut, maintain or bulk.')
+  if (!isPlanPace(pace)) return fail('Pick one of the paces.')
   if (typeof goals !== 'object' || goals === null) return fail('Invalid goals.')
   const isGoal = (value: unknown, min: number, max: number) =>
     value === null || (Number.isInteger(value) && isAmount(value, min, max))
@@ -89,6 +122,8 @@ export async function saveGoals(goalWeight: number | null, goals: NutritionGoals
     {
       user_id: user.id,
       goal_weight_kg: tenth(goalWeight),
+      weight_plan: plan,
+      plan_pace: pace,
       calorie_goal: goals.calories,
       protein_goal: goals.protein,
       carbs_goal: goals.carbs,

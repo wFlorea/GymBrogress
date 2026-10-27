@@ -7,6 +7,21 @@ bottom of the Profile page.
 - **Fixes only** raise the last number: v1.1.1, v1.1.2, …
 - **A big overhaul** raises the first number: v2.0
 
+## v1.3 (2026-10-27)
+
+Daily calories worked out from your body, and a plan to cut, maintain or bulk.
+
+- **Sex:** pick male or female in your details.
+- **Daily calories:** once your weight, height, age, sex and activity level are in, your details show the calories
+  you burn in a day: your BMR (Mifflin–St Jeor: 10 × kg + 6.25 × cm − 5 × age, +5 for men, −161 for women) times
+  your activity level (1.2 sedentary, 1.375 lightly, 1.55 moderately, 1.725 very, 1.9 extra active), to the
+  nearest 100 kcal.
+- **Goals set for you:** saving your details sets that as your daily calorie goal, with the macros from it: 2 g of
+  protein per kg you weigh, 25% of the calories from fat and the rest from carbs. You can still change them under Goal.
+- **Weight plan:** under Goal, slide between Cut, Maintain and Bulk. Maintain eats your maintenance; Cut and Bulk open
+  a pace dial with four speeds (snail 5%, fox 10%, rabbit 15%, cheetah 20% under or over your maintenance), which
+  fills in the calories and macros and shows about how many kg a week you'd lose or gain.
+
 ## v1.2.1 (2026-10-27)
 
 - **Search engines:** the site now has a robots.txt and a sitemap, a clearer title and description, and tells
