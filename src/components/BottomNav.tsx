@@ -3,13 +3,14 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, ClipboardList, Dumbbell, Home, User } from 'lucide-react'
+import { CalendarDays, ClipboardList, Dumbbell, Home, User, Utensils } from 'lucide-react'
 
 const NAV_ITEMS = [
   { name: 'Home', href: '/dashboard', icon: Home },
   { name: 'Schedule', href: '/schedule', icon: CalendarDays },
   { name: 'Plan', href: '/plan', icon: ClipboardList },
   { name: 'Workout', href: '/tracker', icon: Dumbbell },
+  { name: 'Food', href: '/food', icon: Utensils },
   { name: 'Profile', href: '/profile', icon: User },
 ]
 

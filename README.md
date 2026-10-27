@@ -25,8 +25,22 @@ as a PWA and works like a native app.
   sets in today's workout to match it.
 - **Workout summary:** when you finish a workout, you see how many sets you completed and your total volume.
 
+### Track what you eat
+- **Food search:** search for what you ate, type in how many grams you had, and the calories and macros are
+  filled in. Everyday foods (160+ staples like oats, rice, chicken and eggs) come built in from
+  [USDA FoodData Central](https://fdc.nal.usda.gov/); packaged and branded products come from
+  [Open Food Facts](https://world.openfoodfacts.org/).
+- **Food log:** add foods to breakfast, lunch, dinner or snacks, or type one in by hand with its calories, protein,
+  carbs and fat (leave the calories empty and they're worked out from the macros). Recent foods can be added again
+  in a tap, and earlier days can be filled in later.
+- **Goals:** pick a goal weight and a daily calorie goal, and the macros fill in by themselves (2 g of protein per kg
+  you weigh, 25% of the calories from fat, the rest from carbs). Change a macro and the calories follow. The food log
+  shows what you have left for the day.
+- **Body and BMI:** add your weight, height and age on the dashboard to see your BMI next to your goal weight.
+
 ### See your progress
-- **Dashboard:** a greeting, your current streak, a chart of the sets you've done this week, and today's workout.
+- **Dashboard:** a greeting, your current streak, a chart of the sets you've done this week, today's workout,
+  today's calories, and your BMI and goal.
 - **Streaks:** every day you train adds to your streak. Rest days don't break it, and each month you get
   3 automatic "restores" for workouts you miss.
 - **Gym history:** a monthly calendar that marks every day you trained, plus your total workouts and sets.
@@ -39,6 +53,8 @@ as a PWA and works like a native app.
 - Accounts use email and password.
 
 ## Planned
+- Barcode scanning for packaged foods
+- Photo scanning of meals, with grams you can correct
 - BMR calculator
 - Weight goals with a deadline
 - Calorie and macro recommendations
@@ -94,12 +110,13 @@ src/
 ├── app/                 # One folder per screen: page.tsx (server), *Client.tsx (interactive UI), actions.ts (server actions)
 │   ├── welcome/         # Welcome slides for new visitors
 │   ├── login/           # Sign in and sign up
-│   ├── dashboard/       # Home: streak, weekly chart, today's workout
+│   ├── dashboard/       # Home: streak, weekly chart, today's workout, BMI and goals
 │   ├── schedule/        # Which split you train on each day
 │   ├── plan/            # Routines for each split
 │   ├── tracker/         # Set-by-set workout logging and rest timer
 │   ├── exercises/       # Exercise library
 │   ├── progress/        # Per-exercise progress charts
+│   ├── food/            # Food log, food search and daily calorie and macro goals
 │   └── profile/         # Stats, gym-history calendar, sign out
 ├── components/          # Bottom navigation, exercise browser and shared UI (cards, modals, buttons, sortable lists)
 ├── lib/                 # Shared types and logic (dates, streaks, splits, routines, exercise list)

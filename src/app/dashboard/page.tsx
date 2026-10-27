@@ -1,20 +1,25 @@
 import Link from 'next/link'
-import { ArrowRight, BookOpen, Calendar, ClipboardList, Coffee, Dumbbell, Flame } from 'lucide-react'
+import { ArrowRight, BookOpen, Calendar, ChevronRight, ClipboardList, Coffee, Dumbbell, Flame } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Card, StatItem, cardStyles } from '@/components/ui/Card'
+import { Meter } from '@/components/ui/Meter'
 import { Page, SectionTitle } from '@/components/ui/Page'
 import { PlateMark } from '@/components/ui/PlateMark'
 import { buttonStyles } from '@/components/ui/styles'
 import { DAYS_OF_WEEK, addDays, dayOfWeek, formatDate, mondayOf } from '@/lib/date'
 import { EXERCISES } from '@/lib/exercises-data'
-import { plural } from '@/lib/format'
+import { formatGrams, formatKcal, plural } from '@/lib/format'
+import { MACROS, sumNutrition } from '@/lib/nutrition'
 import { resolveRoutine } from '@/lib/routines'
 import { REST_DAY, getSplitOption } from '@/lib/splits'
 import { MAX_RESTORES_PER_MONTH, computeStreakStats } from '@/lib/streak'
+import { getFoodEntries } from '@/lib/data/food'
 import { getRoutineTemplates, getWeeklyPlan } from '@/lib/data/plans'
 import { getDisplayName, getToday, requireUser } from '@/lib/data/session'
+import { getUserSettings } from '@/lib/data/settings'
 import { getWorkoutHistory } from '@/lib/data/workouts'
-import type { DaySummary, IsoDate } from '@/lib/types'
+import type { DaySummary, IsoDate, Nutrition } from '@/lib/types'
+import { BodyCard } from './BodyCard'
 
 interface ChartDay {
   date: IsoDate
@@ -23,12 +28,14 @@ interface ChartDay {
 }
 
 export default async function DashboardPage() {
-  const [user, today, weeklyPlan, templates, history] = await Promise.all([
+  const [user, today, weeklyPlan, templates, history, foodToday, settings] = await Promise.all([
     requireUser(),
     getToday(),
     getWeeklyPlan(),
     getRoutineTemplates(),
     getWorkoutHistory(),
+    getToday().then(getFoodEntries),
+    getUserSettings(),
   ])
 
   const todayLog = history.find((day) => day.date === today)
@@ -125,6 +132,12 @@ export default async function DashboardPage() {
         )}
       </Card>
 
+      <SectionTitle subtitle="What you've eaten today">Food</SectionTitle>
+      <FoodToday totals={sumNutrition(foodToday)} goal={settings.nutritionGoals.calories} />
+
+      <SectionTitle subtitle="Your BMI and your goal">Body</SectionTitle>
+      <BodyCard body={settings.body} goalWeight={settings.goalWeight} goals={settings.nutritionGoals} />
+
       <SectionTitle subtitle="Set up your training">Shortcuts</SectionTitle>
       <nav className="grid grid-cols-3 gap-3" aria-label="Shortcuts">
         <QuickLink href="/schedule" icon={<Calendar size={18} />} title="Schedule" subtitle="Your training days" />
@@ -189,6 +202,35 @@ function WorkoutStatus({ day }: { day: DaySummary | undefined }) {
       ? ['In progress', 'border-primary/30 bg-primary/15 text-primary']
       : ['Not started', 'border-border bg-zinc-800 text-zinc-400']
   return <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium ${tone}`}>{label}</span>
+}
+
+/** Today's calories against the goal; opens the food log. */
+function FoodToday({ totals, goal }: { totals: Nutrition; goal: number | null }) {
+  return (
+    <Link href="/food" className={`${cardStyles} press mb-8 block p-5 hover:border-primary/60 [--press-scale:0.98]`}>
+      <span className="flex items-center justify-between gap-3">
+        <span className="flex items-baseline gap-1.5">
+          <span className="font-display text-2xl font-bold tabular-nums">{totals.calories.toLocaleString('en-GB')}</span>
+          <span className="text-sm text-muted">{goal === null ? 'kcal' : `/ ${formatKcal(goal)}`}</span>
+        </span>
+        <ChevronRight size={18} className="shrink-0 text-muted" />
+      </span>
+      {goal !== null && (
+        <Meter
+          value={totals.calories}
+          max={goal}
+          label="Calories today"
+          valueText={`${formatKcal(totals.calories)} of ${formatKcal(goal)}`}
+          className="mt-3"
+        />
+      )}
+      <span className="mt-3 block text-xs text-muted">
+        {totals.calories === 0
+          ? 'Nothing logged yet. Tap to add your first meal.'
+          : MACROS.map(({ key, label }) => `${formatGrams(totals[key])} ${label.toLowerCase()}`).join(', ')}
+      </span>
+    </Link>
+  )
 }
 
 function QuickLink({ href, icon, title, subtitle }: { href: string; icon: ReactNode; title: string; subtitle: string }) {

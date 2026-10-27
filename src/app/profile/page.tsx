@@ -11,6 +11,7 @@ import { EXERCISES } from '@/lib/exercises-data'
 import { plural } from '@/lib/format'
 import { getDisplayName, getToday, requireUser } from '@/lib/data/session'
 import { getWorkoutHistory } from '@/lib/data/workouts'
+import { APP_VERSION } from '@/lib/version'
 import { GymHistoryCalendar } from './GymHistoryCalendar'
 
 export default async function ProfilePage() {
@@ -64,6 +65,8 @@ export default async function ProfilePage() {
           <LogOut size={20} /> Sign out
         </SubmitButton>
       </form>
+
+      <p className="mt-6 text-center text-xs text-muted">GymBrogress {APP_VERSION}</p>
     </Page>
   )
 }

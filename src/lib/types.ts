@@ -70,6 +70,19 @@ export interface UserSettings {
   splitOrder: WorkoutSplit[]
   /** Exercises pinned on the Progress page. */
   trackedExerciseIds: string[]
+  nutritionGoals: NutritionGoals
+  body: BodyStats
+  /** The weight the user is aiming for, in kg. */
+  goalWeight: number | null
+}
+
+/** What the user entered about their body; null = not entered. */
+export interface BodyStats {
+  /** kg */
+  weight: number | null
+  /** cm */
+  height: number | null
+  age: number | null
 }
 
 /** Splits planned for specific dates (overrides of the weekly plan). */
@@ -123,6 +136,41 @@ export interface WorkoutBest {
   date: IsoDate
   maxWeight: number
 }
+
+export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack'
+
+/** Calories (kcal) and macros (grams) of a food, a meal or a whole day. */
+export interface Nutrition {
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+}
+
+/** A food and what's in it, as it goes into the log. */
+export interface FoodItem extends Nutrition {
+  name: string
+  /** How much was eaten, for foods picked from the food database; null for foods typed in by hand. */
+  grams: number | null
+}
+
+/** A food from the food database (the built-in common foods or Open Food Facts), with its nutrition per 100 g. */
+export interface CatalogFood {
+  id: string
+  name: string
+  brand?: string
+  per100g: Nutrition
+}
+
+/** One food in the food log. */
+export interface FoodEntry extends FoodItem {
+  id: string
+  date: IsoDate
+  meal: Meal
+}
+
+/** Daily targets; null where the user hasn't set one. */
+export type NutritionGoals = Record<keyof Nutrition, number | null>
 
 /** Result of a server action called from a client component. */
 export type ActionResult<T = undefined> = { ok: true; data: T } | { ok: false; error: string }

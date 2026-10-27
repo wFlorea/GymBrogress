@@ -54,19 +54,47 @@ CREATE TABLE workout_sets (
 CREATE INDEX workout_sets_workout_log_id_idx ON workout_sets (workout_log_id);
 CREATE INDEX workout_sets_exercise_id_idx ON workout_sets (exercise_id);
 
--- Per-user preferences: the order of the routines in Plan and the exercises pinned on Progress.
+-- Per-user preferences: the order of the routines in Plan, the exercises pinned on Progress,
+-- the daily food goals, and body stats with a goal weight (NULL = not set).
 CREATE TABLE user_settings (
   user_id UUID PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
   split_order TEXT[] NOT NULL DEFAULT '{}' CHECK (cardinality(split_order) <= 20),
   tracked_exercise_ids TEXT[] NOT NULL DEFAULT '{}' CHECK (cardinality(tracked_exercise_ids) <= 30),
+  calorie_goal INTEGER CHECK (calorie_goal BETWEEN 500 AND 10000),
+  protein_goal INTEGER CHECK (protein_goal BETWEEN 0 AND 1000),
+  carbs_goal INTEGER CHECK (carbs_goal BETWEEN 0 AND 1000),
+  fat_goal INTEGER CHECK (fat_goal BETWEEN 0 AND 1000),
+  weight_kg DECIMAL CHECK (weight_kg BETWEEN 20 AND 400),
+  height_cm DECIMAL CHECK (height_cm BETWEEN 100 AND 250),
+  age INTEGER CHECK (age BETWEEN 13 AND 120),
+  goal_weight_kg DECIMAL CHECK (goal_weight_kg BETWEEN 20 AND 400),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
+
+-- Food log: one row per food eaten. Macros are in grams.
+CREATE TABLE food_entries (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  date DATE NOT NULL,
+  meal TEXT NOT NULL CHECK (meal IN ('breakfast', 'lunch', 'dinner', 'snack')),
+  name TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 80),
+  calories INTEGER NOT NULL CHECK (calories BETWEEN 0 AND 10000),
+  protein DECIMAL NOT NULL DEFAULT 0 CHECK (protein BETWEEN 0 AND 1000),
+  carbs DECIMAL NOT NULL DEFAULT 0 CHECK (carbs BETWEEN 0 AND 1000),
+  fat DECIMAL NOT NULL DEFAULT 0 CHECK (fat BETWEEN 0 AND 1000),
+  -- How much was eaten, for foods picked from the food database; NULL for foods typed in by hand.
+  grams DECIMAL CHECK (grams > 0 AND grams <= 5000),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE INDEX food_entries_user_id_date_idx ON food_entries (user_id, date);
 
 ALTER TABLE weekly_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE routine_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workout_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workout_sets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE food_entries ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can manage their own weekly plans" ON weekly_plans
   FOR ALL TO authenticated
@@ -91,8 +119,12 @@ CREATE POLICY "Users can manage their own settings" ON user_settings
   FOR ALL TO authenticated
   USING ((SELECT auth.uid()) = user_id) WITH CHECK ((SELECT auth.uid()) = user_id);
 
-REVOKE ALL ON user_settings FROM anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON user_settings TO authenticated;
+CREATE POLICY "Users can manage their own food entries" ON food_entries
+  FOR ALL TO authenticated
+  USING ((SELECT auth.uid()) = user_id) WITH CHECK ((SELECT auth.uid()) = user_id);
+
+REVOKE ALL ON user_settings, food_entries FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON user_settings, food_entries TO authenticated;
 
 -- Progress page. security_invoker keeps the RLS of the underlying tables.
 -- Heaviest completed set of each exercise per month.

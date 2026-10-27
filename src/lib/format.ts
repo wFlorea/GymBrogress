@@ -3,6 +3,16 @@ export function plural(count: number, singular: string, pluralForm = `${singular
   return `${count} ${count === 1 ? singular : pluralForm}`
 }
 
+/** "850 kcal", "1,240 kcal" */
+export function formatKcal(calories: number): string {
+  return `${Math.round(calories).toLocaleString('en-GB')} kcal`
+}
+
+/** "12 g", "12.5 g" */
+export function formatGrams(grams: number): string {
+  return `${grams.toLocaleString('en-GB', { maximumFractionDigits: 1 })} g`
+}
+
 /** "20 kg", "22.5 kg" */
 export function formatKg(weight: number): string {
   return `${weight.toLocaleString('en-GB', { maximumFractionDigits: 2 })} kg`

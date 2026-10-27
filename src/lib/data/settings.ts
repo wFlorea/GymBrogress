@@ -9,13 +9,27 @@ export const getUserSettings = cache(async (): Promise<UserSettings> => {
   const { user, supabase } = await getSession()
   const { data, error } = await supabase
     .from('user_settings')
-    .select('split_order, tracked_exercise_ids')
+    .select('split_order, tracked_exercise_ids, calorie_goal, protein_goal, carbs_goal, fat_goal, weight_kg, height_cm, age, goal_weight_kg')
     .eq('user_id', user.id)
     .maybeSingle()
   if (error) throw new Error(`Could not load your settings: ${error.message}`)
+  // DECIMAL columns arrive as strings.
+  const decimal = (value: number | string | null | undefined) => (value == null ? null : Number(value))
 
   return {
     splitOrder: (data?.split_order ?? []).filter(isWorkoutSplit),
     trackedExerciseIds: data?.tracked_exercise_ids ?? [],
+    nutritionGoals: {
+      calories: data?.calorie_goal ?? null,
+      protein: data?.protein_goal ?? null,
+      carbs: data?.carbs_goal ?? null,
+      fat: data?.fat_goal ?? null,
+    },
+    body: {
+      weight: decimal(data?.weight_kg),
+      height: decimal(data?.height_cm),
+      age: data?.age ?? null,
+    },
+    goalWeight: decimal(data?.goal_weight_kg),
   }
 })
