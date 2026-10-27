@@ -7,6 +7,16 @@ bottom of the Profile page.
 - **Fixes only** raise the last number: v1.1.1, v1.1.2, …
 - **A big overhaul** raises the first number: v2.0
 
+## v1.2 (2026-10-27)
+
+More about your body, ready for calorie recommendations later.
+
+- **Body fat:** set your body fat (5–50%) by dragging a dot around a ring. The figure in the middle fills out as
+  the number goes up, with its arms always beside the body. Arrow keys work too, and Clear removes it.
+- **Activity level:** pick how active you are, from Sedentary (desk job, minimal movement) to Extra active
+  (intense daily training or a physical job).
+- **BMI card:** now shows your body fat next to your weight, height and age, plus your activity level.
+
 ## v1.1 (2026-10-27)
 
 The food log, the first step towards calorie tracking.

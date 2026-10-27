@@ -1,7 +1,17 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { MAX_AGE, MAX_HEIGHT_CM, MAX_WEIGHT_KG, MIN_AGE, MIN_HEIGHT_CM, MIN_WEIGHT_KG } from '@/lib/body'
+import {
+  MAX_AGE,
+  MAX_BODY_FAT,
+  MAX_HEIGHT_CM,
+  MAX_WEIGHT_KG,
+  MIN_AGE,
+  MIN_BODY_FAT,
+  MIN_HEIGHT_CM,
+  MIN_WEIGHT_KG,
+  isActivityLevel,
+} from '@/lib/body'
 import { MACROS, MAX_CALORIES, MAX_MACRO_GRAMS, MIN_CALORIE_GOAL } from '@/lib/nutrition'
 import { dbFail, fail, ok } from '@/lib/data/action-result'
 import { getSession } from '@/lib/data/session'
@@ -23,7 +33,7 @@ function isOptionalAmount(value: unknown, min: number, max: number): value is nu
 
 const tenth = (value: number | null) => (value === null ? null : Math.round(value * 10) / 10)
 
-/** Saves the weight, height and age used for the BMI; null clears one. */
+/** Saves the weight, height and age used for the BMI, the body fat and the activity level; null clears one. */
 export async function saveBodyStats(body: BodyStats): Promise<ActionResult> {
   if (typeof body !== 'object' || body === null) return fail('Invalid details.')
   if (!isOptionalAmount(body.weight, MIN_WEIGHT_KG, MAX_WEIGHT_KG)) {
@@ -35,6 +45,10 @@ export async function saveBodyStats(body: BodyStats): Promise<ActionResult> {
   if (!isOptionalAmount(body.age, MIN_AGE, MAX_AGE) || (body.age !== null && !Number.isInteger(body.age))) {
     return fail(`Enter your age in whole years, from ${MIN_AGE} to ${MAX_AGE}, or leave it empty.`)
   }
+  if (!isOptionalAmount(body.bodyFat, MIN_BODY_FAT, MAX_BODY_FAT)) {
+    return fail(`Body fat must be between ${MIN_BODY_FAT}% and ${MAX_BODY_FAT}%.`)
+  }
+  if (body.activity !== null && !isActivityLevel(body.activity)) return fail('Pick one of the activity levels.')
 
   const { user, supabase } = await getSession()
   const { error } = await supabase.from('user_settings').upsert(
@@ -43,6 +57,8 @@ export async function saveBodyStats(body: BodyStats): Promise<ActionResult> {
       weight_kg: tenth(body.weight),
       height_cm: tenth(body.height),
       age: body.age,
+      body_fat: tenth(body.bodyFat),
+      activity_level: body.activity,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'user_id' }

@@ -4,19 +4,30 @@ import { useState, useTransition, type FormEvent } from 'react'
 import { AmountField } from '@/components/ui/AmountField'
 import { Alert } from '@/components/ui/Card'
 import { SubmitButton } from '@/components/ui/SubmitButton'
-import { MAX_HEIGHT_CM, MAX_WEIGHT_KG, MIN_HEIGHT_CM, MIN_WEIGHT_KG, bmiCategory, bmiOf } from '@/lib/body'
+import {
+  ACTIVITY_LEVELS,
+  MAX_HEIGHT_CM,
+  MAX_WEIGHT_KG,
+  MIN_HEIGHT_CM,
+  MIN_WEIGHT_KG,
+  bmiCategory,
+  bmiOf,
+} from '@/lib/body'
 import { parseAmount } from '@/lib/nutrition'
-import type { BodyStats } from '@/lib/types'
+import type { ActivityLevel, BodyStats } from '@/lib/types'
 import { saveBodyStats } from './actions'
+import { BodyFatDial } from './BodyFatDial'
 
 /** The fields as typed. */
-type Fields = Record<keyof BodyStats, string>
+type Fields = Record<'weight' | 'height' | 'age', string>
 
 const textOf = (value: number | null) => (value === null ? '' : String(value))
 
-/** Weight, height and age, with the BMI they give worked out live. */
+/** Weight, height and age, with the BMI they give worked out live, then the body fat and the activity level. */
 export function BodyForm({ body, onSaved }: { body: BodyStats; onSaved: () => void }) {
   const [fields, setFields] = useState<Fields>({ weight: textOf(body.weight), height: textOf(body.height), age: textOf(body.age) })
+  const [bodyFat, setBodyFat] = useState(body.bodyFat)
+  const [activity, setActivity] = useState(body.activity)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -35,7 +46,7 @@ export function BodyForm({ body, onSaved }: { body: BodyStats; onSaved: () => vo
 
     setError(null)
     startTransition(async () => {
-      const result = await saveBodyStats({ weight, height, age })
+      const result = await saveBodyStats({ weight, height, age, bodyFat, activity })
       if (!result.ok) return setError(result.error)
       onSaved()
     })
@@ -61,11 +72,56 @@ export function BodyForm({ body, onSaved }: { body: BodyStats; onSaved: () => vo
         )}
       </div>
 
+      <BodyFatDial value={bodyFat} onChange={setBodyFat} />
+      <ActivityPicker activity={activity} onChange={setActivity} />
+
       {error && <Alert>{error}</Alert>}
 
       <SubmitButton pending={pending} pendingLabel="Saving…">
         Save details
       </SubmitButton>
     </form>
+  )
+}
+
+function ActivityPicker({ activity, onChange }: { activity: ActivityLevel | null; onChange: (activity: ActivityLevel) => void }) {
+  return (
+    <fieldset>
+      <legend className="mb-1.5 text-xs font-semibold text-muted">Activity level</legend>
+      <div className="space-y-1.5">
+        {ACTIVITY_LEVELS.map(({ key, label, description }) => {
+          const selected = activity === key
+          return (
+            <label
+              key={key}
+              className={`press flex cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-2.5 [--press-scale:0.98] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/60 ${
+                selected ? 'border-primary bg-primary/10' : 'border-border bg-sunken hover:border-zinc-600'
+              }`}
+            >
+              <input
+                type="radio"
+                name="activity"
+                value={key}
+                checked={selected}
+                onChange={() => onChange(key)}
+                className="sr-only"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold">{label}</span>
+                <span className="block text-[11px] text-muted">{description}</span>
+              </span>
+              <span
+                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+                  selected ? 'border-primary' : 'border-zinc-600'
+                }`}
+                aria-hidden
+              >
+                {selected && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+              </span>
+            </label>
+          )
+        })}
+      </div>
+    </fieldset>
   )
 }

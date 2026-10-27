@@ -1,8 +1,8 @@
 # GymBrogress
 
 Fitness PWA: a workout schedule, a routine per workout type (split), a set-by-set workout tracker
-with a rest timer, streaks, gym history, a food log with calorie and macro goals, and body stats (BMI) with a goal weight.
-Planned: barcode scanning (v1.2), photo scanning of meals (v1.3), BMR calculator, weight goals with a deadline,
+with a rest timer, streaks, gym history, a food log with calorie and macro goals, and body stats (BMI, body fat, activity level) with a goal weight.
+Planned: barcode scanning (v1.3), photo scanning of meals (v1.4), BMR calculator, weight goals with a deadline,
 calorie and macro recommendations.
 
 ## Stack
@@ -17,7 +17,7 @@ calorie and macro recommendations.
 - Routes: dashboard, schedule, plan, tracker, food, exercises, progress, profile, login, welcome
 - `src/lib/types.ts` = shared types; feature constants and helpers sit next to it:
   `splits.ts`, `routines.ts`, `exercises-data.ts` (static exercise list), `date.ts`, `schedule.ts`, `streak.ts`, `sets.ts`, `format.ts`,
-  `nutrition.ts` (meals, macros, calorie maths, macro split from calories), `body.ts` (BMI, body stat limits), `foods-data.ts` (built-in common foods per 100 g, from USDA FoodData Central)
+  `nutrition.ts` (meals, macros, calorie maths, macro split from calories), `body.ts` (BMI, body stat limits, activity levels), `foods-data.ts` (built-in common foods per 100 g, from USDA FoodData Central)
 - `src/lib/data/` = server-only data access (session, plans, workouts, food, settings, `open-food-facts.ts` product search)
   and `ActionResult` helpers for server actions
 - `src/components/ui/` = shared UI (Page, Card, Alert, Modal, SubmitButton, button/input styles);

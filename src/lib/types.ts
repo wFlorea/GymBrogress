@@ -83,7 +83,13 @@ export interface BodyStats {
   /** cm */
   height: number | null
   age: number | null
+  /** % */
+  bodyFat: number | null
+  activity: ActivityLevel | null
 }
+
+/** How much the user moves in a week, from least to most. */
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'very' | 'extra'
 
 /** Splits planned for specific dates (overrides of the weekly plan). */
 export type DatePlans = Record<IsoDate, SplitType>

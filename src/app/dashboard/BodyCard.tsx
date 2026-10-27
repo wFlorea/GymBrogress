@@ -1,12 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Pencil, Target } from 'lucide-react'
+import { Activity, Pencil, Target } from 'lucide-react'
 import { GoalsForm } from '@/components/GoalsForm'
 import { Card, StatItem } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { buttonStyles } from '@/components/ui/styles'
-import { BMI_CATEGORIES, bmiCategory, bmiOf, goalWeightText } from '@/lib/body'
+import { ACTIVITY_LEVELS, BMI_CATEGORIES, bmiCategory, bmiOf, goalWeightText } from '@/lib/body'
 import { formatKcal, formatKg } from '@/lib/format'
 import type { BodyStats, NutritionGoals } from '@/lib/types'
 import { BodyForm } from './BodyForm'
@@ -18,7 +18,7 @@ const SCALE_MAX = 35
 const scalePercent = (bmi: number) =>
   ((Math.min(Math.max(bmi, SCALE_MIN), SCALE_MAX) - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100
 
-/** The BMI from the user's weight and height, their stats, and their goal; edits both in sheets. */
+/** The BMI from the user's weight and height, their other stats, and their goal; edits both in sheets. */
 export function BodyCard({ body, goalWeight, goals }: { body: BodyStats; goalWeight: number | null; goals: NutritionGoals }) {
   const [sheet, setSheet] = useState<'body' | 'goals' | null>(null)
   // Bumped on every open, so the forms start fresh.
@@ -26,6 +26,7 @@ export function BodyCard({ body, goalWeight, goals }: { body: BodyStats; goalWei
 
   const bmi = body.weight !== null && body.height !== null ? bmiOf(body.weight, body.height) : null
   const hasStats = Object.values(body).some((value) => value !== null)
+  const activity = ACTIVITY_LEVELS.find((level) => level.key === body.activity)
   const hasGoal = goalWeight !== null || goals.calories !== null
   const goalDetails = [
     body.weight !== null && goalWeight !== null && goalWeightText(body.weight, goalWeight),
@@ -57,11 +58,17 @@ export function BodyCard({ body, goalWeight, goals }: { body: BodyStats; goalWei
           </>
         )}
 
-        <dl className="mt-5 grid grid-cols-3 border-t border-white/5 pt-4 text-center">
-          <StatItem value={body.weight === null ? '–' : formatKg(body.weight)} label="Weight" />
-          <StatItem value={body.height === null ? '–' : `${body.height} cm`} label="Height" />
-          <StatItem value={body.age ?? '–'} label="Age" />
+        <dl className="mt-5 grid grid-cols-4 gap-1 border-t border-white/5 pt-4 text-center">
+          <StatItem value={body.weight === null ? '–' : formatKg(body.weight)} label="Weight" className="text-lg" />
+          <StatItem value={body.height === null ? '–' : `${body.height} cm`} label="Height" className="text-lg" />
+          <StatItem value={body.age ?? '–'} label="Age" className="text-lg" />
+          <StatItem value={body.bodyFat === null ? '–' : `${body.bodyFat}%`} label="Body fat" className="text-lg" />
         </dl>
+        {activity && (
+          <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted">
+            <Activity size={13} className="text-primary" /> {activity.label}: {activity.description.toLowerCase()}
+          </p>
+        )}
 
         <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-border bg-sunken p-3.5">
           <div className="min-w-0">

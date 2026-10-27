@@ -1,5 +1,6 @@
 import 'server-only'
 import { cache } from 'react'
+import { isActivityLevel } from '@/lib/body'
 import { isWorkoutSplit } from '@/lib/splits'
 import type { UserSettings } from '@/lib/types'
 import { getSession } from './session'
@@ -9,7 +10,9 @@ export const getUserSettings = cache(async (): Promise<UserSettings> => {
   const { user, supabase } = await getSession()
   const { data, error } = await supabase
     .from('user_settings')
-    .select('split_order, tracked_exercise_ids, calorie_goal, protein_goal, carbs_goal, fat_goal, weight_kg, height_cm, age, goal_weight_kg')
+    .select(
+      'split_order, tracked_exercise_ids, calorie_goal, protein_goal, carbs_goal, fat_goal, weight_kg, height_cm, age, goal_weight_kg, body_fat, activity_level'
+    )
     .eq('user_id', user.id)
     .maybeSingle()
   if (error) throw new Error(`Could not load your settings: ${error.message}`)
@@ -29,6 +32,8 @@ export const getUserSettings = cache(async (): Promise<UserSettings> => {
       weight: decimal(data?.weight_kg),
       height: decimal(data?.height_cm),
       age: data?.age ?? null,
+      bodyFat: decimal(data?.body_fat),
+      activity: isActivityLevel(data?.activity_level) ? data.activity_level : null,
     },
     goalWeight: decimal(data?.goal_weight_kg),
   }

@@ -1,4 +1,5 @@
-// Body stats limits and BMI maths.
+// Body stats limits, activity levels and BMI maths.
+import type { ActivityLevel } from './types'
 
 export const MIN_WEIGHT_KG = 20
 export const MAX_WEIGHT_KG = 400
@@ -6,6 +7,21 @@ export const MIN_HEIGHT_CM = 100
 export const MAX_HEIGHT_CM = 250
 export const MIN_AGE = 13
 export const MAX_AGE = 120
+/** Body fat, in %. */
+export const MIN_BODY_FAT = 5
+export const MAX_BODY_FAT = 50
+
+export const ACTIVITY_LEVELS: { key: ActivityLevel; label: string; description: string }[] = [
+  { key: 'sedentary', label: 'Sedentary', description: 'Desk job, minimal movement' },
+  { key: 'light', label: 'Lightly active', description: 'Light exercise 1–3 days/week' },
+  { key: 'moderate', label: 'Moderately active', description: 'Moderate exercise 3–5 days/week' },
+  { key: 'very', label: 'Very active', description: 'Hard exercise 6–7 days/week' },
+  { key: 'extra', label: 'Extra active', description: 'Intense daily training or physical job' },
+]
+
+export function isActivityLevel(value: unknown): value is ActivityLevel {
+  return ACTIVITY_LEVELS.some((level) => level.key === value)
+}
 
 /** The WHO adult BMI ranges; each runs up to (not including) `below`. */
 export const BMI_CATEGORIES = [

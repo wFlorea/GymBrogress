@@ -37,6 +37,7 @@ as a PWA and works like a native app.
   you weigh, 25% of the calories from fat, the rest from carbs). Change a macro and the calories follow. The food log
   shows what you have left for the day.
 - **Body and BMI:** add your weight, height and age on the dashboard to see your BMI next to your goal weight.
+  Set your body fat on a dial with a figure that fills out as it goes up, and pick one of five activity levels.
 
 ### See your progress
 - **Dashboard:** a greeting, your current streak, a chart of the sets you've done this week, today's workout,
