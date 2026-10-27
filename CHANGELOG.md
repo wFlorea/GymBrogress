@@ -7,6 +7,11 @@ bottom of the Profile page.
 - **Fixes only** raise the last number: v1.1.1, v1.1.2, …
 - **A big overhaul** raises the first number: v2.0
 
+## v1.3.2 (2026-10-27)
+
+- **Body fat figure:** pick Female in your details and the figure in the body fat dial turns into a woman, with
+  shoulder-length hair, a waist and wider hips; it still fills out as the % goes up.
+
 ## v1.3.1 (2026-10-27)
 
 - **Weight plan:** when your maintenance can't be worked out yet (no sex picked, say), the goals sheet now says

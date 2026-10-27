@@ -105,7 +105,7 @@ export function BodyForm({
         )}
       </div>
 
-      <BodyFatDial value={bodyFat} onChange={setBodyFat} />
+      <BodyFatDial value={bodyFat} sex={sex} onChange={setBodyFat} />
       <ActivityPicker activity={activity} onChange={setActivity} />
       <DailyCalories goals={goals} maintenance={maintenance} weightPlan={weightPlan} planPace={planPace} missing={missing} />
 

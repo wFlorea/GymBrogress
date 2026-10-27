@@ -2,6 +2,7 @@
 
 import { useRef, type KeyboardEvent, type PointerEvent } from 'react'
 import { MAX_BODY_FAT, MIN_BODY_FAT } from '@/lib/body'
+import type { Sex } from '@/lib/types'
 
 /** Where the dot sits before the user has set a value. */
 const START_BODY_FAT = 20
@@ -21,10 +22,19 @@ const clampBodyFat = (value: number) => Math.min(Math.max(value, MIN_BODY_FAT), 
 
 /**
  * Body fat, picked by dragging a dot around a ring. The ring fills clockwise from the top as the % goes up, and the
- * figure in the middle fills out with it. Null = not set yet.
+ * figure in the middle (a man or a woman, by `sex`) fills out with it. Null = not set yet.
  */
-export function BodyFatDial({ value, onChange }: { value: number | null; onChange: (value: number | null) => void }) {
+export function BodyFatDial({
+  value,
+  sex,
+  onChange,
+}: {
+  value: number | null
+  sex: Sex | null
+  onChange: (value: number | null) => void
+}) {
   const dragging = useRef(false)
+  const figure = sex ?? 'male'
   const shown = value ?? START_BODY_FAT
   const share = (shown - MIN_BODY_FAT) / RANGE
   const angle = share * 2 * Math.PI
@@ -118,15 +128,18 @@ export function BodyFatDial({ value, onChange }: { value: number | null; onChang
               className="stroke-primary"
             />
           )}
-          <BodyFigure
-            bodyFat={shown}
-            x={CENTER - 46}
-            y={CENTER - 62}
-            width={92}
-            height={124}
-            // Faded as a whole, so the overlapping parts don't show through each other.
-            className={`fill-white ${value === null ? 'opacity-25' : ''}`}
-          />
+          <g key={figure} className="animate-pop origin-center [transform-box:fill-box]">
+            <BodyFigure
+              bodyFat={shown}
+              sex={figure}
+              x={CENTER - 46}
+              y={CENTER - 62}
+              width={92}
+              height={124}
+              // Faded as a whole, so the overlapping parts don't show through each other.
+              className={`fill-white ${value === null ? 'opacity-25' : ''}`}
+            />
+          </g>
           <circle cx={knob.x} cy={knob.y} r={17} className="fill-primary/20" />
           <circle cx={knob.x} cy={knob.y} r={10} strokeWidth={4} className="fill-white stroke-primary" />
         </svg>
@@ -139,7 +152,10 @@ export function BodyFatDial({ value, onChange }: { value: number | null; onChang
   )
 }
 
-const lerp = (lean: number, full: number, t: number) => lean + (full - lean) * t
+/** A size on the leanest figure and on the fullest; the ones between are blended. */
+type Range = readonly [lean: number, full: number]
+
+const blend = ([lean, full]: Range, t: number) => lean + (full - lean) * t
 const round = (value: number) => Math.round(value * 10) / 10
 
 /** Room between the arms and the body. */
@@ -148,20 +164,70 @@ const SHOULDER_Y = 25
 /** The arms hang a little out even on the leanest figure (radians). */
 const MIN_ARM_TILT = 0.06
 
+type Build = Record<
+  | 'head'
+  | 'shoulder'
+  | 'chest'
+  | 'belly'
+  | 'hip'
+  | 'crotch'
+  | 'kneeCentre'
+  | 'kneeHalf'
+  | 'ankleCentre'
+  | 'ankleHalf'
+  | 'armWidth'
+  | 'armLength',
+  Range
+>
+
+/** The female figure has narrower shoulders, a waist, wider hips and slimmer arms. */
+const BUILDS: Record<Sex, Build> = {
+  male: {
+    head: [8.5, 9.5],
+    shoulder: [13, 16],
+    chest: [12.5, 20],
+    belly: [10.5, 27],
+    hip: [12, 25],
+    crotch: [76, 82],
+    kneeCentre: [7, 11],
+    kneeHalf: [4.5, 8],
+    ankleCentre: [7, 8.5],
+    ankleHalf: [3.8, 5.5],
+    armWidth: [5.5, 9.5],
+    armLength: [47, 49],
+  },
+  female: {
+    head: [8, 9],
+    shoulder: [11, 13.5],
+    chest: [12, 19.5],
+    belly: [8.5, 23],
+    hip: [15, 27],
+    crotch: [78, 83],
+    kneeCentre: [7, 11],
+    kneeHalf: [4.8, 8.3],
+    ankleCentre: [6.5, 8],
+    ankleHalf: [3.3, 5],
+    armWidth: [4.5, 8.5],
+    armLength: [45, 47],
+  },
+}
+
 /**
  * The figure for a body fat share `t` (0 = leanest, 1 = highest), drawn around the line x = 50 in a 100 × 136 box.
  * Widths are half-widths from that line. The arms tilt out just enough to clear the chest, belly and hips beside them.
  */
-function figureShape(t: number) {
-  const shoulder = lerp(13, 16, t)
-  const chest = lerp(12.5, 20, t)
-  const belly = lerp(10.5, 27, t)
-  const hip = lerp(12, 25, t)
-  const crotch = lerp(76, 82, t)
-  const knee = { centre: lerp(7, 11, t), half: lerp(4.5, 8, t) }
-  const ankle = { centre: lerp(7, 8.5, t), half: lerp(3.8, 5.5, t) }
-  const armWidth = lerp(5.5, 9.5, t)
-  const armLength = lerp(47, 49, t)
+function figureShape(t: number, sex: Sex) {
+  const build = BUILDS[sex]
+  const shoulder = blend(build.shoulder, t)
+  const chest = blend(build.chest, t)
+  const belly = blend(build.belly, t)
+  const hip = blend(build.hip, t)
+  const crotch = blend(build.crotch, t)
+  const knee = { centre: blend(build.kneeCentre, t), half: blend(build.kneeHalf, t) }
+  const ankle = { centre: blend(build.ankleCentre, t), half: blend(build.ankleHalf, t) }
+  const armWidth = blend(build.armWidth, t)
+  const armLength = blend(build.armLength, t)
+  const headRadius = blend(build.head, t)
 
   const right = (w: number) => round(50 + w)
   const left = (w: number) => round(50 - w)
@@ -209,26 +275,53 @@ function figureShape(t: number) {
   }
 
   return {
-    headRadius: lerp(8.5, 9.5, t),
+    headRadius,
     torso,
     legs: `${leg(1)} ${leg(-1)}`,
     arm: { offset: armOffset, width: armWidth, length: armLength, tilt: (tilt * 180) / Math.PI },
+    hair: sex === 'female' ? hairShape(headRadius) : null,
   }
+}
+
+/**
+ * Shoulder-length hair for a head of radius `r`: a crown over the head and a lock down each side over the shoulders,
+ * open around the face. It's outlined in the dial's background colour, so it stands out from the face and shoulders.
+ */
+function hairShape(r: number) {
+  const right = (w: number) => round(50 + w)
+  const left = (w: number) => round(50 - w)
+  const outer = r + 1.8
+  const tip = r + 2.4
+  const tipY = 31
+  const hairline = round(12.5 - r * 0.45)
+  const temple = round(12.5 - r * 0.55)
+  return [
+    `M ${left(tip)} ${tipY}`,
+    `C ${left(outer + 0.4)} 25 ${left(outer)} 19 ${left(outer)} 12.5`,
+    `A ${round(outer)} ${round(outer)} 0 0 1 ${right(outer)} 12.5`,
+    `C ${right(outer)} 19 ${right(outer + 0.4)} 25 ${right(tip)} ${tipY}`,
+    `Q ${right(r * 0.55)} ${tipY - 1} ${right(r * 0.62)} 18`,
+    `C ${right(r * 0.95)} 12 ${right(r * 0.6)} ${temple} 50 ${hairline}`,
+    `C ${left(r * 0.6)} ${temple} ${left(r * 0.95)} 12 ${left(r * 0.62)} 18`,
+    `Q ${left(r * 0.55)} ${tipY - 1} ${left(tip)} ${tipY} Z`,
+  ].join(' ')
 }
 
 function BodyFigure({
   bodyFat,
+  sex,
   className,
   ...box
 }: {
   bodyFat: number
+  sex: Sex
   className: string
   x: number
   y: number
   width: number
   height: number
 }) {
-  const { headRadius, torso, legs, arm } = figureShape((bodyFat - MIN_BODY_FAT) / RANGE)
+  const { headRadius, torso, legs, arm, hair } = figureShape((bodyFat - MIN_BODY_FAT) / RANGE, sex)
 
   return (
     <svg viewBox="0 0 100 136" {...box} className={className} aria-hidden>
@@ -245,6 +338,7 @@ function BodyFigure({
           transform={`translate(${round(50 + side * arm.offset)} ${SHOULDER_Y}) rotate(${round(-side * arm.tilt)})`}
         />
       ))}
+      {hair && <path d={hair} strokeWidth={1.4} strokeLinejoin="round" className="stroke-sunken" />}
     </svg>
   )
 }
