@@ -7,7 +7,7 @@ What's next for GymBrogress, most important first. Tick items off as they land; 
 The weigh-in, the Monday reminder and the bigger exercise library are built but not released. The live database
 already has `weight_logs` and `push_subscriptions`.
 
-- [ ] Apply the new migrations to the live database, in order, before deploying (the app's code needs them):
+- [x] Apply the new migrations to the live database, in order, before deploying (the app's code needs them):
       `20261030120000_push_time_zone.sql`, `20261030130000_rest_timer.sql`,
       `20261030140000_saved_meals_water.sql`, `20261030150000_weight_unit.sql`
 - [ ] Set the env vars on Vercel: `CRON_SECRET`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
@@ -18,12 +18,12 @@ already has `weight_logs` and `push_subscriptions`.
       `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/password`, so the link also works
       when the email opens in another browser than the app
 - [ ] Try the reminder on a phone: Android Chrome, and an iPhone with the app added to the Home Screen
-- [ ] Bump `version` in `package.json` to `1.4.0` and add a `CHANGELOG.md` entry
-- [ ] README: add the weigh-in, the reminder and the new env vars; say 130+ exercises; drop the shipped items
+- [x] Bump `version` in `package.json` to `1.4.0` and add a `CHANGELOG.md` entry
+- [x] README: add the weigh-in, the reminder and the new env vars; say 130+ exercises; drop the shipped items
       (BMR calculator, calorie recommendations) from Planned
 - [x] CLAUDE.md: add `src/lib/data/weight.ts`, `src/lib/push.ts`, `src/utils/supabase/admin.ts`, `src/app/api/cron/`
       and `public/sw.js`; move barcode scanning to v1.5 and photo scanning to v1.6
-- [ ] Commit and tag `v1.4`
+- [x] Commit and tag `v1.4` (local; push once the env vars and Auth settings above are done)
 
 ## Fixes
 

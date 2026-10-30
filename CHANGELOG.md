@@ -7,6 +7,31 @@ bottom of the Profile page.
 - **Fixes only** raise the last number: v1.1.1, v1.1.2, …
 - **A big overhaul** raises the first number: v2.0
 
+## v1.4 (2026-10-30)
+
+A weekly weigh-in, a Settings page, a tracker that works without signal, and more for your food log and progress.
+
+- **Weekly weigh-in:** a card on the dashboard asks for this week's weight (one tap if it hasn't changed). It becomes
+  your current weight, so your BMI and daily goals follow it. Profile shows every weigh-in, with a chart.
+- **Monday reminder:** turn on a push notification in Settings and you get a nudge on Monday while the week's weight
+  isn't in. It only arrives in the daytime where you are, never at night.
+- **Weight trend:** after 4 weigh-ins, the dashboard charts your weight with your goal as a dashed line, and shows how
+  much of the way to the goal you've come.
+- **Settings:** a new page behind the gear on Profile.
+  - **Rest timer:** turn it off, or pick 1, 1½, 2 or 3 minutes.
+  - **Units:** show every weight in kg or lb, for lifts and body weight alike.
+  - **Account:** change your password, download all your data as a JSON file, or delete your account.
+- **Forgot password:** the sign-in page emails you a link to set a new one.
+- **Tracker without signal:** sets you log, change or tick off are kept on your phone and sent once you're back
+  online, even if you closed the app in between. A banner shows how many are waiting.
+- **Personal bests:** the tracker pops up a note when a set beats the heaviest weight you've lifted on that exercise.
+- **Estimated 1RM:** each exercise's progress page shows your estimated one-rep max (Epley, from sets of 12 reps or
+  fewer), for every workout too.
+- **Sets per muscle group:** Progress shows the sets each muscle group got in the last 7 days, and which got none.
+- **Food:** copy a meal from the day before in one tap, save a meal under a name to log it again in one tap, and track
+  your water against a goal from your weight, a 250 ml glass at a time.
+- **Exercise library:** 64 more exercises, 132 in all.
+
 ## v1.3.2 (2026-10-27)
 
 - **Body fat figure:** pick Female in your details and the figure in the body fat dial turns into a woman, with
