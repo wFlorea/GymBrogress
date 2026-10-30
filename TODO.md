@@ -51,7 +51,7 @@ already has `weight_logs` and `push_subscriptions`.
       on the phone and go out in order; adding a new exercise, syncing with the plan and finishing still need signal,
       and the tracker page itself still needs signal to open)
 - [x] **Account:** delete your account and export your data (Settings; deleting needs `SUPABASE_SERVICE_ROLE_KEY`)
-- [ ] **Weight trend:** a chart of the weigh-ins and how far you are from the goal weight, on the dashboard
+- [x] **Weight trend:** a chart of the weigh-ins and how far you are from the goal weight, on the dashboard (after 4 check-ins, like Profile; the goal is a dashed line)
 - [ ] **Progress:** estimated 1RM, volume per muscle group, and a celebration for a new PR
 - [ ] **Food:** copy yesterday's meals, saved meals, water tracking
 - [ ] **Units:** a kg/lbs toggle

@@ -7,6 +7,7 @@ import { Meter } from '@/components/ui/Meter'
 import { Page, SectionTitle } from '@/components/ui/Page'
 import { PlateMark } from '@/components/ui/PlateMark'
 import { buttonStyles } from '@/components/ui/styles'
+import { WEIGHT_CHART_AFTER } from '@/lib/body'
 import { DAYS_OF_WEEK, addDays, dayOfWeek, formatDate, mondayOf } from '@/lib/date'
 import { EXERCISES } from '@/lib/exercises-data'
 import { formatGrams, formatKcal, plural } from '@/lib/format'
@@ -23,6 +24,7 @@ import { getWorkoutHistory } from '@/lib/data/workouts'
 import type { DaySummary, IsoDate, Nutrition } from '@/lib/types'
 import { dismissWeeklyCheckIn } from './actions'
 import { BodyCard } from './BodyCard'
+import { WeightTrend } from './WeightTrend'
 
 interface ChartDay {
   date: IsoDate
@@ -143,7 +145,8 @@ export default async function DashboardPage() {
       <SectionTitle subtitle="What you've eaten today">Food</SectionTitle>
       <FoodToday totals={sumNutrition(foodToday)} goal={settings.nutritionGoals.calories} />
 
-      <SectionTitle subtitle="Your BMI and your goal">Body</SectionTitle>
+      <SectionTitle subtitle="Your weight, BMI and goal">Body</SectionTitle>
+      {weightLog.length >= WEIGHT_CHART_AFTER && <WeightTrend entries={weightLog} goal={settings.goalWeight} />}
       <BodyCard
         body={settings.body}
         goalWeight={settings.goalWeight}

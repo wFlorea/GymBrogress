@@ -18,6 +18,13 @@ export function formatKg(weight: number): string {
   return `${weight.toLocaleString('en-GB', { maximumFractionDigits: 2 })} kg`
 }
 
+/** "+0.4 kg", "-1.2 kg", "0 kg" */
+export function signedKg(change: number): string {
+  // `|| 0` turns -0 into 0.
+  const rounded = Math.round(change * 10) / 10 || 0
+  return `${rounded > 0 ? '+' : ''}${formatKg(rounded)}`
+}
+
 /** "0:45", "1:30", "3:00" */
 export function formatClock(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`

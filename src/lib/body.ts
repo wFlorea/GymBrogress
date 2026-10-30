@@ -84,3 +84,16 @@ export function goalWeightText(weightKg: number, goalKg: number): string {
   const amount = Math.abs(difference).toLocaleString('en-GB', { maximumFractionDigits: 1 })
   return `${amount} kg to ${difference > 0 ? 'gain' : 'lose'}`
 }
+
+/** Weekly check-ins (a month) before the weight chart shows. */
+export const WEIGHT_CHART_AFTER = 4
+
+/**
+ * How much of the way from `startKg` to `goalKg` the weight has come, from 0 to 1 (1 once it reaches the goal or goes
+ * past it); null when the start was already the goal.
+ */
+export function goalProgress(startKg: number, weightKg: number, goalKg: number): number | null {
+  const way = goalKg - startKg
+  if (Math.abs(way) < 0.05) return null
+  return Math.min(1, Math.max(0, (weightKg - startKg) / way))
+}

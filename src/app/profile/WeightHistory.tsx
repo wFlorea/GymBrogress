@@ -7,21 +7,12 @@ import { Card, StatItem } from '@/components/ui/Card'
 import { LineChart } from '@/components/ui/LineChart'
 import { Modal } from '@/components/ui/Modal'
 import { buttonStyles } from '@/components/ui/styles'
+import { WEIGHT_CHART_AFTER as CHART_AFTER } from '@/lib/body'
 import { formatDate } from '@/lib/date'
-import { formatKg, plural } from '@/lib/format'
+import { formatKg, plural, signedKg } from '@/lib/format'
 import type { IsoDate, WeightEntry } from '@/lib/types'
 
-/** Weekly check-ins (a month) before the chart shows. */
-const CHART_AFTER = 4
-
 const shortDate = (date: IsoDate) => formatDate(date, { day: 'numeric', month: 'short' })
-
-/** "+0.4 kg", "-1.2 kg", "0 kg" */
-function signedKg(change: number): string {
-  // `|| 0` turns -0 into 0.
-  const rounded = Math.round(change * 10) / 10 || 0
-  return `${rounded > 0 ? '+' : ''}${formatKg(rounded)}`
-}
 
 /**
  * The weekly weigh-ins: the latest, a chart once there are a month of them (a table before that), and a sheet to

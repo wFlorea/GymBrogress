@@ -11,7 +11,7 @@ export interface ChartPoint {
   value: number
 }
 
-const HEIGHT = 240
+const DEFAULT_HEIGHT = 240
 const PAD = { top: 28, right: 24, bottom: 40, left: 40 }
 /** Room each date label needs on the x axis. */
 const LABEL_WIDTH = 52
@@ -34,19 +34,25 @@ const formatTick = (value: number) => value.toLocaleString('en-GB', { maximumFra
 /**
  * Line chart of weights over time. The x axis is time, from the first point to the latest, so gaps
  * show as longer stretches of line. The y axis starts at 0, or with `fitToData` wraps the values
- * closely so small changes, like a body weight's, stay visible.
+ * closely so small changes, like a body weight's, stay visible. A `goal` shows as a dashed line the axis always
+ * reaches.
  */
 export function LineChart({
   points,
   label,
   fitToData = false,
   tooltipPrefix = '',
+  goal = null,
+  height = DEFAULT_HEIGHT,
 }: {
   points: ChartPoint[]
   label: string
   fitToData?: boolean
   /** Put before the date in the tooltip, like "Week of ". */
   tooltipPrefix?: string
+  /** A goal weight to draw as a dashed line. */
+  goal?: number | null
+  height?: number
 }) {
   const container = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(340)
@@ -61,16 +67,17 @@ export function LineChart({
   }, [])
 
   const plotWidth = width - PAD.left - PAD.right
-  const plotHeight = HEIGHT - PAD.top - PAD.bottom
+  const plotHeight = height - PAD.top - PAD.bottom
   const start = points[0].date
   const span = daysBetween(start, points.at(-1)!.date)
   const x = (date: string) => PAD.left + (span === 0 ? plotWidth / 2 : (daysBetween(start, date) / span) * plotWidth)
-  const values = points.map((p) => p.value)
+  const values = [...points.map((p) => p.value), ...(goal === null ? [] : [goal])]
   const scale = fitToData
     ? niceScale(Math.min(...values) - FIT_PADDING, Math.max(...values) + FIT_PADDING)
     : niceScale(0, Math.max(...values))
   const y = (value: number) => PAD.top + plotHeight - ((value - scale.min) / (scale.max - scale.min)) * plotHeight
   const bottom = y(scale.min)
+  const goalY = goal === null ? null : y(goal)
   const ticks = Array.from(
     { length: Math.round((scale.max - scale.min) / scale.step) + 1 },
     (_, i) => scale.min + i * scale.step
@@ -113,7 +120,7 @@ export function LineChart({
     <div ref={container} className="relative select-none">
       <svg
         width={width}
-        height={HEIGHT}
+        height={height}
         role="img"
         aria-label={label}
         tabIndex={0}
@@ -143,7 +150,7 @@ export function LineChart({
         {dateTicks.map((date, i) => {
           const newYear = i === 0 || date.slice(0, 4) !== dateTicks[i - 1].slice(0, 4)
           return (
-            <text key={date} x={x(date)} y={HEIGHT - PAD.bottom + 16} textAnchor="middle" className="fill-muted text-[10px]">
+            <text key={date} x={x(date)} y={height - PAD.bottom + 16} textAnchor="middle" className="fill-muted text-[10px]">
               {formatDate(date, { day: 'numeric', month: 'short' })}
               {newYear && (
                 <tspan x={x(date)} dy="1.2em" className="text-[9px]">
@@ -155,6 +162,29 @@ export function LineChart({
         })}
 
         {area && <path d={area} fill="url(#line-chart-fill)" />}
+
+        {goal !== null && goalY !== null && (
+          <g>
+            <line
+              x1={PAD.left}
+              x2={width - PAD.right}
+              y1={goalY}
+              y2={goalY}
+              className="stroke-muted"
+              strokeWidth={1.5}
+              strokeDasharray="4 4"
+            />
+            {/* Above the line when there's room; the halo keeps it readable where it crosses the weight line. */}
+            <text
+              x={PAD.left + 6}
+              y={goalY - PAD.top > 14 ? goalY - 6 : goalY + 14}
+              className="fill-muted stroke-surface text-[10px] font-bold [paint-order:stroke]"
+              strokeWidth={3}
+            >
+              Goal {formatKg(goal)}
+            </text>
+          </g>
+        )}
         {coords.length > 1 && (
           <path d={line} fill="none" className="stroke-primary" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         )}
