@@ -17,3 +17,8 @@ export function formatGrams(grams: number): string {
 export function formatKg(weight: number): string {
   return `${weight.toLocaleString('en-GB', { maximumFractionDigits: 2 })} kg`
 }
+
+/** "0:45", "1:30", "3:00" */
+export function formatClock(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}

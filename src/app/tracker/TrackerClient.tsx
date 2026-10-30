@@ -8,14 +8,12 @@ import { Alert, EmptyState } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { buttonStyles } from '@/components/ui/styles'
 import { MUSCLE_GROUP_LABELS, getExercise } from '@/lib/exercises-data'
-import { plural } from '@/lib/format'
+import { formatClock, plural } from '@/lib/format'
 import { DEFAULT_SETS_PER_EXERCISE, MAX_REPS, MAX_WEIGHT_KG } from '@/lib/sets'
 import { getSplitOption } from '@/lib/splits'
-import type { Exercise, PlannedExercise, SetValues, WorkoutDay, WorkoutSet } from '@/lib/types'
+import type { Exercise, PlannedExercise, RestTimerSettings, SetValues, WorkoutDay, WorkoutSet } from '@/lib/types'
 import { addExerciseToWorkout, finishWorkout, syncWithPlan } from './actions'
 import { useRestTimer, useSetPersistence } from './hooks'
-
-const REST_SECONDS = 90
 
 /** Numbers an exercise's sets 1, 2, 3… in the order they are listed. */
 function renumber(sets: WorkoutSet[], exerciseId: string): WorkoutSet[] {
@@ -30,7 +28,16 @@ function restoreSet(sets: WorkoutSet[], set: WorkoutSet): WorkoutSet[] {
   return renumber(next, set.exercise_id)
 }
 
-export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plannedExercises: PlannedExercise[] }) {
+export function TrackerClient({
+  day,
+  plannedExercises,
+  restTimer,
+}: {
+  day: WorkoutDay
+  plannedExercises: PlannedExercise[]
+  /** From Settings: whether ticking off a set starts the rest countdown, and its length. */
+  restTimer: RestTimerSettings
+}) {
   const [sets, setSets] = useState(day.sets)
   const [finished, setFinished] = useState(day.finished_at !== null)
   const [error, setError] = useState<string | null>(null)
@@ -109,7 +116,7 @@ export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plan
     setError(null)
     const isCompleted = !set.is_completed
     patchLocal(set.id, { is_completed: isCompleted })
-    if (isCompleted) timer.start(REST_SECONDS)
+    if (isCompleted && restTimer.on) timer.start(restTimer.seconds)
     void persistence.saveNow(set.id, { is_completed: isCompleted }).then((saved) => {
       if (!saved) patchLocal(set.id, { is_completed: set.is_completed })
     })
@@ -496,8 +503,6 @@ function RestTimerBar({
   onAdd: () => void
   onStop: () => void
 }) {
-  const minutes = Math.floor(secondsLeft / 60)
-  const seconds = String(secondsLeft % 60).padStart(2, '0')
   return (
     <div className="fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-lg animate-float-in overflow-hidden rounded-2xl border border-primary/50 bg-sunken/95 shadow-2xl backdrop-blur-md">
       <div className="flex items-center justify-between p-3.5">
@@ -507,9 +512,7 @@ function RestTimerBar({
           </div>
           <div role="timer" aria-label="Rest time left">
             <span className="block text-[10px] font-black uppercase tracking-wider text-muted">Rest between sets</span>
-            <span className="font-mono text-xl font-black text-white">
-              {minutes}:{seconds}
-            </span>
+            <span className="font-mono text-xl font-black text-white">{formatClock(secondsLeft)}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">

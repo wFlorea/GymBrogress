@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Bell } from 'lucide-react'
 import { Alert, Card } from '@/components/ui/Card'
+import { Switch } from '@/components/ui/Switch'
 import { deletePushSubscription, savePushSubscription } from './actions'
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
@@ -101,31 +102,19 @@ export function PushReminder() {
   const on = status === 'on'
 
   return (
-    <Card className="mt-3">
+    <Card>
       <div className="flex items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
           <Bell size={18} />
         </span>
         <div className="min-w-0 flex-1">
-          <p id="push-reminder-label" className="font-semibold">Weekly reminder</p>
+          <p id="push-reminder-label" className="font-semibold">Weekly weigh-in reminder</p>
           <p className="text-xs text-muted">
-            {note ?? 'A notification on Monday morning if you haven’t checked in yet. Just for this device.'}
+            {note ?? 'A notification on Monday morning if you haven’t logged this week’s weight yet. Just for this device.'}
           </p>
         </div>
         {!note && (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={on}
-            aria-labelledby="push-reminder-label"
-            disabled={status === 'loading' || busy}
-            onClick={toggle}
-            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-60 ${on ? 'bg-primary' : 'bg-foreground/15'}`}
-          >
-            <span
-              className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-5' : ''}`}
-            />
-          </button>
+          <Switch on={on} onChange={toggle} disabled={status === 'loading' || busy} aria-labelledby="push-reminder-label" />
         )}
       </div>
       {error && <Alert className="mt-3">{error}</Alert>}

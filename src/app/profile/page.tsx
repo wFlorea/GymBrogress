@@ -1,8 +1,8 @@
-import type { ReactNode } from 'react'
 import Link from 'next/link'
-import { BookOpen, ChevronRight, LogOut, TrendingUp } from 'lucide-react'
+import { BookOpen, LogOut, Settings, TrendingUp } from 'lucide-react'
 import { logout } from '@/app/login/actions'
 import { Card, StatItem, cardStyles } from '@/components/ui/Card'
+import { MenuLink } from '@/components/ui/MenuLink'
 import { Page, SectionTitle } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { buttonStyles } from '@/components/ui/styles'
@@ -15,7 +15,6 @@ import { getWeightLog } from '@/lib/data/weight'
 import { getWorkoutHistory } from '@/lib/data/workouts'
 import { APP_VERSION } from '@/lib/version'
 import { GymHistoryCalendar } from './GymHistoryCalendar'
-import { PushReminder } from './PushReminder'
 import { WeightHistory } from './WeightHistory'
 
 export default async function ProfilePage() {
@@ -34,7 +33,10 @@ export default async function ProfilePage() {
 
   return (
     <Page>
-      <header className="mb-6 flex flex-col items-center pt-2 text-center">
+      <header className="relative mb-6 flex flex-col items-center pt-2 text-center">
+        <Link href="/settings" aria-label="Settings" className={`${buttonStyles.icon} absolute right-0 top-0`}>
+          <Settings size={18} />
+        </Link>
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary font-display text-[2rem] font-bold text-white shadow-[0_0_40px_-8px_var(--color-primary)] ring-4 ring-primary/25">
           {name.charAt(0).toUpperCase()}
         </div>
@@ -53,7 +55,6 @@ export default async function ProfilePage() {
       <section className="mb-8">
         <SectionTitle subtitle="Your weekly check-ins">Weight history</SectionTitle>
         <WeightHistory entries={weightLog} thisWeek={mondayOf(today)} currentWeight={settings.body.weight} />
-        <PushReminder />
       </section>
 
       <section className="mb-8">
@@ -84,18 +85,5 @@ export default async function ProfilePage() {
 
       <p className="mt-6 text-center text-xs text-muted">GymBrogress {APP_VERSION}</p>
     </Page>
-  )
-}
-
-function MenuLink({ href, icon, title, description }: { href: string; icon: ReactNode; title: string; description: string }) {
-  return (
-    <Link href={href} className="flex items-center gap-3 p-4 transition-colors hover:bg-white/[0.03]">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">{icon}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block font-semibold">{title}</span>
-        <span className="text-xs text-muted">{description}</span>
-      </span>
-      <ChevronRight size={18} className="shrink-0 text-muted" />
-    </Link>
   )
 }

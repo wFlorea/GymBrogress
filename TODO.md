@@ -8,7 +8,7 @@ The weigh-in, the Monday reminder and the bigger exercise library are built but 
 already has `weight_logs` and `push_subscriptions`.
 
 - [ ] Apply the new migrations to the live database, in order, before deploying (the app's code needs them):
-      `20261030120000_push_time_zone.sql`
+      `20261030120000_push_time_zone.sql`, `20261030130000_rest_timer.sql`
 - [ ] Set the env vars on Vercel: `CRON_SECRET`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
       `SUPABASE_SERVICE_ROLE_KEY`
 - [ ] Supabase Auth → URL Configuration: add `https://gym.florea.lol/**` and `http://localhost:3000/**` to the
@@ -45,7 +45,8 @@ already has `weight_logs` and `push_subscriptions`.
 
 ## Upgrades
 
-- [ ] **Rest timer:** pick the rest time per exercise instead of a fixed 90 s
+- [x] **Rest timer:** turn it off, or pick how long it runs, on a new Settings page (gear on Profile), which also
+      holds the weekly reminder and a Change password link
 - [ ] **Offline tracker:** keep logging sets without signal and sync them when back online
 - [ ] **Account:** delete your account and export your data
 - [ ] **Weight trend:** a chart of the weigh-ins and how far you are from the goal weight, on the dashboard

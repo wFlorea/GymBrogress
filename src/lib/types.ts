@@ -76,6 +76,16 @@ export interface UserSettings {
   goalWeight: number | null
   weightPlan: WeightPlan
   planPace: PlanPace
+  restTimer: RestTimerSettings
+}
+
+/** How long the rest timer runs, in seconds. */
+export type RestSeconds = 60 | 90 | 120 | 180
+
+/** The countdown that starts when a set is ticked off. */
+export interface RestTimerSettings {
+  on: boolean
+  seconds: RestSeconds
 }
 
 /** What the user's weight should do: cut (eat under maintenance), maintain, or bulk (eat over it). */

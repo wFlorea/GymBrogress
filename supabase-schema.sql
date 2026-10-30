@@ -73,6 +73,9 @@ CREATE TABLE user_settings (
   plan_pace INTEGER CHECK (plan_pace IN (5, 10, 15, 20)),
   body_fat DECIMAL CHECK (body_fat BETWEEN 5 AND 50),
   activity_level TEXT CHECK (activity_level IN ('sedentary', 'light', 'moderate', 'very', 'extra')),
+  -- The rest timer that starts when a set is ticked off, and how long it runs, in seconds.
+  rest_timer_on BOOLEAN NOT NULL DEFAULT true,
+  rest_timer_seconds INTEGER NOT NULL DEFAULT 90 CHECK (rest_timer_seconds IN (60, 90, 120, 180)),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 

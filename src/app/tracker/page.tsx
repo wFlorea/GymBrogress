@@ -10,6 +10,7 @@ import { resolveRoutine } from '@/lib/routines'
 import { REST_DAY, getSplitOption } from '@/lib/splits'
 import { getRoutineTemplates, getWeeklyPlan } from '@/lib/data/plans'
 import { getToday } from '@/lib/data/session'
+import { getUserSettings } from '@/lib/data/settings'
 import { getWorkoutDay } from '@/lib/data/workouts'
 import { StartWorkoutButton, StartWorkoutPicker } from './StartWorkout'
 import { TrackerClient } from './TrackerClient'
@@ -22,7 +23,12 @@ const planLink = (
 
 export default async function TrackerPage() {
   const today = await getToday()
-  const [day, weeklyPlan, templates] = await Promise.all([getWorkoutDay(today), getWeeklyPlan(), getRoutineTemplates()])
+  const [day, weeklyPlan, templates, settings] = await Promise.all([
+    getWorkoutDay(today),
+    getWeeklyPlan(),
+    getRoutineTemplates(),
+    getUserSettings(),
+  ])
 
   const split = day?.split ?? weeklyPlan[dayOfWeek(today)]
   const option = getSplitOption(split)
@@ -33,7 +39,7 @@ export default async function TrackerPage() {
     return (
       <Page>
         <PageHeader eyebrow={dateLabel} title={`${option.emoji} ${option.name}`} action={planLink} />
-        <TrackerClient key={day.id} day={day} plannedExercises={exercises} />
+        <TrackerClient key={day.id} day={day} plannedExercises={exercises} restTimer={settings.restTimer} />
       </Page>
     )
   }

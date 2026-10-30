@@ -1,10 +1,12 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { dbFail, fail, ok } from '@/lib/data/action-result'
 import { getSession } from '@/lib/data/session'
 import { isValidTimeZone, TIMEZONE_COOKIE } from '@/lib/date'
 import { isPushEndpoint } from '@/lib/push'
+import { isRestSeconds } from '@/lib/sets'
 import type { ActionResult } from '@/lib/types'
 
 const BASE64URL = /^[A-Za-z0-9_-]+=*$/
@@ -45,5 +47,21 @@ export async function deletePushSubscription(endpoint: string): Promise<ActionRe
   const { user, supabase } = await getSession()
   const { error } = await supabase.from('push_subscriptions').delete().eq('user_id', user.id).eq('endpoint', endpoint)
   if (error) return dbFail('deletePushSubscription', error, 'Could not turn off reminders. Please try again.')
+  return ok()
+}
+
+/** Turns the rest timer between sets on or off, and sets how long it runs. */
+export async function saveRestTimer(on: boolean, seconds: number): Promise<ActionResult> {
+  if (typeof on !== 'boolean' || !isRestSeconds(seconds)) return fail('Invalid rest timer.')
+
+  const { user, supabase } = await getSession()
+  const { error } = await supabase
+    .from('user_settings')
+    .upsert(
+      { user_id: user.id, rest_timer_on: on, rest_timer_seconds: seconds, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    )
+  if (error) return dbFail('saveRestTimer', error, 'Could not save the rest timer. Please try again.')
+  revalidatePath('/tracker')
   return ok()
 }
