@@ -120,7 +120,7 @@ export function PushReminder() {
             aria-labelledby="push-reminder-label"
             disabled={status === 'loading' || busy}
             onClick={toggle}
-            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-60 ${on ? 'bg-primary' : 'bg-zinc-700'}`}
+            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-60 ${on ? 'bg-primary' : 'bg-foreground/15'}`}
           >
             <span
               className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-5' : ''}`}

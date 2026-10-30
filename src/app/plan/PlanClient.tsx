@@ -152,7 +152,7 @@ export function PlanClient({
                       {isSaving ? (
                         <Loader2 size={16} className="animate-spin text-primary" aria-label="Saving" />
                       ) : (
-                        <span className="rounded-xl border border-zinc-700 bg-zinc-800/90 px-2.5 py-1 text-xs font-bold text-zinc-300">
+                        <span className="rounded-xl border border-foreground/15 bg-surface/90 px-2.5 py-1 text-xs font-bold text-foreground/80">
                           {plural(items.length, 'exercise')}
                         </span>
                       )}
@@ -179,10 +179,10 @@ export function PlanClient({
                             <SortableItem
                               key={exercise.id}
                               id={exercise.id}
-                              className="flex items-center gap-1.5 rounded-xl border border-border/80 bg-sunken py-3 pl-1 pr-2 transition-colors hover:border-zinc-600 sm:gap-2.5 sm:pr-3"
+                              className="flex items-center gap-1.5 rounded-xl border border-border/80 bg-sunken py-3 pl-1 pr-2 transition-colors hover:border-foreground/25 sm:gap-2.5 sm:pr-3"
                             >
                               <DragHandle label={`Move ${exercise.name}`} />
-                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-muted">
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface text-xs font-bold text-muted">
                                 {index + 1}
                               </span>
                               <div className="min-w-0 flex-1">
@@ -224,7 +224,7 @@ export function PlanClient({
                       <button
                         type="button"
                         onClick={() => run(split, null, () => resetRoutine(split))}
-                        className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-bold text-zinc-400 transition-colors hover:text-white"
+                        className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-bold text-foreground/60 transition-colors hover:text-white"
                       >
                         <RotateCcw size={13} /> Reset to default exercises
                       </button>
@@ -273,7 +273,7 @@ function SetStepper({
   onChange: (value: number) => void
 }) {
   const stepButton =
-    'press flex h-6 w-7 items-center justify-center rounded-md text-zinc-300 hover:bg-zinc-700 hover:text-white [--press-scale:0.8] disabled:opacity-30 disabled:hover:bg-transparent'
+    'press flex h-6 w-7 items-center justify-center rounded-md text-foreground/80 hover:bg-surface-hover hover:text-white [--press-scale:0.8] disabled:opacity-30 disabled:hover:bg-transparent'
   return (
     <div className="flex shrink-0 items-center gap-0.5 rounded-xl border border-border bg-surface py-0.5 pl-2 pr-0.5">
       <div className="w-7 text-center leading-none" aria-live="polite">

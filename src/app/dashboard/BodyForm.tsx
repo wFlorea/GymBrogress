@@ -129,7 +129,7 @@ function SexPicker({ sex, onChange }: { sex: Sex | null; onChange: (sex: Sex) =>
             <label
               key={key}
               className={`press flex cursor-pointer items-center justify-center rounded-xl border px-3.5 py-2.5 text-sm font-semibold [--press-scale:0.98] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/60 ${
-                selected ? 'border-primary bg-primary/10' : 'border-border bg-sunken hover:border-zinc-600'
+                selected ? 'border-primary bg-primary/10' : 'border-border bg-sunken hover:border-foreground/25'
               }`}
             >
               <input type="radio" name="sex" value={key} checked={selected} onChange={() => onChange(key)} className="sr-only" />
@@ -202,7 +202,7 @@ function ActivityPicker({ activity, onChange }: { activity: ActivityLevel | null
             <label
               key={key}
               className={`press flex cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-2.5 [--press-scale:0.98] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/60 ${
-                selected ? 'border-primary bg-primary/10' : 'border-border bg-sunken hover:border-zinc-600'
+                selected ? 'border-primary bg-primary/10' : 'border-border bg-sunken hover:border-foreground/25'
               }`}
             >
               <input
@@ -219,7 +219,7 @@ function ActivityPicker({ activity, onChange }: { activity: ActivityLevel | null
               </span>
               <span
                 className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
-                  selected ? 'border-primary' : 'border-zinc-600'
+                  selected ? 'border-primary' : 'border-foreground/25'
                 }`}
                 aria-hidden
               >

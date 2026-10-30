@@ -134,7 +134,7 @@ function WeightTable({ entries, className = '' }: { entries: WeightEntry[]; clas
           .reverse()
           .map(({ week, weight, previous }) => (
             <tr key={week} className="border-t border-white/5">
-              <td className="py-1.5 text-zinc-300">{formatDate(week, { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+              <td className="py-1.5 text-foreground/80">{formatDate(week, { day: 'numeric', month: 'short', year: 'numeric' })}</td>
               <td className="py-1.5 text-right font-bold text-white">{formatKg(weight)}</td>
               <td className="py-1.5 text-right text-muted">{previous ? signedKg(weight - previous.weight) : '–'}</td>
             </tr>

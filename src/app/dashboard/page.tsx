@@ -214,7 +214,7 @@ function WorkoutStatus({ day }: { day: DaySummary | undefined }) {
     ? ['Completed', 'border-success/30 bg-success/15 text-success']
     : day && day.totalSets > 0
       ? ['In progress', 'border-primary/30 bg-primary/15 text-primary']
-      : ['Not started', 'border-border bg-zinc-800 text-zinc-400']
+      : ['Not started', 'border-border bg-surface text-foreground/60']
   return <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium ${tone}`}>{label}</span>
 }
 

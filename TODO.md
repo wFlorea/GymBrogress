@@ -26,11 +26,11 @@ already has `weight_logs` and `push_subscriptions`.
 
 - [x] **Forgot password:** add a reset link on the login page (Supabase `resetPasswordForEmail`) and a page to set a
       new password
-- [ ] **Theme tokens:** replace the `zinc-*` colours with tokens in `PushReminder`, `BodyForm`, `PlanClient`,
+- [x] **Theme tokens:** replace the `zinc-*` colours with tokens in `PushReminder`, `BodyForm`, `PlanClient`,
       `loading.tsx`, `GymHistoryCalendar`, `WeightHistory` and the dashboard page
-- [ ] **Migration history:** check that `20261026170000_drop_legacy_columns.sql` is applied on the live database;
-      it's missing from its migration list
-- [ ] **Leaked passwords:** turn on leaked password protection in Supabase (Auth settings), if the plan allows it
+- [x] **Migration history:** check that `20261026170000_drop_legacy_columns.sql` is applied on the live database;
+      it's missing from its migration list (done: the columns are gone, it just wasn't recorded)
+- [ ] **Leaked passwords:** turn on leaked password protection in Supabase (Auth settings); needs the Pro plan (on Free now)
 - [ ] **Reminder time:** the reminder goes out at 07:00 UTC for everyone; send it in the morning of each user's own
       time zone
 

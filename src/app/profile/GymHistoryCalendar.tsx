@@ -62,7 +62,7 @@ export function GymHistoryCalendar({ today, gymDates }: { today: IsoDate; gymDat
                   ? 'bg-primary text-white shadow-[0_0_12px_-3px_var(--color-primary)]'
                   : date > today
                     ? 'text-white/20'
-                    : 'bg-white/5 text-zinc-400'
+                    : 'bg-white/5 text-foreground/60'
               } ${date === today ? 'ring-2 ring-white/70' : ''}`}
             >
               {Number(date.slice(8))}
@@ -100,7 +100,7 @@ function MonthButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className="rounded-full p-1.5 text-zinc-400 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent"
+      className="rounded-full p-1.5 text-foreground/60 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent"
     >
       {children}
     </button>

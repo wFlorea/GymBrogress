@@ -153,7 +153,7 @@ export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plan
     <div className={`space-y-5 ${timer.active ? 'pb-20' : ''}`}>
       <div className="rounded-2xl border border-border bg-surface p-3.5">
         <div className="flex items-center justify-between gap-3 text-xs">
-          <span className="flex items-center gap-2 font-bold text-zinc-300">
+          <span className="flex items-center gap-2 font-bold text-foreground/80">
             <Dumbbell size={16} className="text-primary" /> {plural(exerciseIds.length, 'exercise')}
           </span>
           <span className="font-bold text-muted">
@@ -161,7 +161,7 @@ export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plan
           </span>
         </div>
         <div
-          className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-zinc-800"
+          className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-surface"
           role="progressbar"
           aria-label="Sets completed"
           aria-valuemin={0}
@@ -177,7 +177,7 @@ export function TrackerClient({ day, plannedExercises }: { day: WorkoutDay; plan
 
       {behindCount > 0 && (
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/10 p-3.5">
-          <p className="text-xs text-zinc-300">
+          <p className="text-xs text-foreground/80">
             {plural(behindCount, 'exercise')} from your {split.name} routine {behindCount === 1 ? 'has' : 'have'} fewer
             sets than planned.
           </p>
@@ -342,7 +342,7 @@ function ExerciseCard({
       }`}
       aria-label={name}
     >
-      <header className="flex items-center gap-3 border-b border-border/60 bg-zinc-900/50 p-4">
+      <header className="flex items-center gap-3 border-b border-border/60 bg-sunken/50 p-4">
         <span
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-black ${
             allDone ? 'bg-success/20 text-success' : 'bg-primary/15 text-primary'
@@ -389,7 +389,7 @@ function ExerciseCard({
           type="button"
           onClick={onAddSet}
           disabled={isAdding}
-          className="press mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-700 bg-zinc-900/60 py-2.5 text-xs font-bold text-zinc-400 hover:bg-zinc-800 hover:text-white [--press-scale:0.97] disabled:opacity-60"
+          className="press mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-foreground/15 bg-sunken/60 py-2.5 text-xs font-bold text-foreground/60 hover:bg-surface hover:text-white [--press-scale:0.97] disabled:opacity-60"
         >
           {isAdding ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
           {ordered.length === 0 ? `Add ${plural(plannedSets, 'set')}` : `Add set ${ordered.length + 1}`}
@@ -400,7 +400,7 @@ function ExerciseCard({
 }
 
 const numberInput =
-  'w-full rounded-lg border border-border bg-surface-hover/60 py-2 text-center text-sm font-bold text-white transition-colors placeholder:text-zinc-600 focus:border-primary focus:outline-none'
+  'w-full rounded-lg border border-border bg-surface-hover/60 py-2 text-center text-sm font-bold text-white transition-colors placeholder:text-muted/60 focus:border-primary focus:outline-none'
 
 function SetRow({
   number,
@@ -467,7 +467,7 @@ function SetRow({
           className={`press flex h-9 w-9 items-center justify-center rounded-xl [--press-scale:0.82] ${
             set.is_completed
               ? 'bg-success text-white shadow-md shadow-success/30'
-              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+              : 'bg-surface text-foreground/60 hover:bg-surface-hover hover:text-white'
           }`}
         >
           <Check size={18} strokeWidth={3} className={toggled && set.is_completed ? 'animate-pop' : ''} />
@@ -476,7 +476,7 @@ function SetRow({
           type="button"
           onClick={() => onDelete(set)}
           aria-label={`Delete set ${number}`}
-          className="press flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-red-950/30 hover:text-red-400 [--press-scale:0.85]"
+          className="press flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-red-950/30 hover:text-red-400 [--press-scale:0.85]"
         >
           <Trash2 size={14} />
         </button>
@@ -499,7 +499,7 @@ function RestTimerBar({
   const minutes = Math.floor(secondsLeft / 60)
   const seconds = String(secondsLeft % 60).padStart(2, '0')
   return (
-    <div className="fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-lg animate-float-in overflow-hidden rounded-2xl border border-primary/50 bg-zinc-900/95 shadow-2xl backdrop-blur-md">
+    <div className="fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-lg animate-float-in overflow-hidden rounded-2xl border border-primary/50 bg-sunken/95 shadow-2xl backdrop-blur-md">
       <div className="flex items-center justify-between p-3.5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-primary">
@@ -516,7 +516,7 @@ function RestTimerBar({
           <button
             type="button"
             onClick={onAdd}
-            className="press rounded-xl bg-zinc-800 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-zinc-700 [--press-scale:0.88]"
+            className="press rounded-xl bg-surface px-2.5 py-1.5 text-xs font-bold text-white hover:bg-surface-hover [--press-scale:0.88]"
           >
             +30s
           </button>
@@ -524,13 +524,13 @@ function RestTimerBar({
             type="button"
             onClick={onStop}
             aria-label="Skip rest"
-            className="press flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-800 text-zinc-400 hover:text-white [--press-scale:0.85]"
+            className="press flex h-8 w-8 items-center justify-center rounded-xl bg-surface text-foreground/60 hover:text-white [--press-scale:0.85]"
           >
             <X size={16} />
           </button>
         </div>
       </div>
-      <div className="h-1 bg-zinc-800">
+      <div className="h-1 bg-surface">
         <div
           className="h-full bg-primary transition-[width] duration-1000 ease-linear"
           style={{ width: `${total ? (secondsLeft / total) * 100 : 0}%` }}

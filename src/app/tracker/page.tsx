@@ -15,7 +15,7 @@ import { StartWorkoutButton, StartWorkoutPicker } from './StartWorkout'
 import { TrackerClient } from './TrackerClient'
 
 const planLink = (
-  <Link href="/plan" className="flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs font-bold text-zinc-300 hover:text-white">
+  <Link href="/plan" className="flex items-center gap-1 rounded-full border border-foreground/15 bg-surface px-3 py-1.5 text-xs font-bold text-foreground/80 hover:text-white">
     <ClipboardList size={13} /> Plan
   </Link>
 )
@@ -89,12 +89,12 @@ export default async function TrackerPage() {
           <ol className="space-y-2">
             {exercises.map((exercise, index) => (
               <li key={exercise.id} className="flex items-center gap-3 rounded-xl border border-border/80 bg-sunken p-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-muted">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface text-xs font-bold text-muted">
                   {index + 1}
                 </span>
                 <span className="min-w-0 flex-1 text-sm font-bold text-white">{exercise.name}</span>
                 <span className="shrink-0 text-right text-[10px] leading-tight text-muted">
-                  <span className="block font-bold text-zinc-300">{plural(exercise.sets, 'set')}</span>
+                  <span className="block font-bold text-foreground/80">{plural(exercise.sets, 'set')}</span>
                   {MUSCLE_GROUP_LABELS[exercise.muscle_group]}
                 </span>
               </li>

@@ -96,7 +96,7 @@ export default async function ExerciseProgressPage({ params }: { params: Promise
                 <tbody className="tabular-nums">
                   {[...bests].reverse().map((b) => (
                     <tr key={b.date} className="border-t border-white/5">
-                      <td className="py-1.5 text-zinc-300">{longDate(b.date)}</td>
+                      <td className="py-1.5 text-foreground/80">{longDate(b.date)}</td>
                       <td className="py-1.5 text-right font-bold text-white">{formatKg(b.maxWeight)}</td>
                     </tr>
                   ))}

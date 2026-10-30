@@ -56,7 +56,7 @@ export function ExerciseBrowser({
             type="button"
             onClick={() => setQuery('')}
             aria-label="Clear search"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-white"
           >
             <X size={14} />
           </button>
@@ -96,7 +96,7 @@ export function ExerciseBrowser({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-bold text-white">{exercise.name}</h3>
-                    <span className="rounded bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400">
+                    <span className="rounded bg-surface px-2 py-0.5 text-[10px] text-foreground/60">
                       {MUSCLE_GROUP_LABELS[exercise.muscle_group]}
                     </span>
                   </div>

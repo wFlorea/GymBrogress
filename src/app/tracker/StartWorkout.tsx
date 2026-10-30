@@ -57,7 +57,7 @@ export function StartWorkoutPicker() {
             type="button"
             onClick={() => start(option.id)}
             disabled={startingSplit !== null}
-            className="flex items-center gap-2 rounded-xl border border-border bg-sunken p-3 text-left text-xs font-bold text-zinc-200 transition-colors hover:border-primary disabled:opacity-60"
+            className="flex items-center gap-2 rounded-xl border border-border bg-sunken p-3 text-left text-xs font-bold text-foreground/90 transition-colors hover:border-primary disabled:opacity-60"
           >
             <span className="text-lg" aria-hidden>
               {option.emoji}

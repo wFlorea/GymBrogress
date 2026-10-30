@@ -84,7 +84,7 @@ export function ScheduleClient({
               setOpenKey(null)
             }}
             className={`rounded-xl py-2 text-xs font-bold transition-colors ${
-              mode === value ? 'bg-primary text-white' : 'text-zinc-400 hover:text-white'
+              mode === value ? 'bg-primary text-white' : 'text-foreground/60 hover:text-white'
             }`}
           >
             {label}
@@ -151,7 +151,7 @@ export function ScheduleClient({
                       onClick={() =>
                         save(date, () => setOptimisticPlan({ date, split: null }), () => resetScheduleDay(date))
                       }
-                      className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-700 py-2.5 text-xs font-bold text-zinc-400 transition-colors hover:text-white"
+                      className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-foreground/15 py-2.5 text-xs font-bold text-foreground/60 transition-colors hover:text-white"
                     >
                       <RotateCcw size={13} /> Reset to weekly default ({getSplitOption(week[day]).name})
                     </button>
@@ -205,7 +205,7 @@ function WeekButton({ direction, hidden, onClick }: { direction: 'previous' | 'n
       type="button"
       onClick={onClick}
       aria-label={`${direction === 'previous' ? 'Previous' : 'Next'} week`}
-      className="rounded-xl bg-zinc-800 p-2 text-zinc-300 transition-colors hover:text-white"
+      className="rounded-xl bg-surface p-2 text-foreground/80 transition-colors hover:text-white"
     >
       <Icon size={18} />
     </button>
@@ -260,7 +260,7 @@ function DayRow({
         <div className="flex min-w-0 items-center gap-3.5">
           <div
             className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl ${
-              isRest ? 'bg-zinc-800/80' : 'bg-primary/20'
+              isRest ? 'bg-surface/80' : 'bg-primary/20'
             }`}
             aria-hidden
           >
@@ -274,7 +274,7 @@ function DayRow({
                 <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-black uppercase text-white">Today</span>
               )}
               {isCustom && (
-                <span className="rounded-full border border-zinc-600 px-2 py-0.5 text-[10px] font-bold uppercase text-zinc-300">
+                <span className="rounded-full border border-foreground/25 px-2 py-0.5 text-[10px] font-bold uppercase text-foreground/80">
                   Custom
                 </span>
               )}
@@ -311,7 +311,7 @@ function SplitPicker({ selected, onSelect }: { selected: SplitType; onSelect: (s
             className={`flex items-center gap-2 rounded-xl border p-2.5 text-xs font-bold transition-colors ${
               isSelected
                 ? 'border-primary bg-primary/15 text-white'
-                : 'border-border bg-zinc-900/60 text-zinc-300 hover:border-zinc-500'
+                : 'border-border bg-sunken/60 text-foreground/80 hover:border-foreground/35'
             }`}
           >
             <span className="text-base" aria-hidden>

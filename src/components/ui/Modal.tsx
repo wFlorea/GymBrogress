@@ -73,7 +73,7 @@ export function Modal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="press flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-zinc-400 hover:text-white [--press-scale:0.85]"
+            className="press flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface text-foreground/60 hover:text-white [--press-scale:0.85]"
           >
             <X size={18} />
           </button>

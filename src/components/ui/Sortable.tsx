@@ -101,7 +101,7 @@ export function DragHandle({ label, className = '' }: { label: string; className
       {...attributes}
       {...listeners}
       aria-label={label}
-      className={`flex h-10 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-white active:cursor-grabbing ${className}`}
+      className={`flex h-10 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-white active:cursor-grabbing ${className}`}
     >
       <GripVertical size={18} />
     </button>
