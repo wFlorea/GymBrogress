@@ -6,16 +6,26 @@ import { Card, StatItem, cardStyles } from '@/components/ui/Card'
 import { Page, SectionTitle } from '@/components/ui/Page'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { buttonStyles } from '@/components/ui/styles'
-import { monthOf } from '@/lib/date'
+import { mondayOf, monthOf } from '@/lib/date'
 import { EXERCISES } from '@/lib/exercises-data'
 import { plural } from '@/lib/format'
 import { getDisplayName, getToday, requireUser } from '@/lib/data/session'
+import { getUserSettings } from '@/lib/data/settings'
+import { getWeightLog } from '@/lib/data/weight'
 import { getWorkoutHistory } from '@/lib/data/workouts'
 import { APP_VERSION } from '@/lib/version'
 import { GymHistoryCalendar } from './GymHistoryCalendar'
+import { PushReminder } from './PushReminder'
+import { WeightHistory } from './WeightHistory'
 
 export default async function ProfilePage() {
-  const [user, today, history] = await Promise.all([requireUser(), getToday(), getWorkoutHistory()])
+  const [user, today, history, weightLog, settings] = await Promise.all([
+    requireUser(),
+    getToday(),
+    getWorkoutHistory(),
+    getWeightLog(),
+    getUserSettings(),
+  ])
 
   const name = getDisplayName(user)
   const gymDates = history.filter((day) => day.completedSets > 0).map((day) => day.date)
@@ -39,6 +49,12 @@ export default async function ProfilePage() {
           <StatItem value={totalSets} label="Sets done" />
         </dl>
       </Card>
+
+      <section className="mb-8">
+        <SectionTitle subtitle="Your weekly check-ins">Weight history</SectionTitle>
+        <WeightHistory entries={weightLog} thisWeek={mondayOf(today)} currentWeight={settings.body.weight} />
+        <PushReminder />
+      </section>
 
       <section className="mb-8">
         <SectionTitle subtitle="Days you completed at least one set">Gym history</SectionTitle>

@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { cookies } from 'next/headers'
 import {
   MAX_AGE,
   MAX_BODY_FAT,
@@ -13,6 +14,7 @@ import {
   isActivityLevel,
   isSex,
 } from '@/lib/body'
+import { mondayOf } from '@/lib/date'
 import {
   MACROS,
   MAX_CALORIES,
@@ -23,9 +25,10 @@ import {
   recommendedGoals,
 } from '@/lib/nutrition'
 import { dbFail, fail, ok } from '@/lib/data/action-result'
-import { getSession } from '@/lib/data/session'
+import { getSession, getToday } from '@/lib/data/session'
 import { getUserSettings } from '@/lib/data/settings'
-import type { ActionResult, BodyStats, NutritionGoals, PlanPace, WeightPlan } from '@/lib/types'
+import { CHECK_IN_DISMISSED_COOKIE } from '@/lib/data/weight'
+import type { ActionResult, BodyStats, Nutrition, NutritionGoals, PlanPace, WeightPlan } from '@/lib/types'
 
 function revalidateGoals() {
   revalidatePath('/dashboard')
@@ -42,6 +45,10 @@ function isOptionalAmount(value: unknown, min: number, max: number): value is nu
 }
 
 const tenth = (value: number | null) => (value === null ? null : Math.round(value * 10) / 10)
+
+/** The daily goal columns for `goals`; none when the stats behind them are incomplete. */
+const goalColumns = (goals: Nutrition | null) =>
+  goals && { calorie_goal: goals.calories, protein_goal: goals.protein, carbs_goal: goals.carbs, fat_goal: goals.fat }
 
 /**
  * Saves the weight, height, age and sex, the body fat and the activity level; null clears one. Once the stats behind
@@ -79,12 +86,7 @@ export async function saveBodyStats(body: BodyStats): Promise<ActionResult> {
       sex: body.sex,
       body_fat: tenth(body.bodyFat),
       activity_level: body.activity,
-      ...(goals && {
-        calorie_goal: goals.calories,
-        protein_goal: goals.protein,
-        carbs_goal: goals.carbs,
-        fat_goal: goals.fat,
-      }),
+      ...goalColumns(goals),
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'user_id' }
@@ -93,6 +95,52 @@ export async function saveBodyStats(body: BodyStats): Promise<ActionResult> {
 
   revalidateGoals()
   return ok()
+}
+
+/**
+ * Logs this week's weigh-in (checking in again the same week replaces it) and makes it the current weight, so the
+ * BMI and the daily goals follow it as they do in `saveBodyStats`.
+ */
+export async function logWeeklyWeight(weight: number): Promise<ActionResult> {
+  if (!isAmount(weight, MIN_WEIGHT_KG, MAX_WEIGHT_KG)) {
+    return fail(`Enter a weight between ${MIN_WEIGHT_KG} and ${MAX_WEIGHT_KG} kg.`)
+  }
+
+  const kg = Math.round(weight * 10) / 10
+  const [{ body, weightPlan, planPace }, today] = await Promise.all([getUserSettings(), getToday()])
+  const goals = recommendedGoals({ ...body, weight: kg }, weightPlan, planPace)
+  const { user, supabase } = await getSession()
+  const updatedAt = new Date().toISOString()
+  const { error: logError } = await supabase
+    .from('weight_logs')
+    .upsert(
+      { user_id: user.id, week_start: mondayOf(today), weight_kg: kg, updated_at: updatedAt },
+      { onConflict: 'user_id,week_start' }
+    )
+  if (logError) return dbFail('logWeeklyWeight', logError, 'Could not save your weight. Please try again.')
+
+  const { error } = await supabase
+    .from('user_settings')
+    .upsert({ user_id: user.id, weight_kg: kg, ...goalColumns(goals), updated_at: updatedAt }, { onConflict: 'user_id' })
+  if (error) return dbFail('logWeeklyWeight', error, 'Your check-in is saved, but your current weight could not be updated.')
+
+  revalidateGoals()
+  revalidatePath('/profile')
+  return ok()
+}
+
+/** Hides the weekly check-in reminder on this device until next week; checking in stays possible from Profile. */
+export async function dismissWeeklyCheckIn(): Promise<void> {
+  const week = mondayOf(await getToday())
+  const cookieStore = await cookies()
+  cookieStore.set(CHECK_IN_DISMISSED_COOKIE, week, {
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60,
+    sameSite: 'lax',
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+  })
+  revalidatePath('/dashboard')
 }
 
 /** Saves the goal weight, the weight plan and its pace, and the daily calorie and macro goals; null clears a goal. */

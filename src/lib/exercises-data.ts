@@ -109,6 +109,36 @@ export const EXERCISES: Exercise[] = [
     muscle_group: 'chest',
     description: 'The classic bodyweight move for chest, shoulders and core stability.',
   },
+  {
+    id: 'ex-069',
+    name: 'Machine Chest Press',
+    muscle_group: 'chest',
+    description: 'Seated machine press; a stable way to push the chest hard close to failure.',
+  },
+  {
+    id: 'ex-070',
+    name: 'Incline Machine Press',
+    muscle_group: 'chest',
+    description: 'Plate-loaded or selectorised incline press for the upper chest, no balancing needed.',
+  },
+  {
+    id: 'ex-071',
+    name: 'Smith Machine Bench Press',
+    muscle_group: 'chest',
+    description: 'Flat press on the guided bar; easy to load heavy and train without a spotter.',
+  },
+  {
+    id: 'ex-072',
+    name: 'Incline Smith Machine Press',
+    muscle_group: 'chest',
+    description: 'Bench at 30–45° under the Smith bar; steady, heavy work for the upper chest.',
+  },
+  {
+    id: 'ex-073',
+    name: 'Low-to-High Cable Fly',
+    muscle_group: 'chest',
+    description: 'Cables set low, sweep the handles up and together to chin height; targets the upper chest.',
+  },
 
   // Back
   {
@@ -170,6 +200,60 @@ export const EXERCISES: Exercise[] = [
     name: 'Back Extension',
     muscle_group: 'back',
     description: 'Extensions on a 45° bench; strengthens the lower back, glutes and hamstrings.',
+  },
+  {
+    id: 'ex-074',
+    name: 'Chin-ups',
+    muscle_group: 'back',
+    description: 'Underhand-grip pull-ups; more biceps involvement and a strong lat contraction.',
+  },
+  {
+    id: 'ex-075',
+    name: 'Close-Grip Lat Pulldown (V-Bar)',
+    muscle_group: 'back',
+    description: 'Pulldown with a V-handle and neutral grip; long range of motion for the lats.',
+  },
+  {
+    id: 'ex-076',
+    name: 'Machine Row',
+    muscle_group: 'back',
+    description: 'Chest-padded row machine; easy to load heavy and isolate the mid back.',
+  },
+  {
+    id: 'ex-077',
+    name: 'Pendlay Row',
+    muscle_group: 'back',
+    description: 'Barbell row from the floor on every rep with a flat back; explosive upper-back strength.',
+  },
+  {
+    id: 'ex-078',
+    name: 'Inverted Row',
+    muscle_group: 'back',
+    description: 'Bodyweight row under a bar or Smith machine; scale it by changing your body angle.',
+  },
+  {
+    id: 'ex-079',
+    name: 'Assisted Pull-up Machine',
+    muscle_group: 'back',
+    description: 'Pull-ups with a counterweight under your knees; build up to bodyweight reps.',
+  },
+  {
+    id: 'ex-080',
+    name: 'Dumbbell Pullover',
+    muscle_group: 'back',
+    description: 'Lying across a bench, lower one dumbbell behind your head and pull it back over your chest.',
+  },
+  {
+    id: 'ex-081',
+    name: 'Sumo Deadlift',
+    muscle_group: 'back',
+    description: 'Wide stance with hands inside the knees; more legs and glutes, a shorter pull.',
+  },
+  {
+    id: 'ex-082',
+    name: 'Rack Pull',
+    muscle_group: 'back',
+    description: 'Deadlift from pins around knee height; heavy work for the upper back and lockout.',
   },
 
   // Legs
@@ -257,6 +341,138 @@ export const EXERCISES: Exercise[] = [
     muscle_group: 'glutes',
     description: 'Push the pads apart against resistance to build the side glutes (gluteus medius).',
   },
+  {
+    id: 'ex-083',
+    name: 'Front Squat',
+    muscle_group: 'quads',
+    description: 'Bar racked on the front of your shoulders; upright torso, more quads, less lower back.',
+  },
+  {
+    id: 'ex-084',
+    name: 'Pendulum Squat',
+    muscle_group: 'quads',
+    description: 'Machine squat on a swinging arc; a deep knee bend and huge quad tension with your back supported.',
+  },
+  {
+    id: 'ex-085',
+    name: 'Smith Machine Squat',
+    muscle_group: 'quads',
+    description: 'Squat on the guided bar with your feet slightly forward to keep the quads working.',
+  },
+  {
+    id: 'ex-086',
+    name: 'Goblet Squat',
+    muscle_group: 'quads',
+    description: 'Hold a dumbbell or kettlebell at your chest and squat deep; great for learning the squat.',
+  },
+  {
+    id: 'ex-087',
+    name: 'Belt Squat',
+    muscle_group: 'quads',
+    description: 'The weight hangs from a hip belt, loading the legs without loading the spine.',
+  },
+  {
+    id: 'ex-088',
+    name: 'Safety Bar Squat',
+    muscle_group: 'quads',
+    description: 'Squat with the padded, cambered safety bar; easier on the shoulders, more upper back.',
+  },
+  {
+    id: 'ex-089',
+    name: 'Sissy Squat',
+    muscle_group: 'quads',
+    description: 'Lean back as your knees travel forward; quad isolation with a deep stretch.',
+  },
+  {
+    id: 'ex-090',
+    name: 'Step-ups',
+    muscle_group: 'quads',
+    description: 'Step onto a box or bench with dumbbells in hand; single-leg work for the quads and glutes.',
+  },
+  {
+    id: 'ex-091',
+    name: 'Stiff-Leg Deadlift',
+    muscle_group: 'hamstrings',
+    description: 'Near-straight knees with the bar lowered towards the floor; a long stretch for the hamstrings.',
+  },
+  {
+    id: 'ex-092',
+    name: 'Good Morning',
+    muscle_group: 'hamstrings',
+    description: 'Bar on your back, hinge forward with soft knees; hamstrings and lower back.',
+  },
+  {
+    id: 'ex-093',
+    name: 'Single-Leg Romanian Deadlift',
+    muscle_group: 'hamstrings',
+    description: 'Hinge on one leg holding a dumbbell; hamstrings, glutes and balance.',
+  },
+  {
+    id: 'ex-094',
+    name: 'Standing Leg Curl',
+    muscle_group: 'hamstrings',
+    description: 'One leg at a time on the standing curl machine; fixes left-right imbalances.',
+  },
+  {
+    id: 'ex-095',
+    name: 'Nordic Hamstring Curl',
+    muscle_group: 'hamstrings',
+    description: 'Kneel with your ankles held and lower your body forward slowly; eccentric hamstring strength.',
+  },
+  {
+    id: 'ex-096',
+    name: 'Glute-Ham Raise',
+    muscle_group: 'hamstrings',
+    description: 'On the GHD, curl your body up from horizontal using the hamstrings.',
+  },
+  {
+    id: 'ex-097',
+    name: 'Glute Bridge',
+    muscle_group: 'glutes',
+    description: 'A hip thrust with your back on the floor; bodyweight activation or loaded with a bar.',
+  },
+  {
+    id: 'ex-098',
+    name: 'Hip Thrust Machine',
+    muscle_group: 'glutes',
+    description: 'Plate- or pin-loaded hip thrust; quick to set up with the same glute squeeze.',
+  },
+  {
+    id: 'ex-099',
+    name: 'Cable Pull-Through',
+    muscle_group: 'glutes',
+    description: 'Facing away from a low cable, hinge and drive the hips forward; teaches the hip hinge.',
+  },
+  {
+    id: 'ex-100',
+    name: 'Reverse Lunge',
+    muscle_group: 'glutes',
+    description: 'Step back into each lunge; easier on the knees and heavy on the glutes.',
+  },
+  {
+    id: 'ex-101',
+    name: 'Hip Adduction Machine',
+    muscle_group: 'glutes',
+    description: 'Squeeze the pads together to train the inner thighs (adductors).',
+  },
+  {
+    id: 'ex-102',
+    name: 'Leg Press Calf Raise',
+    muscle_group: 'calves',
+    description: 'Calf raises on the leg press platform; easy to load heavy through a full range.',
+  },
+  {
+    id: 'ex-103',
+    name: 'Donkey Calf Raise',
+    muscle_group: 'calves',
+    description: 'Hinged at the hips, raise onto your toes; a deep stretch on the calves.',
+  },
+  {
+    id: 'ex-104',
+    name: 'Tibialis Raise',
+    muscle_group: 'calves',
+    description: 'Lean back against a wall and lift your toes; trains the shins for knee and ankle health.',
+  },
 
   // Shoulders
   {
@@ -307,6 +523,48 @@ export const EXERCISES: Exercise[] = [
     muscle_group: 'shoulders',
     description: 'Shrug the weight towards your ears to build the upper traps.',
   },
+  {
+    id: 'ex-105',
+    name: 'Reverse Cable Fly',
+    muscle_group: 'shoulders',
+    description: 'Cross the cables at shoulder height and pull them apart with straight arms; isolates the rear delts.',
+  },
+  {
+    id: 'ex-106',
+    name: 'Bent-Over Dumbbell Reverse Fly',
+    muscle_group: 'shoulders',
+    description: 'Hinge forward and raise the dumbbells out to the sides; rear delts and upper back.',
+  },
+  {
+    id: 'ex-107',
+    name: 'Machine Shoulder Press',
+    muscle_group: 'shoulders',
+    description: 'Seated machine press; a stable way to load the front delts hard.',
+  },
+  {
+    id: 'ex-108',
+    name: 'Machine Lateral Raise',
+    muscle_group: 'shoulders',
+    description: 'Seated lateral raise machine; constant tension on the side delts.',
+  },
+  {
+    id: 'ex-109',
+    name: 'Dumbbell Front Raise',
+    muscle_group: 'shoulders',
+    description: 'Raise the dumbbells to eye level in front of you; isolates the front delts.',
+  },
+  {
+    id: 'ex-110',
+    name: 'Upright Row',
+    muscle_group: 'shoulders',
+    description: 'Pull a bar or cable up along your body to chest height, elbows high; side delts and traps.',
+  },
+  {
+    id: 'ex-111',
+    name: 'Landmine Press',
+    muscle_group: 'shoulders',
+    description: 'Press one end of a barbell up and forward; shoulder-friendly pressing.',
+  },
 
   // Biceps and triceps
   {
@@ -340,6 +598,36 @@ export const EXERCISES: Exercise[] = [
     description: 'Cable curls with a short bar or rope for even tension.',
   },
   {
+    id: 'ex-112',
+    name: 'Dumbbell Curl',
+    muscle_group: 'biceps',
+    description: 'Standing or seated, curl both dumbbells together or alternating; the go-to biceps builder.',
+  },
+  {
+    id: 'ex-113',
+    name: 'Concentration Curl',
+    muscle_group: 'biceps',
+    description: 'Seated with your elbow braced on your inner thigh; a strict single-arm curl.',
+  },
+  {
+    id: 'ex-114',
+    name: 'Spider Curl',
+    muscle_group: 'biceps',
+    description: 'Chest down on an incline bench with your arms hanging; curls with no swing.',
+  },
+  {
+    id: 'ex-115',
+    name: 'Bayesian Cable Curl',
+    muscle_group: 'biceps',
+    description: 'Facing away from a low cable, curl with your arm behind you; biceps in a long stretch.',
+  },
+  {
+    id: 'ex-116',
+    name: 'Machine Bicep Curl',
+    muscle_group: 'biceps',
+    description: 'Selectorised curl machine with arms on a pad; easy to take close to failure.',
+  },
+  {
     id: 'ex-046',
     name: 'Triceps Rope Pushdown',
     muscle_group: 'triceps',
@@ -369,6 +657,30 @@ export const EXERCISES: Exercise[] = [
     muscle_group: 'triceps',
     description: 'One dumbbell held overhead with both hands; deep stretch on the long head.',
   },
+  {
+    id: 'ex-117',
+    name: 'Overhead Cable Triceps Extension',
+    muscle_group: 'triceps',
+    description: 'Facing away from the cable, extend the rope overhead; constant tension on the long head.',
+  },
+  {
+    id: 'ex-118',
+    name: 'Triceps Dips',
+    muscle_group: 'triceps',
+    description: 'Upright torso and elbows tucked on parallel bars or a bench; shifts the dip onto the triceps.',
+  },
+  {
+    id: 'ex-119',
+    name: 'Dumbbell Triceps Kickback',
+    muscle_group: 'triceps',
+    description: 'Hinged forward, extend the dumbbell back until your arm is straight and squeeze.',
+  },
+  {
+    id: 'ex-120',
+    name: 'Single-Arm Cable Pushdown',
+    muscle_group: 'triceps',
+    description: 'One-handed pushdown with a D-handle; fixes left-right imbalances.',
+  },
 
   // Forearms
   {
@@ -394,6 +706,12 @@ export const EXERCISES: Exercise[] = [
     name: "Farmer's Walk",
     muscle_group: 'forearms',
     description: 'Walk with heavy dumbbells or handles at your sides; brutal for grip and traps.',
+  },
+  {
+    id: 'ex-121',
+    name: 'Dead Hang',
+    muscle_group: 'forearms',
+    description: 'Hang from a pull-up bar for as long as you can; grip endurance and shoulder health.',
   },
 
   // Core
@@ -433,6 +751,42 @@ export const EXERCISES: Exercise[] = [
     muscle_group: 'core',
     description: 'Sit-ups on a decline bench with full range and a held squeeze.',
   },
+  {
+    id: 'ex-122',
+    name: 'Lying Leg Raise',
+    muscle_group: 'core',
+    description: 'On your back, raise straight legs to vertical without arching your lower back.',
+  },
+  {
+    id: 'ex-123',
+    name: 'Crunches',
+    muscle_group: 'core',
+    description: 'Curl your shoulders off the floor towards your hips; simple upper-abs work.',
+  },
+  {
+    id: 'ex-124',
+    name: 'Side Plank',
+    muscle_group: 'core',
+    description: 'Hold a straight line on one forearm; obliques and side core stability.',
+  },
+  {
+    id: 'ex-125',
+    name: 'Dead Bug',
+    muscle_group: 'core',
+    description: 'On your back, lower the opposite arm and leg while keeping your lower back flat.',
+  },
+  {
+    id: 'ex-126',
+    name: 'Pallof Press',
+    muscle_group: 'core',
+    description: 'Press a cable straight out from your chest and resist the twist; anti-rotation core work.',
+  },
+  {
+    id: 'ex-127',
+    name: 'Cable Woodchopper',
+    muscle_group: 'core',
+    description: 'Rotate a cable diagonally across your body; obliques and rotational power.',
+  },
 
   // Cardio
   {
@@ -470,6 +824,36 @@ export const EXERCISES: Exercise[] = [
     name: 'Jump Rope',
     muscle_group: 'cardio',
     description: 'Skipping for agility, coordination and a fast calorie burn.',
+  },
+  {
+    id: 'ex-128',
+    name: 'Elliptical',
+    muscle_group: 'cardio',
+    description: 'Low-impact, full-body cardio on the cross trainer.',
+  },
+  {
+    id: 'ex-129',
+    name: 'Air Bike',
+    muscle_group: 'cardio',
+    description: 'Fan bike driven by both arms and legs; brutal for intervals.',
+  },
+  {
+    id: 'ex-130',
+    name: 'Sled Push',
+    muscle_group: 'cardio',
+    description: 'Drive a loaded sled across the floor; leg power and conditioning.',
+  },
+  {
+    id: 'ex-131',
+    name: 'Burpees',
+    muscle_group: 'cardio',
+    description: 'Squat, plank, push-up and jump in one move; fast full-body conditioning.',
+  },
+  {
+    id: 'ex-132',
+    name: 'Swimming',
+    muscle_group: 'cardio',
+    description: 'Full-body, joint-friendly cardio in the pool.',
   },
 ]
 

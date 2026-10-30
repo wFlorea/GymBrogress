@@ -3,31 +3,51 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { addDays, daysBetween, formatDate } from '@/lib/date'
 import { formatKg } from '@/lib/format'
-import type { WorkoutBest } from '@/lib/types'
+import type { IsoDate } from '@/lib/types'
+
+/** A weight in kg on a date. */
+export interface ChartPoint {
+  date: IsoDate
+  value: number
+}
 
 const HEIGHT = 240
 const PAD = { top: 28, right: 24, bottom: 40, left: 40 }
 /** Room each date label needs on the x axis. */
 const LABEL_WIDTH = 52
-/** Below this many pixels per workout the dots would crowd the line, so only the line is drawn. */
+/** Below this many pixels per point the dots would crowd the line, so only the line is drawn. */
 const DOT_SPACING = 12
+/** Room above and below the line when the axis fits the data, in kg, so a flat line doesn't sit on an edge. */
+const FIT_PADDING = 0.5
 
-/** A round axis maximum just above `value`, split into about four steps. */
-function niceScale(value: number): { max: number; step: number } {
-  if (value <= 0) return { max: 20, step: 5 }
-  const rough = value / 4
+/** Round axis bounds around `low` to `high`, split into about four steps. */
+function niceScale(low: number, high: number): { min: number; max: number; step: number } {
+  if (high <= 0) return { min: 0, max: 20, step: 5 }
+  const rough = (high - low) / 4
   const magnitude = 10 ** Math.floor(Math.log10(rough))
   const step = [1, 2, 2.5, 5, 10].map((m) => m * magnitude).find((s) => s >= rough)!
-  return { max: Math.ceil(value / step) * step, step }
+  return { min: Math.floor(low / step) * step, max: Math.ceil(high / step) * step, step }
 }
 
-const formatTick = (value: number) => value.toLocaleString('en-GB', { maximumFractionDigits: 1 })
+const formatTick = (value: number) => value.toLocaleString('en-GB', { maximumFractionDigits: 2 })
 
 /**
- * Line chart of the heaviest set in each workout. The x axis is time, from the first workout to
- * the latest, so gaps between workouts show as longer stretches of line.
+ * Line chart of weights over time. The x axis is time, from the first point to the latest, so gaps
+ * show as longer stretches of line. The y axis starts at 0, or with `fitToData` wraps the values
+ * closely so small changes, like a body weight's, stay visible.
  */
-export function ProgressChart({ points, label }: { points: WorkoutBest[]; label: string }) {
+export function LineChart({
+  points,
+  label,
+  fitToData = false,
+  tooltipPrefix = '',
+}: {
+  points: ChartPoint[]
+  label: string
+  fitToData?: boolean
+  /** Put before the date in the tooltip, like "Week of ". */
+  tooltipPrefix?: string
+}) {
   const container = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(340)
   const [active, setActive] = useState<number | null>(null)
@@ -45,15 +65,22 @@ export function ProgressChart({ points, label }: { points: WorkoutBest[]; label:
   const start = points[0].date
   const span = daysBetween(start, points.at(-1)!.date)
   const x = (date: string) => PAD.left + (span === 0 ? plotWidth / 2 : (daysBetween(start, date) / span) * plotWidth)
-  const scale = niceScale(Math.max(...points.map((p) => p.maxWeight)))
-  const y = (value: number) => PAD.top + plotHeight - (value / scale.max) * plotHeight
-  const ticks = Array.from({ length: Math.round(scale.max / scale.step) + 1 }, (_, i) => i * scale.step)
+  const values = points.map((p) => p.value)
+  const scale = fitToData
+    ? niceScale(Math.min(...values) - FIT_PADDING, Math.max(...values) + FIT_PADDING)
+    : niceScale(0, Math.max(...values))
+  const y = (value: number) => PAD.top + plotHeight - ((value - scale.min) / (scale.max - scale.min)) * plotHeight
+  const bottom = y(scale.min)
+  const ticks = Array.from(
+    { length: Math.round((scale.max - scale.min) / scale.step) + 1 },
+    (_, i) => scale.min + i * scale.step
+  )
 
-  const coords = points.map((p) => ({ ...p, cx: x(p.date), cy: y(p.maxWeight) }))
+  const coords = points.map((p) => ({ ...p, cx: x(p.date), cy: y(p.value) }))
   const line = coords.map((c, i) => `${i === 0 ? 'M' : 'L'}${c.cx},${c.cy}`).join(' ')
   const first = coords[0]
   const last = coords.at(-1)!
-  const area = coords.length > 1 ? `${line} L${last.cx},${y(0)} L${first.cx},${y(0)} Z` : null
+  const area = coords.length > 1 ? `${line} L${last.cx},${bottom} L${first.cx},${bottom} Z` : null
   const showDots = coords.length <= plotWidth / DOT_SPACING
 
   // Evenly spaced dates from the first workout to the latest, as many as fit.
@@ -98,7 +125,7 @@ export function ProgressChart({ points, label }: { points: WorkoutBest[]; label:
         className="block touch-pan-y rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
       >
         <defs>
-          <linearGradient id="progress-area-fill" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id="line-chart-fill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="var(--color-primary)" stopOpacity={0.3} />
             <stop offset="1" stopColor="var(--color-primary)" stopOpacity={0} />
           </linearGradient>
@@ -127,13 +154,13 @@ export function ProgressChart({ points, label }: { points: WorkoutBest[]; label:
           )
         })}
 
-        {area && <path d={area} fill="url(#progress-area-fill)" />}
+        {area && <path d={area} fill="url(#line-chart-fill)" />}
         {coords.length > 1 && (
           <path d={line} fill="none" className="stroke-primary" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         )}
 
         {shown && (
-          <line x1={shown.cx} x2={shown.cx} y1={PAD.top - 8} y2={y(0)} className="stroke-white/30" strokeWidth={1} />
+          <line x1={shown.cx} x2={shown.cx} y1={PAD.top - 8} y2={bottom} className="stroke-white/30" strokeWidth={1} />
         )}
 
         {coords.map(
@@ -157,7 +184,7 @@ export function ProgressChart({ points, label }: { points: WorkoutBest[]; label:
             textAnchor={last.cx > width - PAD.right - 24 ? 'end' : 'middle'}
             className="fill-white text-[11px] font-bold"
           >
-            {formatKg(last.maxWeight)}
+            {formatKg(last.value)}
           </text>
         )}
       </svg>
@@ -171,8 +198,9 @@ export function ProgressChart({ points, label }: { points: WorkoutBest[]; label:
             transform: tooltipBelow ? 'translate(-50%, 14px)' : 'translate(-50%, calc(-100% - 14px))',
           }}
         >
-          <span className="block text-sm font-black text-white">{formatKg(shown.maxWeight)}</span>
+          <span className="block text-sm font-black text-white">{formatKg(shown.value)}</span>
           <span className="block text-[10px] font-bold text-muted">
+            {tooltipPrefix}
             {formatDate(shown.date, { day: 'numeric', month: 'long', year: 'numeric' })}
           </span>
         </div>

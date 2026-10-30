@@ -24,6 +24,20 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        // The service worker: browsers should always pick up a new version.
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/javascript; charset=utf-8',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
+      },
     ];
   },
 };

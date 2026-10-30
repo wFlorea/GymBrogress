@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft, TrendingUp } from 'lucide-react'
 import { Card, EmptyState, StatItem } from '@/components/ui/Card'
+import { LineChart } from '@/components/ui/LineChart'
 import { Page, PageHeader } from '@/components/ui/Page'
 import { PlateMark } from '@/components/ui/PlateMark'
 import { buttonStyles } from '@/components/ui/styles'
@@ -9,7 +10,6 @@ import { formatDate } from '@/lib/date'
 import { MUSCLE_GROUP_LABELS, getExercise } from '@/lib/exercises-data'
 import { formatKg } from '@/lib/format'
 import { getWorkoutBests } from '@/lib/data/progress'
-import { ProgressChart } from './ProgressChart'
 
 const shortDate = (date: string) => formatDate(date, { day: 'numeric', month: 'short' })
 const longDate = (date: string) => formatDate(date, { day: 'numeric', month: 'long', year: 'numeric' })
@@ -83,7 +83,7 @@ export default async function ExerciseProgressPage({ params }: { params: Promise
         ) : (
           <>
             <p className="mb-4 text-xs text-muted">In kilograms. Tap or drag along the chart to see each workout.</p>
-            <ProgressChart points={bests} label={summary} />
+            <LineChart points={bests.map((b) => ({ date: b.date, value: b.maxWeight }))} label={summary} />
             <details className="mt-3 border-t border-white/5 pt-3">
               <summary className="cursor-pointer text-xs font-bold text-muted hover:text-white">Show as table</summary>
               <table className="mt-2 w-full text-left text-xs">

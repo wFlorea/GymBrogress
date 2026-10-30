@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import { ArrowRight, BookOpen, Calendar, ChevronRight, ClipboardList, Coffee, Dumbbell, Flame } from 'lucide-react'
+import { ArrowRight, BookOpen, Calendar, ChevronRight, ClipboardList, Coffee, Dumbbell, Flame, Weight, X } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { WeightForm } from '@/components/WeightForm'
 import { Card, StatItem, cardStyles } from '@/components/ui/Card'
 import { Meter } from '@/components/ui/Meter'
 import { Page, SectionTitle } from '@/components/ui/Page'
@@ -17,8 +18,10 @@ import { getFoodEntries } from '@/lib/data/food'
 import { getRoutineTemplates, getWeeklyPlan } from '@/lib/data/plans'
 import { getDisplayName, getToday, requireUser } from '@/lib/data/session'
 import { getUserSettings } from '@/lib/data/settings'
+import { getWeightLog, isCheckInDismissed } from '@/lib/data/weight'
 import { getWorkoutHistory } from '@/lib/data/workouts'
 import type { DaySummary, IsoDate, Nutrition } from '@/lib/types'
+import { dismissWeeklyCheckIn } from './actions'
 import { BodyCard } from './BodyCard'
 
 interface ChartDay {
@@ -28,7 +31,7 @@ interface ChartDay {
 }
 
 export default async function DashboardPage() {
-  const [user, today, weeklyPlan, templates, history, foodToday, settings] = await Promise.all([
+  const [user, today, weeklyPlan, templates, history, foodToday, settings, weightLog] = await Promise.all([
     requireUser(),
     getToday(),
     getWeeklyPlan(),
@@ -36,7 +39,10 @@ export default async function DashboardPage() {
     getWorkoutHistory(),
     getToday().then(getFoodEntries),
     getUserSettings(),
+    getWeightLog(),
   ])
+  const thisWeek = mondayOf(today)
+  const showCheckIn = weightLog.at(-1)?.week !== thisWeek && !(await isCheckInDismissed(thisWeek))
 
   const todayLog = history.find((day) => day.date === today)
   const split = todayLog?.split ?? weeklyPlan[dayOfWeek(today)]
@@ -77,6 +83,8 @@ export default async function DashboardPage() {
           </div>
         )}
       </header>
+
+      {showCheckIn && <WeeklyCheckIn lastWeight={settings.body.weight ?? weightLog.at(-1)?.weight ?? null} />}
 
       <Card className="mb-8">
         <h2 className="font-semibold">This week</h2>
@@ -208,6 +216,36 @@ function WorkoutStatus({ day }: { day: DaySummary | undefined }) {
       ? ['In progress', 'border-primary/30 bg-primary/15 text-primary']
       : ['Not started', 'border-border bg-zinc-800 text-zinc-400']
   return <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium ${tone}`}>{label}</span>
+}
+
+/**
+ * Asks for this week's weight until it's logged or closed (closing skips the week); the history is on the Profile
+ * page.
+ */
+function WeeklyCheckIn({ lastWeight }: { lastWeight: number | null }) {
+  return (
+    <Card className="mb-8">
+      <div className="mb-4 flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+          <Weight size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-semibold">Weekly check-in</h2>
+          <p className="text-xs text-muted">
+            {lastWeight === null
+              ? 'Log your weight once a week to see how it changes.'
+              : 'Same weight as last time? One tap and you’re done.'}
+          </p>
+        </div>
+        <form action={dismissWeeklyCheckIn} className="-mr-1 -mt-1">
+          <button type="submit" aria-label="Skip this week" title="Skip this week" className={buttonStyles.icon}>
+            <X size={16} />
+          </button>
+        </form>
+      </div>
+      <WeightForm lastWeight={lastWeight} />
+    </Card>
+  )
 }
 
 /** Today's calories against the goal; opens the food log. */

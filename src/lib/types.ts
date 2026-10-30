@@ -97,6 +97,14 @@ export interface BodyStats {
   activity: ActivityLevel | null
 }
 
+/** A weekly weigh-in. */
+export interface WeightEntry {
+  /** The Monday of the week. */
+  week: IsoDate
+  /** kg */
+  weight: number
+}
+
 export type Sex = 'male' | 'female'
 
 /** How much the user moves in a week, from least to most. */

@@ -94,12 +94,41 @@ CREATE TABLE food_entries (
 
 CREATE INDEX food_entries_user_id_date_idx ON food_entries (user_id, date);
 
+-- Weekly weigh-ins: one weight per user per week (Monday to Sunday). Checking in again the same week replaces it.
+CREATE TABLE weight_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  -- The Monday of the week.
+  week_start DATE NOT NULL CHECK (EXTRACT(ISODOW FROM week_start) = 1),
+  weight_kg DECIMAL NOT NULL CHECK (weight_kg BETWEEN 20 AND 400),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  UNIQUE (user_id, week_start)
+);
+
+-- Web push subscriptions for the weekly check-in reminder: one row per device a user turned reminders on for.
+-- The reminder itself is sent by /api/cron/weight-reminder with the service role key.
+CREATE TABLE push_subscriptions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  -- Only the browsers' push services (as in src/lib/push.ts): users can write rows directly, and the cron posts to these.
+  endpoint TEXT NOT NULL CHECK (
+    length(endpoint) <= 2048
+    AND endpoint ~ '^https://[A-Za-z0-9.-]+\.(googleapis\.com|mozilla\.com|push\.apple\.com|notify\.windows\.com)/'
+  ),
+  p256dh TEXT NOT NULL CHECK (length(p256dh) <= 256),
+  auth TEXT NOT NULL CHECK (length(auth) <= 256),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  UNIQUE (user_id, endpoint)
+);
+
 ALTER TABLE weekly_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE routine_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workout_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workout_sets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE food_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE weight_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can manage their own weekly plans" ON weekly_plans
   FOR ALL TO authenticated
@@ -128,8 +157,16 @@ CREATE POLICY "Users can manage their own food entries" ON food_entries
   FOR ALL TO authenticated
   USING ((SELECT auth.uid()) = user_id) WITH CHECK ((SELECT auth.uid()) = user_id);
 
-REVOKE ALL ON user_settings, food_entries FROM anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON user_settings, food_entries TO authenticated;
+CREATE POLICY "Users can manage their own weight logs" ON weight_logs
+  FOR ALL TO authenticated
+  USING ((SELECT auth.uid()) = user_id) WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Users can manage their own push subscriptions" ON push_subscriptions
+  FOR ALL TO authenticated
+  USING ((SELECT auth.uid()) = user_id) WITH CHECK ((SELECT auth.uid()) = user_id);
+
+REVOKE ALL ON user_settings, food_entries, weight_logs, push_subscriptions FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON user_settings, food_entries, weight_logs, push_subscriptions TO authenticated;
 
 -- Progress page. security_invoker keeps the RLS of the underlying tables.
 -- Heaviest completed set of each exercise per month.

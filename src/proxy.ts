@@ -49,7 +49,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Everything except Next.js internals and static files (icons, images, the web manifest, robots.txt, the sitemap).
-    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    // Everything except Next.js internals, static files (icons, images, the web manifest, robots.txt, the sitemap, the
+    // service worker) and the crons, which check their own secret.
+    '/((?!_next/static|_next/image|api/cron/|favicon.ico|manifest.webmanifest|robots.txt|sitemap.xml|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }
