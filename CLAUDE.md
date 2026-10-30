@@ -4,7 +4,7 @@ Fitness PWA: a workout schedule, a routine per workout type (split), a set-by-se
 with a rest timer, streaks, gym history, a food log with calorie and macro goals, and body stats (BMI, body fat, sex, activity level)
 with a goal weight and weekly weigh-ins; the body stats set the daily calorie and macro goals (Mifflin–St Jeor BMR × activity level).
 Settings: rest timer on/off and length, kg or lb (weights are always stored in kg), a Monday weigh-in push reminder, data export, account deletion.
-Planned: barcode scanning (v1.4), photo scanning of meals (v1.5), weight goals with a deadline.
+Planned: barcode scanning (v1.5), photo scanning of meals (v1.6), weight goals with a deadline.
 
 ## Stack
 - Next.js 16 (App Router) + React 19 + TypeScript

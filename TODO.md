@@ -21,7 +21,7 @@ already has `weight_logs` and `push_subscriptions`.
 - [ ] Bump `version` in `package.json` to `1.4.0` and add a `CHANGELOG.md` entry
 - [ ] README: add the weigh-in, the reminder and the new env vars; say 130+ exercises; drop the shipped items
       (BMR calculator, calorie recommendations) from Planned
-- [ ] CLAUDE.md: add `src/lib/data/weight.ts`, `src/lib/push.ts`, `src/utils/supabase/admin.ts`, `src/app/api/cron/`
+- [x] CLAUDE.md: add `src/lib/data/weight.ts`, `src/lib/push.ts`, `src/utils/supabase/admin.ts`, `src/app/api/cron/`
       and `public/sw.js`; move barcode scanning to v1.5 and photo scanning to v1.6
 - [ ] Commit and tag `v1.4`
 
