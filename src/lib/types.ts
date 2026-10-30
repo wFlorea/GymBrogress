@@ -166,10 +166,18 @@ export interface ExerciseHistory {
   lastDate: IsoDate
 }
 
+/** How many sets a muscle group got over a stretch of days. */
+export interface MuscleGroupSets {
+  group: MuscleGroup
+  sets: number
+}
+
 /** Heaviest completed set of an exercise in one workout. */
 export interface WorkoutBest {
   date: IsoDate
   maxWeight: number
+  /** The highest estimated one-rep max of the workout's sets; null when no set had one (see `estimateOneRepMax`). */
+  oneRepMax: number | null
 }
 
 export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack'

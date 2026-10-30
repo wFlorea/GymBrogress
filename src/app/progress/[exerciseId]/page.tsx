@@ -9,6 +9,7 @@ import { buttonStyles } from '@/components/ui/styles'
 import { formatDate } from '@/lib/date'
 import { MUSCLE_GROUP_LABELS, getExercise } from '@/lib/exercises-data'
 import { formatKg } from '@/lib/format'
+import { ONE_REP_MAX_REPS } from '@/lib/sets'
 import { getWorkoutBests } from '@/lib/data/progress'
 
 const shortDate = (date: string) => formatDate(date, { day: 'numeric', month: 'short' })
@@ -45,6 +46,8 @@ export default async function ExerciseProgressPage({ params }: { params: Promise
   const latest = bests.at(-1)!
   const best = bests.reduce((top, b) => (b.maxWeight > top.maxWeight ? b : top))
   const change = Math.round((latest.maxWeight - first.maxWeight) * 100) / 100
+  const oneRepMaxes = bests.flatMap((b) => (b.oneRepMax === null ? [] : [b.oneRepMax]))
+  const strongest = oneRepMaxes.length > 0 ? Math.max(...oneRepMaxes) : null
   // With one workout there is nothing to compare or draw a line through.
   const hasTrend = bests.length > 1
   const summary = `${exercise.name}, heaviest set per workout: ${formatKg(first.maxWeight)} on ${longDate(first.date)}, ${formatKg(latest.maxWeight)} on ${longDate(latest.date)}.`
@@ -62,15 +65,29 @@ export default async function ExerciseProgressPage({ params }: { params: Promise
           </p>
           <p className="mt-2 text-xs text-muted">Set on {longDate(best.date)}</p>
         </div>
-        {hasTrend && (
-          <dl className="relative mt-5 grid grid-cols-2 border-t border-white/5 pt-4">
-            <StatItem value={formatKg(first.maxWeight)} label={`First, ${shortDate(first.date)}`} />
-            <StatItem
-              value={`${change > 0 ? '+' : ''}${formatKg(change)}`}
-              label="First to latest"
-              className={change > 0 ? 'text-success' : ''}
-            />
+        {(hasTrend || strongest !== null) && (
+          <dl
+            className={`relative mt-5 grid border-t border-white/5 pt-4 ${
+              hasTrend && strongest !== null ? 'grid-cols-3' : hasTrend ? 'grid-cols-2' : 'grid-cols-1'
+            }`}
+          >
+            {strongest !== null && <StatItem value={formatKg(strongest)} label="Est. one-rep max" />}
+            {hasTrend && (
+              <>
+                <StatItem value={formatKg(first.maxWeight)} label={`First, ${shortDate(first.date)}`} />
+                <StatItem
+                  value={`${change > 0 ? '+' : ''}${formatKg(change)}`}
+                  label="First to latest"
+                  className={change > 0 ? 'text-success' : ''}
+                />
+              </>
+            )}
           </dl>
+        )}
+        {strongest !== null && (
+          <p className="relative mt-3 text-[11px] text-muted">
+            The one-rep max is estimated from your sets of {ONE_REP_MAX_REPS} reps or fewer.
+          </p>
         )}
       </Card>
 
@@ -91,6 +108,7 @@ export default async function ExerciseProgressPage({ params }: { params: Promise
                   <tr>
                     <th scope="col" className="py-1 font-bold">Workout</th>
                     <th scope="col" className="py-1 text-right font-bold">Heaviest set</th>
+                    <th scope="col" className="py-1 text-right font-bold">Est. 1RM</th>
                   </tr>
                 </thead>
                 <tbody className="tabular-nums">
@@ -98,6 +116,7 @@ export default async function ExerciseProgressPage({ params }: { params: Promise
                     <tr key={b.date} className="border-t border-white/5">
                       <td className="py-1.5 text-foreground/80">{longDate(b.date)}</td>
                       <td className="py-1.5 text-right font-bold text-white">{formatKg(b.maxWeight)}</td>
+                      <td className="py-1.5 text-right text-muted">{b.oneRepMax === null ? '–' : formatKg(b.oneRepMax)}</td>
                     </tr>
                   ))}
                 </tbody>

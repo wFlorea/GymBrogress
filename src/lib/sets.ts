@@ -20,3 +20,15 @@ export const DEFAULT_REST_SECONDS: RestSeconds = 90
 export function isRestSeconds(value: unknown): value is RestSeconds {
   return REST_TIMER_OPTIONS.includes(value as RestSeconds)
 }
+
+/** Above this many reps a one-rep max estimate is too rough to show. */
+export const ONE_REP_MAX_REPS = 12
+
+/**
+ * The weight a set suggests you could lift once (Epley formula), to the nearest 0.5 kg; null for bodyweight sets and
+ * sets of more than 12 reps.
+ */
+export function estimateOneRepMax(weight: number, reps: number): number | null {
+  if (weight <= 0 || !Number.isInteger(reps) || reps < 1 || reps > ONE_REP_MAX_REPS) return null
+  return reps === 1 ? weight : Math.round(weight * (1 + reps / 30) * 2) / 2
+}

@@ -52,7 +52,7 @@ already has `weight_logs` and `push_subscriptions`.
       and the tracker page itself still needs signal to open)
 - [x] **Account:** delete your account and export your data (Settings; deleting needs `SUPABASE_SERVICE_ROLE_KEY`)
 - [x] **Weight trend:** a chart of the weigh-ins and how far you are from the goal weight, on the dashboard (after 4 check-ins, like Profile; the goal is a dashed line)
-- [ ] **Progress:** estimated 1RM, volume per muscle group, and a celebration for a new PR
+- [x] **Progress:** estimated 1RM, volume per muscle group, and a celebration for a new PR (1RM on each exercise page; sets per muscle group over 7 days on Progress; a note in the tracker when a set beats the heaviest weight so far)
 - [ ] **Food:** copy yesterday's meals, saved meals, water tracking
 - [ ] **Units:** a kg/lbs toggle
 - [ ] **Tests:** start with the maths in `nutrition.ts`, `body.ts`, `streak.ts` and `date.ts`

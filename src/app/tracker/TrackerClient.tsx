@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState, useTransition } from 'react'
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { Check, CloudOff, Dumbbell, Loader2, Plus, RotateCcw, Timer, Trash2, Trophy, X } from 'lucide-react'
 import { ExerciseBrowser } from '@/components/ExerciseBrowser'
@@ -8,7 +8,7 @@ import { Alert, EmptyState } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { buttonStyles } from '@/components/ui/styles'
 import { MUSCLE_GROUP_LABELS, getExercise } from '@/lib/exercises-data'
-import { formatClock, plural } from '@/lib/format'
+import { formatClock, formatKg, plural } from '@/lib/format'
 import { DEFAULT_SETS_PER_EXERCISE, MAX_REPS, MAX_WEIGHT_KG } from '@/lib/sets'
 import { getSplitOption } from '@/lib/splits'
 import type { Exercise, PlannedExercise, RestTimerSettings, SetValues, WorkoutDay, WorkoutSet } from '@/lib/types'
@@ -17,6 +17,16 @@ import { useRestTimer, useSetPersistence } from './hooks'
 import { applyChanges, type SetChange } from './outbox'
 
 const UNSENT_MESSAGE = 'You’re offline. Your sets are saved on this phone; try again once you’re back online.'
+/** How long the note about a new personal best stays up. */
+const RECORD_NOTE_MS = 5000
+
+/** A set heavier than anything lifted before for its exercise. */
+interface NewRecord {
+  setId: string
+  exerciseName: string
+  weight: number
+  previous: number
+}
 
 /** Numbers an exercise's sets 1, 2, 3… in the order they are listed. */
 function renumber(sets: WorkoutSet[], exerciseId: string): WorkoutSet[] {
@@ -35,11 +45,14 @@ export function TrackerClient({
   day,
   plannedExercises,
   restTimer,
+  personalBests,
 }: {
   day: WorkoutDay
   plannedExercises: PlannedExercise[]
   /** From Settings: whether ticking off a set starts the rest countdown, and its length. */
   restTimer: RestTimerSettings
+  /** The heaviest weight ticked off so far for each exercise, in kg. */
+  personalBests: Record<string, number>
 }) {
   const [sets, setSets] = useState(day.sets)
   const [finished, setFinished] = useState(day.finished_at !== null)
@@ -53,6 +66,11 @@ export function TrackerClient({
   const timer = useRestTimer()
   const showUnsent = useCallback((unsent: SetChange[]) => setSets((prev) => applyChanges(prev, unsent)), [])
   const persistence = useSetPersistence(day.id, setError, showUnsent)
+  // Raised as sets are ticked off, so each record is celebrated once.
+  const bests = useRef(personalBests)
+  const [record, setRecord] = useState<NewRecord | null>(null)
+  const recordTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(recordTimer.current), [])
   const split = getSplitOption(day.split)
 
   const setsByExercise = new Map<string, WorkoutSet[]>()
@@ -121,9 +139,26 @@ export function TrackerClient({
     const isCompleted = !set.is_completed
     patchLocal(set.id, { is_completed: isCompleted })
     if (isCompleted && restTimer.on) timer.start(restTimer.seconds)
+    if (isCompleted) celebrateRecord(set)
     void persistence.saveNow(set.id, { is_completed: isCompleted }).then((saved) => {
       if (!saved) patchLocal(set.id, { is_completed: set.is_completed })
     })
+  }
+
+  function celebrateRecord(set: WorkoutSet) {
+    const previous = bests.current[set.exercise_id] ?? 0
+    if (set.actual_weight <= previous) return
+    bests.current = { ...bests.current, [set.exercise_id]: set.actual_weight }
+    // The first weighted set of an exercise has nothing to beat yet.
+    if (previous === 0) return
+    clearTimeout(recordTimer.current)
+    setRecord({
+      setId: set.id,
+      exerciseName: getExercise(set.exercise_id)?.name ?? set.exercise_name,
+      weight: set.actual_weight,
+      previous,
+    })
+    recordTimer.current = setTimeout(() => setRecord(null), RECORD_NOTE_MS)
   }
 
   function deleteSet(set: WorkoutSet) {
@@ -278,6 +313,8 @@ export function TrackerClient({
           </button>
         )}
       </div>
+
+      {record && <RecordNote key={record.setId} record={record} onClose={() => setRecord(null)} />}
 
       {timer.active && (
         <RestTimerBar
@@ -502,6 +539,35 @@ function SetRow({
           <Trash2 size={14} />
         </button>
       </div>
+    </div>
+  )
+}
+
+/** Pops up at the top when a set beats the exercise's personal best. */
+function RecordNote({ record, onClose }: { record: NewRecord; onClose: () => void }) {
+  return (
+    <div
+      role="status"
+      className="fixed inset-x-4 top-[calc(1rem+env(safe-area-inset-top))] z-50 mx-auto flex max-w-lg animate-float-in items-center gap-3 rounded-2xl border border-primary/50 bg-sunken/95 p-3.5 shadow-2xl backdrop-blur-md"
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary">
+        <Trophy size={22} className="animate-pop" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[10px] font-black uppercase tracking-wider text-muted">New personal best</span>
+        <span className="block truncate font-black text-white">
+          {record.exerciseName}, {formatKg(record.weight)}
+        </span>
+        <span className="block text-[11px] text-muted">Up from {formatKg(record.previous)}</span>
+      </span>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="press flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-surface text-foreground/60 hover:text-white [--press-scale:0.85]"
+      >
+        <X size={16} />
+      </button>
     </div>
   )
 }
