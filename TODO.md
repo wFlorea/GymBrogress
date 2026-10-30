@@ -56,4 +56,4 @@ already has `weight_logs` and `push_subscriptions`.
 - [x] **Progress:** estimated 1RM, volume per muscle group, and a celebration for a new PR (1RM on each exercise page; sets per muscle group over 7 days on Progress; a note in the tracker when a set beats the heaviest weight so far)
 - [x] **Food:** copy yesterday's meals, saved meals, water tracking
 - [x] **Units:** a kg/lbs toggle (in Settings; weights are still stored in kg)
-- [ ] **Tests:** start with the maths in `nutrition.ts`, `body.ts`, `streak.ts` and `date.ts`
+- [x] **Tests:** start with the maths in `nutrition.ts`, `body.ts`, `streak.ts` and `date.ts` (vitest, `pnpm test`; also `units.ts`, `sets.ts`, `push.ts` and the tracker outbox)
