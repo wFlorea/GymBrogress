@@ -108,6 +108,29 @@ CREATE TABLE weight_logs (
   UNIQUE (user_id, week_start)
 );
 
+-- Saved meals: foods saved together under a name, to log again in one tap.
+CREATE TABLE saved_meals (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 40),
+  -- The foods as they go into food_entries: [{ name, calories, protein, carbs, fat, grams }].
+  foods JSONB NOT NULL CHECK (
+    CASE WHEN jsonb_typeof(foods) = 'array' THEN jsonb_array_length(foods) BETWEEN 1 AND 30 ELSE false END
+  ),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE INDEX saved_meals_user_id_idx ON saved_meals (user_id);
+
+-- Water drunk each day, in ml.
+CREATE TABLE water_logs (
+  user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  date DATE NOT NULL,
+  ml INTEGER NOT NULL CHECK (ml BETWEEN 0 AND 10000),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, date)
+);
+
 -- Web push subscriptions for the weekly check-in reminder: one row per device a user turned reminders on for.
 -- The reminder itself is sent by /api/cron/weight-reminder with the service role key.
 CREATE TABLE push_subscriptions (
@@ -134,6 +157,8 @@ ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE food_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE weight_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE saved_meals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE water_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can manage their own weekly plans" ON weekly_plans
   FOR ALL TO authenticated
@@ -170,8 +195,17 @@ CREATE POLICY "Users can manage their own push subscriptions" ON push_subscripti
   FOR ALL TO authenticated
   USING ((SELECT auth.uid()) = user_id) WITH CHECK ((SELECT auth.uid()) = user_id);
 
-REVOKE ALL ON user_settings, food_entries, weight_logs, push_subscriptions FROM anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON user_settings, food_entries, weight_logs, push_subscriptions TO authenticated;
+CREATE POLICY "Users can manage their own saved meals" ON saved_meals
+  FOR ALL TO authenticated
+  USING ((SELECT auth.uid()) = user_id) WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Users can manage their own water logs" ON water_logs
+  FOR ALL TO authenticated
+  USING ((SELECT auth.uid()) = user_id) WITH CHECK ((SELECT auth.uid()) = user_id);
+
+REVOKE ALL ON user_settings, food_entries, weight_logs, push_subscriptions, saved_meals, water_logs FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON user_settings, food_entries, weight_logs, push_subscriptions, saved_meals, water_logs TO authenticated;
 
 -- Progress page. security_invoker keeps the RLS of the underlying tables.
 -- Heaviest completed set of each exercise per month.

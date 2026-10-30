@@ -31,6 +31,22 @@ export const MAX_MACRO_GRAMS = 1000
 export const MIN_CALORIE_GOAL = 500
 /** The most a single logged food can weigh. */
 export const MAX_FOOD_GRAMS = 5000
+export const MAX_SAVED_MEAL_NAME_LENGTH = 40
+export const MAX_SAVED_MEAL_FOODS = 30
+
+/** One glass: what a tap on the water card adds or takes away. */
+export const WATER_STEP_ML = 250
+export const MAX_WATER_ML = 10_000
+/** Water a day per kg of body weight, and the goal without a weight. */
+const WATER_ML_PER_KG = 35
+const DEFAULT_WATER_GOAL_ML = 2000
+
+/** About 35 ml a day per kg of body weight, in whole glasses, between 1.5 and 4 litres; 2 litres without a weight. */
+export function waterGoalMl(weightKg: number | null): number {
+  if (weightKg === null) return DEFAULT_WATER_GOAL_ML
+  const glasses = Math.round((weightKg * WATER_ML_PER_KG) / WATER_STEP_ML)
+  return Math.min(4000, Math.max(1500, glasses * WATER_STEP_ML))
+}
 
 const NO_NUTRITION: Nutrition = { calories: 0, protein: 0, carbs: 0, fat: 0 }
 

@@ -18,6 +18,11 @@ export function formatKg(weight: number): string {
   return `${weight.toLocaleString('en-GB', { maximumFractionDigits: 2 })} kg`
 }
 
+/** "250 ml", "1,750 ml" */
+export function formatMl(ml: number): string {
+  return `${ml.toLocaleString('en-GB')} ml`
+}
+
 /** "+0.4 kg", "-1.2 kg", "0 kg" */
 export function signedKg(change: number): string {
   // `|| 0` turns -0 into 0.

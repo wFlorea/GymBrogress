@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import { findCommonFood } from '@/lib/foods-data'
 import { nutritionFor, per100gOf } from '@/lib/nutrition'
-import type { CatalogFood, FoodEntry, FoodItem, IsoDate, Meal } from '@/lib/types'
+import type { CatalogFood, FoodEntry, FoodItem, IsoDate, Meal, SavedMeal } from '@/lib/types'
 import { FoodForm } from './FoodForm'
 import { FoodSearch } from './FoodSearch'
 import { PortionForm } from './PortionForm'
+import { SavedMealList } from './SavedMealList'
 
 /** Where the sheet is: searching, picking an amount of a database food, or typing a food in by hand. */
 type View =
@@ -34,6 +35,7 @@ export function FoodSheet({
   meal,
   entry,
   recentFoods,
+  savedMeals,
   onSaved,
   onDelete,
 }: {
@@ -41,6 +43,7 @@ export function FoodSheet({
   meal: Meal
   entry?: FoodEntry
   recentFoods: FoodItem[]
+  savedMeals: SavedMeal[]
   onSaved: (id: string | null) => void
   onDelete?: () => void
 }) {
@@ -83,6 +86,7 @@ export function FoodSheet({
       query={query}
       onQueryChange={setQuery}
       recentFoods={recentFoods}
+      saved={savedMeals.length > 0 && <SavedMealList savedMeals={savedMeals} date={date} meal={meal} onLogged={() => onSaved(null)} />}
       onPick={(food) => setView({ step: 'portion', food })}
       onPickRecent={(food) => setView(viewOf(food))}
       onManual={() => setView({ step: 'manual', name: query.trim() })}

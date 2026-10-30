@@ -3,17 +3,28 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Page, PageHeader } from '@/components/ui/Page'
 import { buttonStyles } from '@/components/ui/styles'
 import { addDays, formatDate, isIsoDate } from '@/lib/date'
-import { getFoodEntries, getRecentFoods } from '@/lib/data/food'
+import { getFoodEntries, getRecentFoods, getSavedMeals, getWater } from '@/lib/data/food'
 import { getToday } from '@/lib/data/session'
 import { getUserSettings } from '@/lib/data/settings'
-import type { IsoDate } from '@/lib/types'
+import type { IsoDate, Meal } from '@/lib/types'
 import { FoodClient } from './FoodClient'
 
 export default async function FoodPage({ searchParams }: { searchParams: Promise<{ date?: string | string[] }> }) {
   const [{ date: requested }, today] = await Promise.all([searchParams, getToday()])
   // Earlier days can be viewed and filled in later; days that haven't happened can't.
   const date = isIsoDate(requested) && requested <= today ? requested : today
-  const [entries, recentFoods, settings] = await Promise.all([getFoodEntries(date), getRecentFoods(), getUserSettings()])
+  const previousDate = addDays(date, -1)
+  const [entries, previousEntries, recentFoods, savedMeals, water, settings] = await Promise.all([
+    getFoodEntries(date),
+    getFoodEntries(previousDate),
+    getRecentFoods(),
+    getSavedMeals(),
+    getWater(date),
+    getUserSettings(),
+  ])
+  // What each meal of the day before came to, so an empty meal can be copied from it.
+  const previousMeals: Partial<Record<Meal, number>> = {}
+  for (const entry of previousEntries) previousMeals[entry.meal] = (previousMeals[entry.meal] ?? 0) + entry.calories
 
   return (
     <Page>
@@ -23,7 +34,14 @@ export default async function FoodPage({ searchParams }: { searchParams: Promise
         key={date}
         date={date}
         entries={entries}
+        previousDay={{
+          date: previousDate,
+          name: date === today ? 'yesterday' : formatDate(previousDate, { weekday: 'long' }),
+          meals: previousMeals,
+        }}
         recentFoods={recentFoods}
+        savedMeals={savedMeals}
+        water={water}
         goals={settings.nutritionGoals}
         body={settings.body}
         goalWeight={settings.goalWeight}

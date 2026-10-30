@@ -1,6 +1,6 @@
 import 'server-only'
 import { isMeal } from '@/lib/nutrition'
-import type { FoodEntry, FoodItem, IsoDate } from '@/lib/types'
+import type { FoodEntry, FoodItem, IsoDate, SavedMeal } from '@/lib/types'
 import { getSession } from './session'
 
 /** How many foods the "Recent" list offers when adding a food. */
@@ -46,6 +46,42 @@ export async function getFoodEntries(date: IsoDate): Promise<FoodEntry[]> {
     date: row.date,
     meal: isMeal(row.meal) ? row.meal : 'snack',
   }))
+}
+
+const isStoredFood = (value: unknown): value is Omit<FoodRow, 'id' | 'date' | 'meal'> =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as FoodRow).name === 'string' &&
+  typeof (value as FoodRow).calories === 'number'
+
+/** The user's saved meals, by name. */
+export async function getSavedMeals(): Promise<SavedMeal[]> {
+  const { user, supabase } = await getSession()
+  const { data, error } = await supabase
+    .from('saved_meals')
+    .select('id, name, foods')
+    .eq('user_id', user.id)
+    .order('name')
+  if (error) throw new Error(`Could not load your saved meals: ${error.message}`)
+
+  return data.map((row) => ({
+    id: row.id,
+    name: row.name,
+    foods: Array.isArray(row.foods) ? row.foods.filter(isStoredFood).map(toFoodItem) : [],
+  }))
+}
+
+/** Water drunk on `date`, in ml. */
+export async function getWater(date: IsoDate): Promise<number> {
+  const { user, supabase } = await getSession()
+  const { data, error } = await supabase
+    .from('water_logs')
+    .select('ml')
+    .eq('user_id', user.id)
+    .eq('date', date)
+    .maybeSingle()
+  if (error) throw new Error(`Could not load your water: ${error.message}`)
+  return data?.ml ?? 0
 }
 
 /** The foods logged most recently, one per name, so they can be added again in a tap. */

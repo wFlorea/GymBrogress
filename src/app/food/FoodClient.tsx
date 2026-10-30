@@ -1,26 +1,48 @@
 'use client'
 
 import { useOptimistic, useState, useTransition } from 'react'
-import { Plus, Target } from 'lucide-react'
+import { Bookmark, Copy, Loader2, Minus, Plus, Target } from 'lucide-react'
 import { GoalsForm } from '@/components/GoalsForm'
 import { Alert, Card, cardStyles } from '@/components/ui/Card'
 import { Meter } from '@/components/ui/Meter'
 import { Modal } from '@/components/ui/Modal'
 import { buttonStyles } from '@/components/ui/styles'
-import { formatGrams, formatKcal } from '@/lib/format'
-import { MACROS, MEALS, MEAL_EMOJIS, MEAL_LABELS, sumNutrition } from '@/lib/nutrition'
-import type { BodyStats, FoodEntry, FoodItem, IsoDate, Meal, Nutrition, NutritionGoals, PlanPace, WeightPlan } from '@/lib/types'
-import { deleteFoodEntry } from './actions'
+import { formatGrams, formatKcal, formatMl } from '@/lib/format'
+import { MACROS, MAX_WATER_ML, MEALS, MEAL_EMOJIS, MEAL_LABELS, WATER_STEP_ML, sumNutrition, waterGoalMl } from '@/lib/nutrition'
+import type {
+  BodyStats,
+  FoodEntry,
+  FoodItem,
+  IsoDate,
+  Meal,
+  Nutrition,
+  NutritionGoals,
+  PlanPace,
+  SavedMeal,
+  WeightPlan,
+} from '@/lib/types'
+import { copyMeal, deleteFoodEntry, saveWater } from './actions'
 import { FoodSheet } from './FoodSheet'
 import { MacroLine } from './MacroLine'
+import { SaveMealForm } from './SaveMealForm'
 
 /** What the food sheet is open for: adding to a meal, or editing a logged food. */
 type Sheet = { meal: Meal; entry?: FoodEntry }
 
+/** The day before the one shown: its name ("yesterday", "Tuesday") and the calories of each meal logged in it. */
+interface PreviousDay {
+  date: IsoDate
+  name: string
+  meals: Partial<Record<Meal, number>>
+}
+
 export function FoodClient({
   date,
   entries,
+  previousDay,
   recentFoods,
+  savedMeals,
+  water,
   goals,
   body,
   goalWeight,
@@ -29,7 +51,11 @@ export function FoodClient({
 }: {
   date: IsoDate
   entries: FoodEntry[]
+  previousDay: PreviousDay
   recentFoods: FoodItem[]
+  savedMeals: SavedMeal[]
+  /** Water drunk on `date`, in ml. */
+  water: number
   goals: NutritionGoals
   /** The user's body stats, goal weight and weight plan, for the goals form. */
   body: BodyStats
@@ -41,6 +67,11 @@ export function FoodClient({
   const [sheet, setSheet] = useState<Sheet | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [goalsOpen, setGoalsOpen] = useState(false)
+  // Like `sheet`, `saving` outlives `savingOpen`.
+  const [saving, setSaving] = useState<Meal | null>(null)
+  const [savingOpen, setSavingOpen] = useState(false)
+  const [copying, setCopying] = useState<Meal | null>(null)
+  const [isCopying, startCopying] = useTransition()
   // Bumped on every open, so the forms start fresh.
   const [formKey, setFormKey] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -61,6 +92,21 @@ export function FoodClient({
     setGoalsOpen(true)
   }
 
+  function openSaving(meal: Meal) {
+    setSaving(meal)
+    setFormKey((key) => key + 1)
+    setSavingOpen(true)
+  }
+
+  function copy(meal: Meal) {
+    setError(null)
+    setCopying(meal)
+    startCopying(async () => {
+      const result = await copyMeal(previousDay.date, date, meal)
+      if (!result.ok) setError(result.error)
+    })
+  }
+
   function remove(entry: FoodEntry) {
     setSheetOpen(false)
     setError(null)
@@ -76,17 +122,25 @@ export function FoodClient({
       {error && <Alert>{error}</Alert>}
 
       <DailySummary totals={sumNutrition(optimisticEntries)} goals={goals} onEditGoals={openGoals} />
+      <WaterCard date={date} water={water} goal={waterGoalMl(body.weight)} onError={setError} />
 
-      {MEALS.map((meal) => (
-        <MealCard
-          key={meal}
-          meal={meal}
-          entries={optimisticEntries.filter((entry) => entry.meal === meal)}
-          justAdded={justAdded}
-          onAdd={() => openSheet({ meal })}
-          onEdit={(entry) => openSheet({ meal: entry.meal, entry })}
-        />
-      ))}
+      {MEALS.map((meal) => {
+        const previous = previousDay.meals[meal]
+        return (
+          <MealCard
+            key={meal}
+            meal={meal}
+            entries={optimisticEntries.filter((entry) => entry.meal === meal)}
+            justAdded={justAdded}
+            copyFrom={previous === undefined ? null : { name: previousDay.name, calories: previous }}
+            copying={isCopying && copying === meal}
+            onAdd={() => openSheet({ meal })}
+            onEdit={(entry) => openSheet({ meal: entry.meal, entry })}
+            onCopy={() => copy(meal)}
+            onSave={() => openSaving(meal)}
+          />
+        )
+      })}
 
       <Modal open={sheetOpen} onClose={() => setSheetOpen(false)} title={sheet?.entry ? 'Edit food' : 'Add food'}>
         {sheet && (
@@ -96,11 +150,23 @@ export function FoodClient({
             meal={sheet.meal}
             entry={sheet.entry}
             recentFoods={recentFoods}
+            savedMeals={savedMeals}
             onSaved={(id) => {
               if (id) setJustAdded(id)
               setSheetOpen(false)
             }}
             onDelete={sheet.entry ? () => remove(sheet.entry!) : undefined}
+          />
+        )}
+      </Modal>
+
+      <Modal open={savingOpen} onClose={() => setSavingOpen(false)} title="Save meal">
+        {saving && (
+          <SaveMealForm
+            key={formKey}
+            meal={saving}
+            entries={optimisticEntries.filter((entry) => entry.meal === saving)}
+            onSaved={() => setSavingOpen(false)}
           />
         )}
       </Modal>
@@ -193,18 +259,87 @@ function DailySummary({ totals, goals, onEditGoals }: { totals: Nutrition; goals
   )
 }
 
+/** Water drunk on the day against a goal from the user's weight, a glass at a time. */
+function WaterCard({
+  date,
+  water,
+  goal,
+  onError,
+}: {
+  date: IsoDate
+  water: number
+  goal: number
+  onError: (error: string | null) => void
+}) {
+  const [shown, setShown] = useOptimistic(water)
+  const [, startTransition] = useTransition()
+
+  function change(by: number) {
+    const ml = Math.min(MAX_WATER_ML, Math.max(0, shown + by))
+    onError(null)
+    startTransition(async () => {
+      setShown(ml)
+      const result = await saveWater(date, ml)
+      if (!result.ok) onError(result.error)
+    })
+  }
+
+  return (
+    <Card>
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/5 text-lg" aria-hidden>
+          💧
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-semibold">Water</h2>
+          <p className="truncate text-xs tabular-nums text-muted">
+            {shown.toLocaleString('en-GB')} of {formatMl(goal)}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => change(-WATER_STEP_ML)}
+          disabled={shown === 0}
+          aria-label={`Remove ${formatMl(WATER_STEP_ML)}`}
+          className={`${buttonStyles.icon} disabled:opacity-30`}
+        >
+          <Minus size={18} />
+        </button>
+        <button
+          type="button"
+          onClick={() => change(WATER_STEP_ML)}
+          disabled={shown >= MAX_WATER_ML}
+          className={`${buttonStyles.chip} shrink-0 whitespace-nowrap`}
+        >
+          <Plus size={13} /> {formatMl(WATER_STEP_ML)}
+        </button>
+      </div>
+      <Meter value={shown} max={goal} label="Water" valueText={`${formatMl(shown)} of ${formatMl(goal)}`} className="mt-3" />
+    </Card>
+  )
+}
+
 function MealCard({
   meal,
   entries,
   justAdded,
+  copyFrom,
+  copying,
   onAdd,
   onEdit,
+  onCopy,
+  onSave,
 }: {
   meal: Meal
   entries: FoodEntry[]
   justAdded: string | null
+  /** The same meal the day before, which an empty meal can be filled from. */
+  copyFrom: { name: string; calories: number } | null
+  copying: boolean
   onAdd: () => void
   onEdit: (entry: FoodEntry) => void
+  onCopy: () => void
+  onSave: () => void
 }) {
   const calories = entries.reduce((sum, entry) => sum + entry.calories, 0)
 
@@ -218,6 +353,11 @@ function MealCard({
           <h2 className="font-semibold text-white">{MEAL_LABELS[meal]}</h2>
           <p className="text-xs text-muted">{entries.length > 0 ? formatKcal(calories) : 'Nothing logged yet'}</p>
         </div>
+        {entries.length > 0 && (
+          <button type="button" onClick={onSave} aria-label={`Save ${MEAL_LABELS[meal]} as a meal`} className={buttonStyles.icon}>
+            <Bookmark size={16} />
+          </button>
+        )}
         <button
           type="button"
           onClick={onAdd}
@@ -227,6 +367,22 @@ function MealCard({
           <Plus size={18} />
         </button>
       </div>
+
+      {entries.length === 0 && copyFrom && (
+        <button
+          type="button"
+          onClick={onCopy}
+          disabled={copying}
+          aria-busy={copying}
+          className="flex w-full items-center gap-2.5 border-t border-white/5 px-4 py-3 text-left text-sm font-semibold text-foreground/80 transition-colors hover:bg-white/[0.03] hover:text-white disabled:opacity-60"
+        >
+          {copying ? <Loader2 size={16} className="shrink-0 animate-spin text-muted" /> : <Copy size={16} className="shrink-0 text-muted" />}
+          <span className="min-w-0 flex-1 truncate">
+            Copy {copyFrom.name}’s {MEAL_LABELS[meal].toLowerCase()}
+          </span>
+          <span className="shrink-0 text-xs font-normal tabular-nums text-muted">{formatKcal(copyFrom.calories)}</span>
+        </button>
+      )}
 
       {entries.length > 0 && (
         <ul className="divide-y divide-white/5 border-t border-white/5">

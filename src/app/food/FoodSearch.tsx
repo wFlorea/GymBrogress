@@ -19,6 +19,7 @@ export function FoodSearch({
   query,
   onQueryChange,
   recentFoods,
+  saved,
   onPick,
   onPickRecent,
   onManual,
@@ -26,6 +27,8 @@ export function FoodSearch({
   query: string
   onQueryChange: (query: string) => void
   recentFoods: FoodItem[]
+  /** The user's saved meals, listed first while nothing is typed. */
+  saved?: ReactNode
   onPick: (food: CatalogFood) => void
   onPickRecent: (food: FoodItem) => void
   onManual: () => void
@@ -82,6 +85,7 @@ export function FoodSearch({
       </label>
 
       <div className="-mx-2 mt-3 min-h-0 flex-1 space-y-4 overflow-y-auto px-2 pb-1">
+        {!text && saved}
         {!text && recentFoods.length > 0 && (
           <Section title="Recent">
             {recentFoods.map((food) => (
@@ -95,7 +99,7 @@ export function FoodSearch({
             ))}
           </Section>
         )}
-        {!text && recentFoods.length === 0 && (
+        {!text && recentFoods.length === 0 && !saved && (
           <p className="px-1 py-6 text-center text-sm text-muted">
             Search for what you ate and pick how much. The calories and macros are filled in for you.
           </p>

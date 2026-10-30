@@ -212,6 +212,13 @@ export interface FoodEntry extends FoodItem {
   meal: Meal
 }
 
+/** Foods saved together under a name, to log again in one tap. */
+export interface SavedMeal {
+  id: string
+  name: string
+  foods: FoodItem[]
+}
+
 /** Daily targets; null where the user hasn't set one. */
 export type NutritionGoals = Record<keyof Nutrition, number | null>
 
