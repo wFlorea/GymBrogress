@@ -1,5 +1,6 @@
 // Body stats limits, activity levels, BMI and daily calorie maths.
-import type { ActivityLevel, BodyStats, Sex } from './types'
+import type { ActivityLevel, BodyStats, Sex, WeightUnit } from './types'
+import { fromKg } from './units'
 
 export const MIN_WEIGHT_KG = 20
 export const MAX_WEIGHT_KG = 400
@@ -77,12 +78,17 @@ export function bmiCategory(bmi: number) {
   return BMI_CATEGORIES.find((category) => bmi < category.below) ?? BMI_CATEGORIES[BMI_CATEGORIES.length - 1]
 }
 
-/** "5 kg to gain", "2.5 kg to lose", "You're at your goal" */
-export function goalWeightText(weightKg: number, goalKg: number): string {
-  const difference = Math.round((goalKg - weightKg) * 10) / 10
+/** "5 kg to gain", "2.5 lb to lose", "You're at your goal" */
+export function goalWeightText(weightKg: number, goalKg: number, unit: WeightUnit): string {
+  const difference = Math.round(fromKg(goalKg - weightKg, unit) * 10) / 10
   if (difference === 0) return "You're at your goal"
   const amount = Math.abs(difference).toLocaleString('en-GB', { maximumFractionDigits: 1 })
-  return `${amount} kg to ${difference > 0 ? 'gain' : 'lose'}`
+  return `${amount} ${unit} to ${difference > 0 ? 'gain' : 'lose'}`
+}
+
+/** The body weight limits in `unit`, inside the kg ones: "20 and 400 kg", "45 and 881 lb" */
+export function weightRangeText(unit: WeightUnit): string {
+  return `${Math.ceil(fromKg(MIN_WEIGHT_KG, unit))} and ${Math.floor(fromKg(MAX_WEIGHT_KG, unit))} ${unit}`
 }
 
 /** Weekly check-ins (a month) before the weight chart shows. */

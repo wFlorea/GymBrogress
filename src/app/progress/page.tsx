@@ -29,7 +29,9 @@ export default async function ProgressPage() {
         }
       />
       {history.length > 0 && <MuscleVolume groups={muscleSets} />}
-      <ProgressClient history={history} trackedIds={settings.trackedExerciseIds.filter((id) => getExercise(id))} />
+      <ProgressClient history={history} trackedIds={settings.trackedExerciseIds.filter((id) => getExercise(id))}
+        unit={settings.weightUnit}
+      />
     </Page>
   )
 }

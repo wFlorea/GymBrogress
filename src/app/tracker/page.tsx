@@ -46,6 +46,7 @@ export default async function TrackerPage() {
           day={day}
           plannedExercises={exercises}
           restTimer={settings.restTimer}
+          weightUnit={settings.weightUnit}
           personalBests={Object.fromEntries(history.map((entry) => [entry.exerciseId, entry.bestWeight]))}
         />
       </Page>

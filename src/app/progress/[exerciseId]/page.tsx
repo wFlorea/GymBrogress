@@ -8,9 +8,10 @@ import { PlateMark } from '@/components/ui/PlateMark'
 import { buttonStyles } from '@/components/ui/styles'
 import { formatDate } from '@/lib/date'
 import { MUSCLE_GROUP_LABELS, getExercise } from '@/lib/exercises-data'
-import { formatKg } from '@/lib/format'
+import { formatWeight } from '@/lib/format'
 import { ONE_REP_MAX_REPS } from '@/lib/sets'
 import { getWorkoutBests } from '@/lib/data/progress'
+import { getUserSettings } from '@/lib/data/settings'
 
 const shortDate = (date: string) => formatDate(date, { day: 'numeric', month: 'short' })
 const longDate = (date: string) => formatDate(date, { day: 'numeric', month: 'long', year: 'numeric' })
@@ -20,7 +21,7 @@ export default async function ExerciseProgressPage({ params }: { params: Promise
   const exercise = getExercise(exerciseId)
   if (!exercise) notFound()
 
-  const bests = await getWorkoutBests(exerciseId)
+  const [bests, { weightUnit: unit }] = await Promise.all([getWorkoutBests(exerciseId), getUserSettings()])
 
   const backLink = (
     <Link href="/progress" className={buttonStyles.chip}>
@@ -50,7 +51,7 @@ export default async function ExerciseProgressPage({ params }: { params: Promise
   const strongest = oneRepMaxes.length > 0 ? Math.max(...oneRepMaxes) : null
   // With one workout there is nothing to compare or draw a line through.
   const hasTrend = bests.length > 1
-  const summary = `${exercise.name}, heaviest set per workout: ${formatKg(first.maxWeight)} on ${longDate(first.date)}, ${formatKg(latest.maxWeight)} on ${longDate(latest.date)}.`
+  const summary = `${exercise.name}, heaviest set per workout: ${formatWeight(first.maxWeight, unit)} on ${longDate(first.date)}, ${formatWeight(latest.maxWeight, unit)} on ${longDate(latest.date)}.`
 
   return (
     <Page>
@@ -61,7 +62,7 @@ export default async function ExerciseProgressPage({ params }: { params: Promise
         <div className="relative">
           <p className="text-sm text-muted">Personal best</p>
           <p className="mt-1 font-display text-[2.75rem] font-bold leading-none">
-            {best.maxWeight > 0 ? formatKg(best.maxWeight) : 'Bodyweight'}
+            {best.maxWeight > 0 ? formatWeight(best.maxWeight, unit) : 'Bodyweight'}
           </p>
           <p className="mt-2 text-xs text-muted">Set on {longDate(best.date)}</p>
         </div>
@@ -71,12 +72,12 @@ export default async function ExerciseProgressPage({ params }: { params: Promise
               hasTrend && strongest !== null ? 'grid-cols-3' : hasTrend ? 'grid-cols-2' : 'grid-cols-1'
             }`}
           >
-            {strongest !== null && <StatItem value={formatKg(strongest)} label="Est. one-rep max" />}
+            {strongest !== null && <StatItem value={formatWeight(strongest, unit)} label="Est. one-rep max" />}
             {hasTrend && (
               <>
-                <StatItem value={formatKg(first.maxWeight)} label={`First, ${shortDate(first.date)}`} />
+                <StatItem value={formatWeight(first.maxWeight, unit)} label={`First, ${shortDate(first.date)}`} />
                 <StatItem
-                  value={`${change > 0 ? '+' : ''}${formatKg(change)}`}
+                  value={`${change > 0 ? '+' : ''}${formatWeight(change, unit)}`}
                   label="First to latest"
                   className={change > 0 ? 'text-success' : ''}
                 />
@@ -99,8 +100,10 @@ export default async function ExerciseProgressPage({ params }: { params: Promise
           </p>
         ) : (
           <>
-            <p className="mb-4 text-xs text-muted">In kilograms. Tap or drag along the chart to see each workout.</p>
-            <LineChart points={bests.map((b) => ({ date: b.date, value: b.maxWeight }))} label={summary} />
+            <p className="mb-4 text-xs text-muted">
+              In {unit === 'kg' ? 'kilograms' : 'pounds'}. Tap or drag along the chart to see each workout.
+            </p>
+            <LineChart unit={unit} points={bests.map((b) => ({ date: b.date, value: b.maxWeight }))} label={summary} />
             <details className="mt-3 border-t border-white/5 pt-3">
               <summary className="cursor-pointer text-xs font-bold text-muted hover:text-white">Show as table</summary>
               <table className="mt-2 w-full text-left text-xs">
@@ -115,8 +118,8 @@ export default async function ExerciseProgressPage({ params }: { params: Promise
                   {[...bests].reverse().map((b) => (
                     <tr key={b.date} className="border-t border-white/5">
                       <td className="py-1.5 text-foreground/80">{longDate(b.date)}</td>
-                      <td className="py-1.5 text-right font-bold text-white">{formatKg(b.maxWeight)}</td>
-                      <td className="py-1.5 text-right text-muted">{b.oneRepMax === null ? '–' : formatKg(b.oneRepMax)}</td>
+                      <td className="py-1.5 text-right font-bold text-white">{formatWeight(b.maxWeight, unit)}</td>
+                      <td className="py-1.5 text-right text-muted">{b.oneRepMax === null ? '–' : formatWeight(b.oneRepMax, unit)}</td>
                     </tr>
                   ))}
                 </tbody>

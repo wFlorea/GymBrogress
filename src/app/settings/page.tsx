@@ -9,6 +9,7 @@ import { getUserSettings } from '@/lib/data/settings'
 import { DeleteAccount } from './DeleteAccount'
 import { PushReminder } from './PushReminder'
 import { RestTimerSetting } from './RestTimerSetting'
+import { WeightUnitSetting } from './WeightUnitSetting'
 
 export const metadata = { title: 'Settings' }
 
@@ -29,6 +30,11 @@ export default async function SettingsPage() {
       <section className="mb-8">
         <SectionTitle subtitle="While you train">Workout</SectionTitle>
         <RestTimerSetting initial={settings.restTimer} />
+      </section>
+
+      <section className="mb-8">
+        <SectionTitle subtitle="For weights everywhere in the app">Units</SectionTitle>
+        <WeightUnitSetting initial={settings.weightUnit} />
       </section>
 
       {process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && (

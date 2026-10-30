@@ -13,6 +13,7 @@ import {
   MIN_WEIGHT_KG,
   isActivityLevel,
   isSex,
+  weightRangeText,
 } from '@/lib/body'
 import { mondayOf } from '@/lib/date'
 import {
@@ -45,6 +46,13 @@ function isOptionalAmount(value: unknown, min: number, max: number): value is nu
 }
 
 const tenth = (value: number | null) => (value === null ? null : Math.round(value * 10) / 10)
+/** Weights are kept to 0.01 kg, so one typed in lb comes back as typed. */
+const hundredth = (value: number | null) => (value === null ? null : Math.round(value * 100) / 100)
+
+/** The weights allowed, like "20 and 400 kg", in the unit the user picked. */
+async function weightRange() {
+  return weightRangeText((await getUserSettings()).weightUnit)
+}
 
 /** The daily goal columns for `goals`; none when the stats behind them are incomplete. */
 const goalColumns = (goals: Nutrition | null) =>
@@ -58,7 +66,7 @@ const goalColumns = (goals: Nutrition | null) =>
 export async function saveBodyStats(body: BodyStats): Promise<ActionResult> {
   if (typeof body !== 'object' || body === null) return fail('Invalid details.')
   if (!isOptionalAmount(body.weight, MIN_WEIGHT_KG, MAX_WEIGHT_KG)) {
-    return fail(`Enter a weight between ${MIN_WEIGHT_KG} and ${MAX_WEIGHT_KG} kg, or leave it empty.`)
+    return fail(`Enter a weight between ${await weightRange()}, or leave it empty.`)
   }
   if (!isOptionalAmount(body.height, MIN_HEIGHT_CM, MAX_HEIGHT_CM)) {
     return fail(`Enter a height between ${MIN_HEIGHT_CM} and ${MAX_HEIGHT_CM} cm, or leave it empty.`)
@@ -72,7 +80,7 @@ export async function saveBodyStats(body: BodyStats): Promise<ActionResult> {
   }
   if (body.activity !== null && !isActivityLevel(body.activity)) return fail('Pick one of the activity levels.')
 
-  const weight = tenth(body.weight)
+  const weight = hundredth(body.weight)
   const height = tenth(body.height)
   const { weightPlan, planPace } = await getUserSettings()
   const goals = recommendedGoals({ ...body, weight, height }, weightPlan, planPace)
@@ -103,10 +111,10 @@ export async function saveBodyStats(body: BodyStats): Promise<ActionResult> {
  */
 export async function logWeeklyWeight(weight: number): Promise<ActionResult> {
   if (!isAmount(weight, MIN_WEIGHT_KG, MAX_WEIGHT_KG)) {
-    return fail(`Enter a weight between ${MIN_WEIGHT_KG} and ${MAX_WEIGHT_KG} kg.`)
+    return fail(`Enter a weight between ${await weightRange()}.`)
   }
 
-  const kg = Math.round(weight * 10) / 10
+  const kg = Math.round(weight * 100) / 100
   const [{ body, weightPlan, planPace }, today] = await Promise.all([getUserSettings(), getToday()])
   const goals = recommendedGoals({ ...body, weight: kg }, weightPlan, planPace)
   const { user, supabase } = await getSession()
@@ -151,7 +159,7 @@ export async function saveGoals(
   goals: NutritionGoals
 ): Promise<ActionResult> {
   if (!isOptionalAmount(goalWeight, MIN_WEIGHT_KG, MAX_WEIGHT_KG)) {
-    return fail(`Set a goal weight between ${MIN_WEIGHT_KG} and ${MAX_WEIGHT_KG} kg, or leave it empty.`)
+    return fail(`Set a goal weight between ${await weightRange()}, or leave it empty.`)
   }
   if (!isWeightPlan(plan)) return fail('Pick cut, maintain or bulk.')
   if (!isPlanPace(pace)) return fail('Pick one of the paces.')
@@ -169,7 +177,7 @@ export async function saveGoals(
   const { error } = await supabase.from('user_settings').upsert(
     {
       user_id: user.id,
-      goal_weight_kg: tenth(goalWeight),
+      goal_weight_kg: hundredth(goalWeight),
       weight_plan: plan,
       plan_pace: pace,
       calorie_goal: goals.calories,

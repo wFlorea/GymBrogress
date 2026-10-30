@@ -9,8 +9,8 @@ import { Modal } from '@/components/ui/Modal'
 import { buttonStyles } from '@/components/ui/styles'
 import { WEIGHT_CHART_AFTER as CHART_AFTER } from '@/lib/body'
 import { formatDate } from '@/lib/date'
-import { formatKg, plural, signedKg } from '@/lib/format'
-import type { IsoDate, WeightEntry } from '@/lib/types'
+import { formatWeight, plural, signedWeight } from '@/lib/format'
+import type { IsoDate, WeightEntry, WeightUnit } from '@/lib/types'
 
 const shortDate = (date: IsoDate) => formatDate(date, { day: 'numeric', month: 'short' })
 
@@ -22,6 +22,7 @@ export function WeightHistory({
   entries,
   thisWeek,
   currentWeight,
+  unit,
 }: {
   /** Oldest first. */
   entries: WeightEntry[]
@@ -29,6 +30,7 @@ export function WeightHistory({
   thisWeek: IsoDate
   /** The weight in the body stats, offered for a first check-in. */
   currentWeight: number | null
+  unit: WeightUnit
 }) {
   const [open, setOpen] = useState(false)
   // Bumped on every open, so the form starts fresh.
@@ -53,7 +55,7 @@ export function WeightHistory({
               {checkedIn ? 'This week' : latest ? `Last check-in, week of ${shortDate(latest.week)}` : 'No check-ins yet'}
             </p>
             <p className="font-display text-[2rem] font-bold leading-tight tabular-nums">
-              {latest ? formatKg(latest.weight) : '–'}
+              {latest ? formatWeight(latest.weight, unit) : '–'}
             </p>
           </div>
           <button type="button" onClick={openForm} className={`${buttonStyles.chip} shrink-0 whitespace-nowrap`}>
@@ -71,24 +73,25 @@ export function WeightHistory({
             <p className="mt-2 text-xs text-muted">
               Your chart appears after {CHART_AFTER} weekly check-ins, a month of them. {plural(toGo, 'check-in')} to go.
             </p>
-            {entries.length > 0 && <WeightTable entries={entries} className="mt-3" />}
+            {entries.length > 0 && <WeightTable entries={entries} unit={unit} className="mt-3" />}
           </>
         ) : (
           <>
             <dl className="mt-4 grid grid-cols-2 border-t border-white/5 pt-4 text-center">
-              <StatItem value={signedKg(latest!.weight - first.weight)} label={`Since ${shortDate(first.week)}`} />
+              <StatItem value={signedWeight(latest!.weight - first.weight, unit)} label={`Since ${shortDate(first.week)}`} />
               <StatItem value={entries.length} label="Check-ins" />
             </dl>
             <p className="mb-4 mt-5 text-xs text-muted">In kilograms. Tap or drag along the chart to see each week.</p>
             <LineChart
+              unit={unit}
               points={entries.map((entry) => ({ date: entry.week, value: entry.weight }))}
-              label={`Weight over ${plural(entries.length, 'week')}, from ${formatKg(first.weight)} to ${formatKg(latest!.weight)}`}
+              label={`Weight over ${plural(entries.length, 'week')}, from ${formatWeight(first.weight, unit)} to ${formatWeight(latest!.weight, unit)}`}
               fitToData
               tooltipPrefix="Week of "
             />
             <details className="mt-3 border-t border-white/5 pt-3">
               <summary className="cursor-pointer text-xs font-bold text-muted hover:text-white">Show as table</summary>
-              <WeightTable entries={entries} className="mt-2" />
+              <WeightTable entries={entries} unit={unit} className="mt-2" />
             </details>
           </>
         )}
@@ -100,6 +103,7 @@ export function WeightHistory({
             key={formKey}
             lastWeight={(checkedIn ? latest?.weight : (currentWeight ?? latest?.weight)) ?? null}
             editing={checkedIn}
+            unit={unit}
             onSaved={() => setOpen(false)}
           />
         </div>
@@ -109,7 +113,7 @@ export function WeightHistory({
 }
 
 /** Every check-in, newest first, with the change from the one before. */
-function WeightTable({ entries, className = '' }: { entries: WeightEntry[]; className?: string }) {
+function WeightTable({ entries, unit, className = '' }: { entries: WeightEntry[]; unit: WeightUnit; className?: string }) {
   return (
     <table className={`w-full text-left text-xs ${className}`}>
       <thead className="text-muted">
@@ -126,8 +130,8 @@ function WeightTable({ entries, className = '' }: { entries: WeightEntry[]; clas
           .map(({ week, weight, previous }) => (
             <tr key={week} className="border-t border-white/5">
               <td className="py-1.5 text-foreground/80">{formatDate(week, { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-              <td className="py-1.5 text-right font-bold text-white">{formatKg(weight)}</td>
-              <td className="py-1.5 text-right text-muted">{previous ? signedKg(weight - previous.weight) : '–'}</td>
+              <td className="py-1.5 text-right font-bold text-white">{formatWeight(weight, unit)}</td>
+              <td className="py-1.5 text-right text-muted">{previous ? signedWeight(weight - previous.weight, unit) : '–'}</td>
             </tr>
           ))}
       </tbody>

@@ -10,8 +10,8 @@ import { SectionTitle } from '@/components/ui/Page'
 import { buttonStyles } from '@/components/ui/styles'
 import { formatDate } from '@/lib/date'
 import { MUSCLE_GROUP_EMOJIS, getExercise } from '@/lib/exercises-data'
-import { formatKg } from '@/lib/format'
-import type { ExerciseHistory } from '@/lib/types'
+import { formatWeight } from '@/lib/format'
+import type { ExerciseHistory, WeightUnit } from '@/lib/types'
 import { setTracked } from './actions'
 
 interface RowProps {
@@ -19,9 +19,18 @@ interface RowProps {
   entry: ExerciseHistory | undefined
   tracked: boolean
   onToggle: () => void
+  unit: WeightUnit
 }
 
-export function ProgressClient({ history, trackedIds }: { history: ExerciseHistory[]; trackedIds: string[] }) {
+export function ProgressClient({
+  history,
+  trackedIds,
+  unit,
+}: {
+  history: ExerciseHistory[]
+  trackedIds: string[]
+  unit: WeightUnit
+}) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // The lift tracked last, so its card floats into the grid.
@@ -53,6 +62,7 @@ export function ProgressClient({ history, trackedIds }: { history: ExerciseHisto
     entry: historyById.get(exerciseId),
     tracked: isTracked(exerciseId),
     onToggle: () => toggle(exerciseId, !isTracked(exerciseId)),
+    unit,
   })
 
   return (
@@ -120,7 +130,7 @@ function exerciseInfo(exerciseId: string, entry: ExerciseHistory | undefined) {
 }
 
 /** Tracked lifts get a card each, with the best weight as the headline. */
-function TrackedCard({ exerciseId, entry, tracked, onToggle, isNew }: RowProps & { isNew: boolean }) {
+function TrackedCard({ exerciseId, entry, tracked, onToggle, unit, isNew }: RowProps & { isNew: boolean }) {
   const { name, emoji, lastDone } = exerciseInfo(exerciseId, entry)
 
   return (
@@ -134,7 +144,7 @@ function TrackedCard({ exerciseId, entry, tracked, onToggle, isNew }: RowProps &
         <span className="mt-auto pt-3">
           {entry &&
             (entry.bestWeight > 0 ? (
-              <span className="block font-display text-2xl font-bold leading-none">{formatKg(entry.bestWeight)}</span>
+              <span className="block font-display text-2xl font-bold leading-none">{formatWeight(entry.bestWeight, unit)}</span>
             ) : (
               <span className="block text-sm font-semibold">Bodyweight</span>
             ))}
@@ -146,7 +156,7 @@ function TrackedCard({ exerciseId, entry, tracked, onToggle, isNew }: RowProps &
   )
 }
 
-function ExerciseRow({ exerciseId, entry, tracked, onToggle }: RowProps) {
+function ExerciseRow({ exerciseId, entry, tracked, onToggle, unit }: RowProps) {
   const { name, emoji, lastDone } = exerciseInfo(exerciseId, entry)
 
   return (
@@ -161,7 +171,7 @@ function ExerciseRow({ exerciseId, entry, tracked, onToggle }: RowProps) {
           <span className="text-[11px] text-muted">{lastDone}</span>
         </span>
         {entry && entry.bestWeight > 0 ? (
-          <span className="shrink-0 text-sm font-bold tabular-nums">{formatKg(entry.bestWeight)}</span>
+          <span className="shrink-0 text-sm font-bold tabular-nums">{formatWeight(entry.bestWeight, unit)}</span>
         ) : (
           <span className="shrink-0 text-xs text-muted">Bodyweight</span>
         )}

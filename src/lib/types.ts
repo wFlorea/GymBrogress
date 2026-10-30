@@ -77,7 +77,11 @@ export interface UserSettings {
   weightPlan: WeightPlan
   planPace: PlanPace
   restTimer: RestTimerSettings
+  weightUnit: WeightUnit
 }
+
+/** How weights are shown and typed; they're always kept in kg. */
+export type WeightUnit = 'kg' | 'lb'
 
 /** How long the rest timer runs, in seconds. */
 export type RestSeconds = 60 | 90 | 120 | 180

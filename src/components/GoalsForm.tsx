@@ -9,7 +9,7 @@ import { Alert } from '@/components/ui/Card'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { buttonStyles } from '@/components/ui/styles'
 import { goalWeightText, maintenanceCaloriesFor, missingForCalories } from '@/lib/body'
-import { formatKcal, formatKg } from '@/lib/format'
+import { formatKcal, formatWeight } from '@/lib/format'
 import {
   FAT_SHARE,
   MACROS,
@@ -23,7 +23,8 @@ import {
   planCalories,
   weeklyWeightChange,
 } from '@/lib/nutrition'
-import type { BodyStats, Nutrition, NutritionGoals, PlanPace, WeightPlan } from '@/lib/types'
+import type { BodyStats, Nutrition, NutritionGoals, PlanPace, WeightPlan, WeightUnit } from '@/lib/types'
+import { fromKg, toKg, weightText } from '@/lib/units'
 
 type Macro = Exclude<keyof Nutrition, 'calories'>
 /** The fields as typed. */
@@ -42,6 +43,7 @@ export function GoalsForm({
   goals,
   weightPlan,
   planPace,
+  unit,
   onSaved,
   onAddDetails,
 }: {
@@ -51,12 +53,13 @@ export function GoalsForm({
   goals: NutritionGoals
   weightPlan: WeightPlan
   planPace: PlanPace
+  unit: WeightUnit
   onSaved: () => void
   /** Opens the details form, for the stats the maintenance still needs. */
   onAddDetails?: () => void
 }) {
   const [fields, setFields] = useState<Fields>({
-    goalWeight: textOf(goalWeight),
+    goalWeight: weightText(goalWeight, unit),
     calories: textOf(goals.calories),
     protein: textOf(goals.protein),
     carbs: textOf(goals.carbs),
@@ -68,7 +71,9 @@ export function GoalsForm({
   const [pending, startTransition] = useTransition()
 
   const { weight } = body
-  const target = parseAmount(fields.goalWeight)
+  const typedTarget = parseAmount(fields.goalWeight)
+  // Typed in the user's unit, kept in kg.
+  const target = typedTarget === null || Number.isNaN(typedTarget) ? typedTarget : toKg(typedTarget, unit)
   const maintenance = maintenanceCaloriesFor(body)
   const planned = maintenance === null ? null : planCalories(maintenance, plan, pace)
 
@@ -134,15 +139,15 @@ export function GoalsForm({
       <div>
         <AmountField
           label="Goal weight"
-          unit="kg"
+          unit={unit}
           value={fields.goalWeight}
           onChange={(goalWeight) => setFields((f) => ({ ...f, goalWeight }))}
-          placeholder={weight === null ? 'e.g. 70' : String(weight)}
+          placeholder={weight === null ? (unit === 'kg' ? 'e.g. 70' : 'e.g. 155') : weightText(weight, unit)}
         />
         {weight !== null && (
           <p className="mt-1.5 text-[11px] text-muted">
-            You weigh {formatKg(weight)} now
-            {target !== null && !Number.isNaN(target) && target > 0 && `: ${goalWeightText(weight, target)}`}.
+            You weigh {formatWeight(weight, unit)} now
+            {target !== null && !Number.isNaN(target) && target > 0 && `: ${goalWeightText(weight, target, unit)}`}.
           </p>
         )}
       </div>
@@ -171,8 +176,10 @@ export function GoalsForm({
               <p className="mt-3 text-center text-[11px] leading-relaxed text-muted">
                 <span className="font-semibold text-white">{formatKcal(planned)} a day</span>,{' '}
                 {formatKcal(Math.abs(planned - maintenance))} {plan === 'cut' ? 'under' : 'over'} your maintenance: about{' '}
-                {Math.abs(weeklyWeightChange(planned, maintenance)).toLocaleString('en-GB', { maximumFractionDigits: 1 })} kg a
-                week {plan === 'cut' ? 'off' : 'on'}.
+                {fromKg(Math.abs(weeklyWeightChange(planned, maintenance)), unit).toLocaleString('en-GB', {
+                  maximumFractionDigits: 1,
+                })}{' '}
+                {unit} a week {plan === 'cut' ? 'off' : 'on'}.
               </p>
             )}
           </PaceDial>

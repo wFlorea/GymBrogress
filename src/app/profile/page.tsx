@@ -54,7 +54,7 @@ export default async function ProfilePage() {
 
       <section className="mb-8">
         <SectionTitle subtitle="Your weekly check-ins">Weight history</SectionTitle>
-        <WeightHistory entries={weightLog} thisWeek={mondayOf(today)} currentWeight={settings.body.weight} />
+        <WeightHistory entries={weightLog} thisWeek={mondayOf(today)} currentWeight={settings.body.weight} unit={settings.weightUnit} />
       </section>
 
       <section className="mb-8">

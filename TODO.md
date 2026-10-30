@@ -9,7 +9,7 @@ already has `weight_logs` and `push_subscriptions`.
 
 - [ ] Apply the new migrations to the live database, in order, before deploying (the app's code needs them):
       `20261030120000_push_time_zone.sql`, `20261030130000_rest_timer.sql`,
-      `20261030140000_saved_meals_water.sql`
+      `20261030140000_saved_meals_water.sql`, `20261030150000_weight_unit.sql`
 - [ ] Set the env vars on Vercel: `CRON_SECRET`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
       `SUPABASE_SERVICE_ROLE_KEY`
 - [ ] Supabase Auth → URL Configuration: add `https://gym.florea.lol/**` and `http://localhost:3000/**` to the
@@ -55,5 +55,5 @@ already has `weight_logs` and `push_subscriptions`.
 - [x] **Weight trend:** a chart of the weigh-ins and how far you are from the goal weight, on the dashboard (after 4 check-ins, like Profile; the goal is a dashed line)
 - [x] **Progress:** estimated 1RM, volume per muscle group, and a celebration for a new PR (1RM on each exercise page; sets per muscle group over 7 days on Progress; a note in the tracker when a set beats the heaviest weight so far)
 - [x] **Food:** copy yesterday's meals, saved meals, water tracking
-- [ ] **Units:** a kg/lbs toggle
+- [x] **Units:** a kg/lbs toggle (in Settings; weights are still stored in kg)
 - [ ] **Tests:** start with the maths in `nutrition.ts`, `body.ts`, `streak.ts` and `date.ts`

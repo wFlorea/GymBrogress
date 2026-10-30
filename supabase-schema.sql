@@ -76,6 +76,8 @@ CREATE TABLE user_settings (
   -- The rest timer that starts when a set is ticked off, and how long it runs, in seconds.
   rest_timer_on BOOLEAN NOT NULL DEFAULT true,
   rest_timer_seconds INTEGER NOT NULL DEFAULT 90 CHECK (rest_timer_seconds IN (60, 90, 120, 180)),
+  -- How weights are shown and typed; they're always stored in kg.
+  weight_unit TEXT NOT NULL DEFAULT 'kg' CHECK (weight_unit IN ('kg', 'lb')),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 

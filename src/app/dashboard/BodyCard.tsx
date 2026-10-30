@@ -7,9 +7,9 @@ import { Card, StatItem } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { buttonStyles } from '@/components/ui/styles'
 import { ACTIVITY_LEVELS, BMI_CATEGORIES, SEXES, bmiCategory, bmiOf, goalWeightText } from '@/lib/body'
-import { formatKcal, formatKg } from '@/lib/format'
+import { formatKcal, formatWeight } from '@/lib/format'
 import { WEIGHT_PLANS } from '@/lib/nutrition'
-import type { BodyStats, NutritionGoals, PlanPace, WeightPlan } from '@/lib/types'
+import type { BodyStats, NutritionGoals, PlanPace, WeightPlan, WeightUnit } from '@/lib/types'
 import { BodyForm } from './BodyForm'
 
 /** The BMI range the scale shows; values outside it sit at its ends. */
@@ -26,12 +26,14 @@ export function BodyCard({
   goals,
   weightPlan,
   planPace,
+  unit,
 }: {
   body: BodyStats
   goalWeight: number | null
   goals: NutritionGoals
   weightPlan: WeightPlan
   planPace: PlanPace
+  unit: WeightUnit
 }) {
   const [sheet, setSheet] = useState<'body' | 'goals' | null>(null)
   // Bumped on every open, so the forms start fresh.
@@ -43,7 +45,7 @@ export function BodyCard({
   const activity = ACTIVITY_LEVELS.find((level) => level.key === body.activity)
   const hasGoal = goalWeight !== null || goals.calories !== null
   const goalDetails = [
-    body.weight !== null && goalWeight !== null && goalWeightText(body.weight, goalWeight),
+    body.weight !== null && goalWeight !== null && goalWeightText(body.weight, goalWeight, unit),
     weightPlan !== 'maintain' && `${WEIGHT_PLANS.find((plan) => plan.key === weightPlan)?.label.toLowerCase()} ${planPace}%`,
     goals.calories !== null && `${formatKcal(goals.calories)} a day`,
   ].filter(Boolean)
@@ -74,7 +76,7 @@ export function BodyCard({
         )}
 
         <dl className="mt-5 grid grid-cols-4 gap-1 border-t border-white/5 pt-4 text-center">
-          <StatItem value={body.weight === null ? '–' : formatKg(body.weight)} label="Weight" className="text-lg" />
+          <StatItem value={body.weight === null ? '–' : formatWeight(body.weight, unit)} label="Weight" className="text-lg" />
           <StatItem value={body.height === null ? '–' : `${body.height} cm`} label="Height" className="text-lg" />
           <StatItem value={body.age ?? '–'} label="Age" className="text-lg" />
           <StatItem value={body.bodyFat === null ? '–' : `${body.bodyFat}%`} label="Body fat" className="text-lg" />
@@ -89,7 +91,7 @@ export function BodyCard({
         <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-border bg-sunken p-3.5">
           <div className="min-w-0">
             <p className="text-[11px] text-muted">Goal</p>
-            <p className="font-semibold">{goalWeight === null ? 'No goal weight yet' : formatKg(goalWeight)}</p>
+            <p className="font-semibold">{goalWeight === null ? 'No goal weight yet' : formatWeight(goalWeight, unit)}</p>
             <p className="text-[11px] text-muted">
               {goalDetails.length > 0 ? goalDetails.join(', ') : 'Pick the weight you want and your daily calories.'}
             </p>
@@ -101,7 +103,7 @@ export function BodyCard({
       </Card>
 
       <Modal open={sheet === 'body'} onClose={() => setSheet(null)} title="Your details">
-        <BodyForm key={formKey} body={body} weightPlan={weightPlan} planPace={planPace} onSaved={() => setSheet(null)} />
+        <BodyForm key={formKey} body={body} weightPlan={weightPlan} planPace={planPace} unit={unit} onSaved={() => setSheet(null)} />
       </Modal>
       <Modal open={sheet === 'goals'} onClose={() => setSheet(null)} title="Your goals">
         <GoalsForm
@@ -111,6 +113,7 @@ export function BodyCard({
           goals={goals}
           weightPlan={weightPlan}
           planPace={planPace}
+          unit={unit}
           onSaved={() => setSheet(null)}
           onAddDetails={() => open('body')}
         />

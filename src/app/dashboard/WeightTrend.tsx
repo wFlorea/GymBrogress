@@ -6,14 +6,14 @@ import { Meter } from '@/components/ui/Meter'
 import { buttonStyles } from '@/components/ui/styles'
 import { goalProgress, goalWeightText } from '@/lib/body'
 import { formatDate } from '@/lib/date'
-import { formatKg, plural, signedKg } from '@/lib/format'
-import type { WeightEntry } from '@/lib/types'
+import { formatWeight, plural, signedWeight } from '@/lib/format'
+import type { WeightEntry, WeightUnit } from '@/lib/types'
 
 /** The weekly weigh-ins as a chart with the goal weight as a line, and how much of the way there the user is. */
-export function WeightTrend({ entries, goal }: { entries: WeightEntry[]; goal: number | null }) {
+export function WeightTrend({ entries, goal, unit }: { entries: WeightEntry[]; goal: number | null; unit: WeightUnit }) {
   const start = entries[0]
   const latest = entries.at(-1)!
-  const change = `${signedKg(latest.weight - start.weight)} since ${formatDate(start.week, { day: 'numeric', month: 'short' })}`
+  const change = `${signedWeight(latest.weight - start.weight, unit)} since ${formatDate(start.week, { day: 'numeric', month: 'short' })}`
   const progress = goal === null ? null : goalProgress(start.weight, latest.weight, goal)
   const percent = progress === null ? 0 : Math.round(progress * 100)
 
@@ -22,16 +22,17 @@ export function WeightTrend({ entries, goal }: { entries: WeightEntry[]; goal: n
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="font-semibold">Weight trend</h2>
-          <p className="text-xs text-muted">{goal === null ? change : `${goalWeightText(latest.weight, goal)}, ${change}`}</p>
+          <p className="text-xs text-muted">{goal === null ? change : `${goalWeightText(latest.weight, goal, unit)}, ${change}`}</p>
         </div>
         <Link href="/profile" className={`${buttonStyles.chip} shrink-0 whitespace-nowrap`}>
           History <ChevronRight size={13} />
         </Link>
       </div>
       <LineChart
+        unit={unit}
         points={entries.map((entry) => ({ date: entry.week, value: entry.weight }))}
-        label={`Weight over ${plural(entries.length, 'week')}, from ${formatKg(start.weight)} to ${formatKg(latest.weight)}${
-          goal === null ? '' : `, with a goal of ${formatKg(goal)}`
+        label={`Weight over ${plural(entries.length, 'week')}, from ${formatWeight(start.weight, unit)} to ${formatWeight(latest.weight, unit)}${
+          goal === null ? '' : `, with a goal of ${formatWeight(goal, unit)}`
         }`}
         fitToData
         tooltipPrefix="Week of "
@@ -47,10 +48,10 @@ export function WeightTrend({ entries, goal }: { entries: WeightEntry[]; goal: n
               value={percent}
               max={100}
               label="Way to your goal weight"
-              valueText={`${percent}% of the way from ${formatKg(start.weight)} to ${formatKg(goal)}`}
+              valueText={`${percent}% of the way from ${formatWeight(start.weight, unit)} to ${formatWeight(goal, unit)}`}
             />
             <p className="mt-2 flex justify-between gap-3 text-xs text-muted">
-              <span>Started at {formatKg(start.weight)}</span>
+              <span>Started at {formatWeight(start.weight, unit)}</span>
               <span className="font-bold text-white">{percent}% of the way</span>
             </p>
           </div>

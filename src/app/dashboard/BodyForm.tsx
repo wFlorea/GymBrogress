@@ -20,7 +20,8 @@ import {
 } from '@/lib/body'
 import { formatKcal } from '@/lib/format'
 import { MACROS, WEIGHT_PLANS, parseAmount, recommendedGoals } from '@/lib/nutrition'
-import type { ActivityLevel, BodyStats, Nutrition, PlanPace, Sex, WeightPlan } from '@/lib/types'
+import type { ActivityLevel, BodyStats, Nutrition, PlanPace, Sex, WeightPlan, WeightUnit } from '@/lib/types'
+import { toKg, weightText } from '@/lib/units'
 import { saveBodyStats } from './actions'
 import { BodyFatDial } from './BodyFatDial'
 
@@ -41,22 +42,26 @@ export function BodyForm({
   body,
   weightPlan,
   planPace,
+  unit,
   onSaved,
 }: {
   body: BodyStats
   /** The plan the daily goals follow; it's changed in the goals form. */
   weightPlan: WeightPlan
   planPace: PlanPace
+  unit: WeightUnit
   onSaved: () => void
 }) {
-  const [fields, setFields] = useState<Fields>({ weight: textOf(body.weight), height: textOf(body.height), age: textOf(body.age) })
+  const [fields, setFields] = useState<Fields>({ weight: weightText(body.weight, unit), height: textOf(body.height), age: textOf(body.age) })
   const [sex, setSex] = useState(body.sex)
   const [bodyFat, setBodyFat] = useState(body.bodyFat)
   const [activity, setActivity] = useState(body.activity)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
-  const weight = parseAmount(fields.weight)
+  const typedWeight = parseAmount(fields.weight)
+  // Typed in the user's unit, kept in kg.
+  const weight = typedWeight === null || Number.isNaN(typedWeight) ? typedWeight : toKg(typedWeight, unit)
   const height = parseAmount(fields.height)
   const age = parseAmount(fields.age)
   const validWeight = withinRange(weight, MIN_WEIGHT_KG, MAX_WEIGHT_KG)
@@ -89,7 +94,13 @@ export function BodyForm({
       </p>
       <SexPicker sex={sex} onChange={setSex} />
       <div className="grid grid-cols-3 gap-2">
-        <AmountField label="Weight" unit="kg" value={fields.weight} onChange={(value) => setFields((f) => ({ ...f, weight: value }))} placeholder="72.5" />
+        <AmountField
+          label="Weight"
+          unit={unit}
+          value={fields.weight}
+          onChange={(value) => setFields((f) => ({ ...f, weight: value }))}
+          placeholder={unit === 'kg' ? '72.5' : '160'}
+        />
         <AmountField label="Height" unit="cm" value={fields.height} onChange={(value) => setFields((f) => ({ ...f, height: value }))} placeholder="180" />
         <AmountField label="Age" unit="yrs" value={fields.age} onChange={(value) => setFields((f) => ({ ...f, age: value }))} placeholder="25" />
       </div>

@@ -8,10 +8,11 @@ import { Alert, EmptyState } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { buttonStyles } from '@/components/ui/styles'
 import { MUSCLE_GROUP_LABELS, getExercise } from '@/lib/exercises-data'
-import { formatClock, formatKg, plural } from '@/lib/format'
+import { formatClock, formatWeight, plural } from '@/lib/format'
 import { DEFAULT_SETS_PER_EXERCISE, MAX_REPS, MAX_WEIGHT_KG } from '@/lib/sets'
 import { getSplitOption } from '@/lib/splits'
-import type { Exercise, PlannedExercise, RestTimerSettings, SetValues, WorkoutDay, WorkoutSet } from '@/lib/types'
+import type { Exercise, PlannedExercise, RestTimerSettings, SetValues, WeightUnit, WorkoutDay, WorkoutSet } from '@/lib/types'
+import { fromKg, roundWeight, toKg } from '@/lib/units'
 import { addExerciseToWorkout, finishWorkout, syncWithPlan } from './actions'
 import { useRestTimer, useSetPersistence } from './hooks'
 import { applyChanges, type SetChange } from './outbox'
@@ -46,6 +47,7 @@ export function TrackerClient({
   plannedExercises,
   restTimer,
   personalBests,
+  weightUnit,
 }: {
   day: WorkoutDay
   plannedExercises: PlannedExercise[]
@@ -53,6 +55,8 @@ export function TrackerClient({
   restTimer: RestTimerSettings
   /** The heaviest weight ticked off so far for each exercise, in kg. */
   personalBests: Record<string, number>
+  /** From Settings: weights are typed and shown in kg or lb, and kept in kg. */
+  weightUnit: WeightUnit
 }) {
   const [sets, setSets] = useState(day.sets)
   const [finished, setFinished] = useState(day.finished_at !== null)
@@ -127,7 +131,7 @@ export function TrackerClient({
   }
 
   function changeValue(set: WorkoutSet, field: keyof SetValues, input: string) {
-    const parsed = field === 'actual_weight' ? Math.round(parseFloat(input) * 100) / 100 : parseInt(input, 10)
+    const parsed = field === 'actual_weight' ? Math.round(toKg(parseFloat(input), weightUnit) * 100) / 100 : parseInt(input, 10)
     const max = field === 'actual_weight' ? MAX_WEIGHT_KG : MAX_REPS
     const value = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), max) : 0
     patchLocal(set.id, { [field]: value })
@@ -282,6 +286,7 @@ export function TrackerClient({
             onChange={changeValue}
             onToggle={toggleCompleted}
             onDelete={deleteSet}
+            unit={weightUnit}
           />
         ))
       )}
@@ -314,7 +319,7 @@ export function TrackerClient({
         )}
       </div>
 
-      {record && <RecordNote key={record.setId} record={record} onClose={() => setRecord(null)} />}
+      {record && <RecordNote key={record.setId} record={record} unit={weightUnit} onClose={() => setRecord(null)} />}
 
       {timer.active && (
         <RestTimerBar
@@ -352,7 +357,7 @@ export function TrackerClient({
           <div className="grid grid-cols-3 gap-2">
             <SummaryStat value={completed.length} label="Sets done" />
             <SummaryStat value={new Set(completed.map((s) => s.exercise_id)).size} label="Exercises" />
-            <SummaryStat value={Math.round(volumeKg).toLocaleString('en-GB')} label="Volume (kg)" />
+            <SummaryStat value={Math.round(fromKg(volumeKg, weightUnit)).toLocaleString('en-GB')} label={`Volume (${weightUnit})`} />
           </div>
           <Link href="/dashboard" className={`${buttonStyles.primary} w-full`}>
             Back to dashboard
@@ -373,6 +378,7 @@ function ExerciseCard({
   onChange,
   onToggle,
   onDelete,
+  unit,
 }: {
   index: number
   exerciseId: string
@@ -384,6 +390,7 @@ function ExerciseCard({
   onChange: (set: WorkoutSet, field: keyof SetValues, input: string) => void
   onToggle: (set: WorkoutSet) => void
   onDelete: (set: WorkoutSet) => void
+  unit: WeightUnit
 }) {
   const exercise = getExercise(exerciseId)
   const name = exercise?.name ?? sets[0]?.exercise_name ?? 'Exercise'
@@ -420,7 +427,7 @@ function ExerciseCard({
       <div className="space-y-2.5 p-4">
         <div className="grid grid-cols-12 gap-2 px-2 text-[11px] font-black uppercase tracking-wider text-muted" aria-hidden>
           <span className="col-span-2 text-center">Set</span>
-          <span className="col-span-4 text-center">Kg</span>
+          <span className="col-span-4 text-center">{unit}</span>
           <span className="col-span-3 text-center">Reps</span>
           <span className="col-span-3 text-center">Done</span>
         </div>
@@ -439,6 +446,7 @@ function ExerciseCard({
                 onToggle(s)
               }}
               onDelete={onDelete}
+              unit={unit}
             />
           ))
         )}
@@ -466,12 +474,14 @@ function SetRow({
   onChange,
   onToggle,
   onDelete,
+  unit,
 }: {
   number: number
   set: WorkoutSet
   onChange: (set: WorkoutSet, field: keyof SetValues, input: string) => void
   onToggle: (set: WorkoutSet) => void
   onDelete: (set: WorkoutSet) => void
+  unit: WeightUnit
 }) {
   // Only pop the tick when it's tapped, not for sets that were already done.
   const [toggled, setToggled] = useState(false)
@@ -488,13 +498,13 @@ function SetRow({
           type="number"
           inputMode="decimal"
           min={0}
-          max={MAX_WEIGHT_KG}
+          max={Math.floor(fromKg(MAX_WEIGHT_KG, unit))}
           step="any"
-          value={set.actual_weight === 0 ? '' : set.actual_weight}
+          value={set.actual_weight === 0 ? '' : roundWeight(fromKg(set.actual_weight, unit), unit)}
           onChange={(e) => onChange(set, 'actual_weight', e.target.value)}
           onFocus={(e) => e.target.select()}
           placeholder="0"
-          aria-label={`Set ${number} weight in kg`}
+          aria-label={`Set ${number} weight in ${unit}`}
           className={numberInput}
         />
       </div>
@@ -544,7 +554,7 @@ function SetRow({
 }
 
 /** Pops up at the top when a set beats the exercise's personal best. */
-function RecordNote({ record, onClose }: { record: NewRecord; onClose: () => void }) {
+function RecordNote({ record, unit, onClose }: { record: NewRecord; unit: WeightUnit; onClose: () => void }) {
   return (
     <div
       role="status"
@@ -556,9 +566,9 @@ function RecordNote({ record, onClose }: { record: NewRecord; onClose: () => voi
       <span className="min-w-0 flex-1">
         <span className="block text-[10px] font-black uppercase tracking-wider text-muted">New personal best</span>
         <span className="block truncate font-black text-white">
-          {record.exerciseName}, {formatKg(record.weight)}
+          {record.exerciseName}, {formatWeight(record.weight, unit)}
         </span>
-        <span className="block text-[11px] text-muted">Up from {formatKg(record.previous)}</span>
+        <span className="block text-[11px] text-muted">Up from {formatWeight(record.previous, unit)}</span>
       </span>
       <button
         type="button"

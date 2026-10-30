@@ -4,6 +4,7 @@ import { isActivityLevel, isSex } from '@/lib/body'
 import { DEFAULT_PLAN_PACE, isPlanPace, isWeightPlan } from '@/lib/nutrition'
 import { DEFAULT_REST_SECONDS, isRestSeconds } from '@/lib/sets'
 import { isWorkoutSplit } from '@/lib/splits'
+import { DEFAULT_WEIGHT_UNIT, isWeightUnit } from '@/lib/units'
 import type { UserSettings } from '@/lib/types'
 import { getSession } from './session'
 
@@ -13,7 +14,7 @@ export const getUserSettings = cache(async (): Promise<UserSettings> => {
   const { data, error } = await supabase
     .from('user_settings')
     .select(
-      'split_order, tracked_exercise_ids, calorie_goal, protein_goal, carbs_goal, fat_goal, weight_kg, height_cm, age, sex, goal_weight_kg, weight_plan, plan_pace, body_fat, activity_level, rest_timer_on, rest_timer_seconds'
+      'split_order, tracked_exercise_ids, calorie_goal, protein_goal, carbs_goal, fat_goal, weight_kg, height_cm, age, sex, goal_weight_kg, weight_plan, plan_pace, body_fat, activity_level, rest_timer_on, rest_timer_seconds, weight_unit'
     )
     .eq('user_id', user.id)
     .maybeSingle()
@@ -45,5 +46,6 @@ export const getUserSettings = cache(async (): Promise<UserSettings> => {
       on: data?.rest_timer_on ?? true,
       seconds: isRestSeconds(data?.rest_timer_seconds) ? data.rest_timer_seconds : DEFAULT_REST_SECONDS,
     },
+    weightUnit: isWeightUnit(data?.weight_unit) ? data.weight_unit : DEFAULT_WEIGHT_UNIT,
   }
 })

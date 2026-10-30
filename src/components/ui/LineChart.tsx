@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { addDays, daysBetween, formatDate } from '@/lib/date'
-import { formatKg } from '@/lib/format'
-import type { IsoDate } from '@/lib/types'
+import { formatWeight } from '@/lib/format'
+import type { IsoDate, WeightUnit } from '@/lib/types'
+import { fromKg } from '@/lib/units'
 
 /** A weight in kg on a date. */
 export interface ChartPoint {
@@ -17,7 +18,7 @@ const PAD = { top: 28, right: 24, bottom: 40, left: 40 }
 const LABEL_WIDTH = 52
 /** Below this many pixels per point the dots would crowd the line, so only the line is drawn. */
 const DOT_SPACING = 12
-/** Room above and below the line when the axis fits the data, in kg, so a flat line doesn't sit on an edge. */
+/** Room above and below the line when the axis fits the data, in the unit shown, so a flat line doesn't sit on an edge. */
 const FIT_PADDING = 0.5
 
 /** Round axis bounds around `low` to `high`, split into about four steps. */
@@ -44,6 +45,7 @@ export function LineChart({
   tooltipPrefix = '',
   goal = null,
   height = DEFAULT_HEIGHT,
+  unit,
 }: {
   points: ChartPoint[]
   label: string
@@ -53,6 +55,8 @@ export function LineChart({
   /** A goal weight to draw as a dashed line. */
   goal?: number | null
   height?: number
+  /** The unit the axis and labels show; the points and goal stay in kg. */
+  unit: WeightUnit
 }) {
   const container = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(340)
@@ -71,19 +75,19 @@ export function LineChart({
   const start = points[0].date
   const span = daysBetween(start, points.at(-1)!.date)
   const x = (date: string) => PAD.left + (span === 0 ? plotWidth / 2 : (daysBetween(start, date) / span) * plotWidth)
-  const values = [...points.map((p) => p.value), ...(goal === null ? [] : [goal])]
+  const values = [...points.map((p) => p.value), ...(goal === null ? [] : [goal])].map((kg) => fromKg(kg, unit))
   const scale = fitToData
     ? niceScale(Math.min(...values) - FIT_PADDING, Math.max(...values) + FIT_PADDING)
     : niceScale(0, Math.max(...values))
   const y = (value: number) => PAD.top + plotHeight - ((value - scale.min) / (scale.max - scale.min)) * plotHeight
   const bottom = y(scale.min)
-  const goalY = goal === null ? null : y(goal)
+  const goalY = goal === null ? null : y(fromKg(goal, unit))
   const ticks = Array.from(
     { length: Math.round((scale.max - scale.min) / scale.step) + 1 },
     (_, i) => scale.min + i * scale.step
   )
 
-  const coords = points.map((p) => ({ ...p, cx: x(p.date), cy: y(p.value) }))
+  const coords = points.map((p) => ({ ...p, cx: x(p.date), cy: y(fromKg(p.value, unit)) }))
   const line = coords.map((c, i) => `${i === 0 ? 'M' : 'L'}${c.cx},${c.cy}`).join(' ')
   const first = coords[0]
   const last = coords.at(-1)!
@@ -181,7 +185,7 @@ export function LineChart({
               className="fill-muted stroke-surface text-[10px] font-bold [paint-order:stroke]"
               strokeWidth={3}
             >
-              Goal {formatKg(goal)}
+              Goal {formatWeight(goal, unit)}
             </text>
           </g>
         )}
@@ -214,7 +218,7 @@ export function LineChart({
             textAnchor={last.cx > width - PAD.right - 24 ? 'end' : 'middle'}
             className="fill-white text-[11px] font-bold"
           >
-            {formatKg(last.value)}
+            {formatWeight(last.value, unit)}
           </text>
         )}
       </svg>
@@ -228,7 +232,7 @@ export function LineChart({
             transform: tooltipBelow ? 'translate(-50%, 14px)' : 'translate(-50%, calc(-100% - 14px))',
           }}
         >
-          <span className="block text-sm font-black text-white">{formatKg(shown.value)}</span>
+          <span className="block text-sm font-black text-white">{formatWeight(shown.value, unit)}</span>
           <span className="block text-[10px] font-bold text-muted">
             {tooltipPrefix}
             {formatDate(shown.date, { day: 'numeric', month: 'long', year: 'numeric' })}

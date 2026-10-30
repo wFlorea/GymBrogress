@@ -47,6 +47,7 @@ export default async function FoodPage({ searchParams }: { searchParams: Promise
         goalWeight={settings.goalWeight}
         weightPlan={settings.weightPlan}
         planPace={settings.planPace}
+        weightUnit={settings.weightUnit}
       />
     </Page>
   )

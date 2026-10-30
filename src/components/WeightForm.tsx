@@ -7,7 +7,9 @@ import { AmountField } from '@/components/ui/AmountField'
 import { Alert } from '@/components/ui/Card'
 import { SubmitButton } from '@/components/ui/SubmitButton'
 import { buttonStyles } from '@/components/ui/styles'
-import { formatKg } from '@/lib/format'
+import { formatWeight } from '@/lib/format'
+import type { WeightUnit } from '@/lib/types'
+import { toKg, weightText } from '@/lib/units'
 import { parseAmount } from '@/lib/nutrition'
 
 /**
@@ -17,14 +19,16 @@ import { parseAmount } from '@/lib/nutrition'
 export function WeightForm({
   lastWeight,
   editing = false,
+  unit,
   onSaved,
 }: {
   lastWeight: number | null
   editing?: boolean
+  unit: WeightUnit
   onSaved?: () => void
 }) {
   const [typing, setTyping] = useState(editing || lastWeight === null)
-  const [text, setText] = useState(lastWeight === null ? '' : String(lastWeight))
+  const [text, setText] = useState(weightText(lastWeight, unit))
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -40,15 +44,15 @@ export function WeightForm({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const weight = parseAmount(text)
-    if (weight === null || Number.isNaN(weight)) return setError('Enter your weight in kg, like 72.5.')
-    save(weight)
+    if (weight === null || Number.isNaN(weight)) return setError(`Enter your weight in ${unit}, like ${unit === 'kg' ? '72.5' : '160'}.`)
+    save(toKg(weight, unit))
   }
 
   return (
     <div className="space-y-3">
       {typing || lastWeight === null ? (
         <form onSubmit={submit} className="space-y-3">
-          <AmountField label="Your weight this week" unit="kg" value={text} onChange={setText} placeholder="72.5" />
+          <AmountField label="Your weight this week" unit={unit} value={text} onChange={setText} placeholder={unit === 'kg' ? '72.5' : '160'} />
           <SubmitButton pending={pending} pendingLabel="Saving…">
             <Check size={18} /> Save weight
           </SubmitButton>
@@ -57,7 +61,7 @@ export function WeightForm({
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <button type="button" onClick={() => save(lastWeight)} disabled={pending} className={buttonStyles.primary}>
             {pending ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
-            Same, {formatKg(lastWeight)}
+            Same, {formatWeight(lastWeight, unit)}
           </button>
           <button
             type="button"

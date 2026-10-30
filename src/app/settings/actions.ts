@@ -8,7 +8,8 @@ import { getSession } from '@/lib/data/session'
 import { isValidTimeZone, TIMEZONE_COOKIE } from '@/lib/date'
 import { isPushEndpoint } from '@/lib/push'
 import { isRestSeconds } from '@/lib/sets'
-import type { ActionResult } from '@/lib/types'
+import type { ActionResult, WeightUnit } from '@/lib/types'
+import { isWeightUnit } from '@/lib/units'
 import { createAdminClient } from '@/utils/supabase/admin'
 
 const BASE64URL = /^[A-Za-z0-9_-]+=*$/
@@ -65,6 +66,19 @@ export async function saveRestTimer(on: boolean, seconds: number): Promise<Actio
     )
   if (error) return dbFail('saveRestTimer', error, 'Could not save the rest timer. Please try again.')
   revalidatePath('/tracker')
+  return ok()
+}
+
+/** Shows and takes weights in kg or lb across the app. */
+export async function saveWeightUnit(unit: WeightUnit): Promise<ActionResult> {
+  if (!isWeightUnit(unit)) return fail('Pick kg or lb.')
+
+  const { user, supabase } = await getSession()
+  const { error } = await supabase
+    .from('user_settings')
+    .upsert({ user_id: user.id, weight_unit: unit, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+  if (error) return dbFail('saveWeightUnit', error, 'Could not save the unit. Please try again.')
+  revalidatePath('/', 'layout')
   return ok()
 }
 

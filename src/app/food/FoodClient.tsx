@@ -20,6 +20,7 @@ import type {
   PlanPace,
   SavedMeal,
   WeightPlan,
+  WeightUnit,
 } from '@/lib/types'
 import { copyMeal, deleteFoodEntry, saveWater } from './actions'
 import { FoodSheet } from './FoodSheet'
@@ -48,6 +49,7 @@ export function FoodClient({
   goalWeight,
   weightPlan,
   planPace,
+  weightUnit,
 }: {
   date: IsoDate
   entries: FoodEntry[]
@@ -62,6 +64,7 @@ export function FoodClient({
   goalWeight: number | null
   weightPlan: WeightPlan
   planPace: PlanPace
+  weightUnit: WeightUnit
 }) {
   // `sheet` outlives `sheetOpen` so the sheet keeps its content while it slides away.
   const [sheet, setSheet] = useState<Sheet | null>(null)
@@ -179,6 +182,7 @@ export function FoodClient({
           goals={goals}
           weightPlan={weightPlan}
           planPace={planPace}
+          unit={weightUnit}
           onSaved={() => setGoalsOpen(false)}
         />
       </Modal>

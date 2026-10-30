@@ -21,7 +21,7 @@ import { getDisplayName, getToday, requireUser } from '@/lib/data/session'
 import { getUserSettings } from '@/lib/data/settings'
 import { getWeightLog, isCheckInDismissed } from '@/lib/data/weight'
 import { getWorkoutHistory } from '@/lib/data/workouts'
-import type { DaySummary, IsoDate, Nutrition } from '@/lib/types'
+import type { DaySummary, IsoDate, Nutrition, WeightUnit } from '@/lib/types'
 import { dismissWeeklyCheckIn } from './actions'
 import { BodyCard } from './BodyCard'
 import { WeightTrend } from './WeightTrend'
@@ -86,7 +86,7 @@ export default async function DashboardPage() {
         )}
       </header>
 
-      {showCheckIn && <WeeklyCheckIn lastWeight={settings.body.weight ?? weightLog.at(-1)?.weight ?? null} />}
+      {showCheckIn && <WeeklyCheckIn lastWeight={settings.body.weight ?? weightLog.at(-1)?.weight ?? null} unit={settings.weightUnit} />}
 
       <Card className="mb-8">
         <h2 className="font-semibold">This week</h2>
@@ -146,13 +146,14 @@ export default async function DashboardPage() {
       <FoodToday totals={sumNutrition(foodToday)} goal={settings.nutritionGoals.calories} />
 
       <SectionTitle subtitle="Your weight, BMI and goal">Body</SectionTitle>
-      {weightLog.length >= WEIGHT_CHART_AFTER && <WeightTrend entries={weightLog} goal={settings.goalWeight} />}
+      {weightLog.length >= WEIGHT_CHART_AFTER && <WeightTrend entries={weightLog} goal={settings.goalWeight} unit={settings.weightUnit} />}
       <BodyCard
         body={settings.body}
         goalWeight={settings.goalWeight}
         goals={settings.nutritionGoals}
         weightPlan={settings.weightPlan}
         planPace={settings.planPace}
+        unit={settings.weightUnit}
       />
 
       <SectionTitle subtitle="Set up your training">Shortcuts</SectionTitle>
@@ -225,7 +226,7 @@ function WorkoutStatus({ day }: { day: DaySummary | undefined }) {
  * Asks for this week's weight until it's logged or closed (closing skips the week); the history is on the Profile
  * page.
  */
-function WeeklyCheckIn({ lastWeight }: { lastWeight: number | null }) {
+function WeeklyCheckIn({ lastWeight, unit }: { lastWeight: number | null; unit: WeightUnit }) {
   return (
     <Card className="mb-8">
       <div className="mb-4 flex items-start gap-3">
@@ -246,7 +247,7 @@ function WeeklyCheckIn({ lastWeight }: { lastWeight: number | null }) {
           </button>
         </form>
       </div>
-      <WeightForm lastWeight={lastWeight} />
+      <WeightForm lastWeight={lastWeight} unit={unit} />
     </Card>
   )
 }
