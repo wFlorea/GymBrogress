@@ -1,6 +1,6 @@
 import webpush, { WebPushError } from 'web-push'
-import { mondayOf, todayIn } from '@/lib/date'
-import { isPushEndpoint } from '@/lib/push'
+import { addDays, todayIn } from '@/lib/date'
+import { isPushEndpoint, reminderMonday } from '@/lib/push'
 import { SITE_URL } from '@/lib/site'
 import { createAdminClient } from '@/utils/supabase/admin'
 
@@ -19,8 +19,9 @@ const isExpired = (result: PromiseSettledResult<unknown>) =>
 
 /**
  * Sends the weekly check-in reminder to every device with reminders on whose user hasn't logged this week's weight,
- * and drops the subscriptions that expired. Vercel Cron calls it on Monday mornings (see vercel.json) with
- * `Authorization: Bearer $CRON_SECRET`.
+ * and drops the subscriptions that expired. Only devices where it's Monday daytime get it (see `reminderMonday`), so
+ * nobody is woken at night. Vercel Cron calls it once on Monday mornings, European time (see vercel.json; the Hobby
+ * plan allows daily crons at most), with `Authorization: Bearer $CRON_SECRET`.
  */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET
@@ -33,19 +34,28 @@ export async function GET(request: Request) {
   webpush.setVapidDetails(SITE_URL, publicKey, privateKey)
 
   const supabase = createAdminClient()
-  const week = mondayOf(todayIn('UTC'))
+  const now = new Date()
+  // Every device's Monday is within a day of the one in UTC.
+  const utcToday = todayIn('UTC', now)
   const [subscriptions, logged] = await Promise.all([
-    supabase.from('push_subscriptions').select('id, user_id, endpoint, p256dh, auth'),
-    supabase.from('weight_logs').select('user_id').eq('week_start', week),
+    supabase.from('push_subscriptions').select('id, user_id, endpoint, p256dh, auth, time_zone'),
+    supabase
+      .from('weight_logs')
+      .select('user_id, week_start')
+      .gte('week_start', addDays(utcToday, -1))
+      .lte('week_start', addDays(utcToday, 1)),
   ])
   if (subscriptions.error || logged.error) {
     console.error('weight-reminder:', (subscriptions.error ?? logged.error)?.message)
     return Response.json({ error: 'Could not load the subscriptions.' }, { status: 500 })
   }
 
-  const checkedIn = new Set(logged.data.map((row) => row.user_id))
-  // The table checks the endpoint too; checked again so a row that slipped past it is never posted to.
-  const due = subscriptions.data.filter((row) => !checkedIn.has(row.user_id) && isPushEndpoint(row.endpoint))
+  const checkedIn = new Set(logged.data.map((row) => `${row.user_id} ${row.week_start}`))
+  const due = subscriptions.data.filter((row) => {
+    const week = reminderMonday(row.time_zone, now)
+    // The table checks the endpoint too; checked again so a row that slipped past it is never posted to.
+    return week !== null && !checkedIn.has(`${row.user_id} ${week}`) && isPushEndpoint(row.endpoint)
+  })
   const results = await Promise.allSettled(
     due.map((row) =>
       webpush.sendNotification({ endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }, PAYLOAD, {
@@ -62,5 +72,5 @@ export async function GET(request: Request) {
   const failed = results.filter((result) => result.status === 'rejected' && !isExpired(result))
   failed.forEach((result) => console.error('weight-reminder:', (result as PromiseRejectedResult).reason))
 
-  return Response.json({ week, sent: due.length - expired.length - failed.length, failed: failed.length, removed: expired.length })
+  return Response.json({ sent: due.length - expired.length - failed.length, failed: failed.length, removed: expired.length })
 }

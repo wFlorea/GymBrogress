@@ -76,6 +76,12 @@ export function todayIn(timeZone: string, now: Date = new Date()): IsoDate {
   return `${part('year')}-${part('month')}-${part('day')}`
 }
 
+/** The hour of the day (0–23) as seen in `timeZone`. */
+export function hourIn(timeZone: string, now: Date = new Date()): number {
+  const hour = new Intl.DateTimeFormat('en-GB', { timeZone, hour: 'numeric', hourCycle: 'h23' }).format(now)
+  return Number(hour)
+}
+
 export function formatDate(iso: IsoDate, options: Intl.DateTimeFormatOptions): string {
   return new Intl.DateTimeFormat('en-GB', { ...options, timeZone: 'UTC' }).format(toUtc(iso))
 }

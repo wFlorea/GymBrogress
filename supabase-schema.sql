@@ -117,6 +117,8 @@ CREATE TABLE push_subscriptions (
   ),
   p256dh TEXT NOT NULL CHECK (length(p256dh) <= 256),
   auth TEXT NOT NULL CHECK (length(auth) <= 256),
+  -- The device's IANA time zone: the reminder only goes out on Monday daytime there. Without one, UTC.
+  time_zone TEXT CHECK (length(time_zone) <= 64),
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   UNIQUE (user_id, endpoint)
 );

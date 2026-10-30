@@ -7,6 +7,8 @@ What's next for GymBrogress, most important first. Tick items off as they land; 
 The weigh-in, the Monday reminder and the bigger exercise library are built but not released. The live database
 already has `weight_logs` and `push_subscriptions`.
 
+- [ ] Apply the new migrations to the live database, in order, before deploying (the app's code needs them):
+      `20261030120000_push_time_zone.sql`
 - [ ] Set the env vars on Vercel: `CRON_SECRET`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
       `SUPABASE_SERVICE_ROLE_KEY`
 - [ ] Supabase Auth → URL Configuration: add `https://gym.florea.lol/**` and `http://localhost:3000/**` to the
@@ -31,8 +33,9 @@ already has `weight_logs` and `push_subscriptions`.
 - [x] **Migration history:** check that `20261026170000_drop_legacy_columns.sql` is applied on the live database;
       it's missing from its migration list (done: the columns are gone, it just wasn't recorded)
 - [ ] **Leaked passwords:** turn on leaked password protection in Supabase (Auth settings); needs the Pro plan (on Free now)
-- [ ] **Reminder time:** the reminder goes out at 07:00 UTC for everyone; send it in the morning of each user's own
-      time zone
+- [x] **Reminder time:** the reminder goes out at 07:00 UTC for everyone; send it in the morning of each user's own
+      time zone (done for Hobby: each device's time zone is saved, and the Monday run skips devices where it's night
+      or not Monday yet; a second Monday cron, around 15:00 UTC, would also reach the Americas)
 
 ## Planned features
 
