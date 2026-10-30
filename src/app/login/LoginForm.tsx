@@ -14,7 +14,15 @@ export type Mode = 'login' | 'signup' | 'forgot'
 const pillInputStyles =
   'h-13 w-full rounded-full border border-transparent bg-black/40 pl-12 pr-5 text-sm text-white shadow-inner placeholder:text-muted transition-colors focus:border-primary focus:outline-none'
 
-export function LoginForm({ initialMode = 'login', linkExpired = false }: { initialMode?: Mode; linkExpired?: boolean }) {
+export function LoginForm({
+  initialMode = 'login',
+  linkExpired = false,
+  accountDeleted = false,
+}: {
+  initialMode?: Mode
+  linkExpired?: boolean
+  accountDeleted?: boolean
+}) {
   const [mode, setMode] = useState<Mode>(initialMode)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -132,6 +140,9 @@ export function LoginForm({ initialMode = 'login', linkExpired = false }: { init
 
           {isForgot && linkExpired && !resetState && (
             <Alert>That link has expired or was already used. Send yourself a new one.</Alert>
+          )}
+          {mode === 'login' && accountDeleted && !state && (
+            <Alert tone="success">Your account and everything in it were deleted.</Alert>
           )}
           {state?.error && <Alert>{state.error}</Alert>}
           {state?.notice && <Alert tone="success">{state.notice}</Alert>}

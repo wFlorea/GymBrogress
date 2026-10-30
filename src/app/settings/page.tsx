@@ -1,11 +1,12 @@
 import Link from 'next/link'
-import { ChevronLeft, KeyRound } from 'lucide-react'
+import { ChevronLeft, Download, KeyRound } from 'lucide-react'
 import { cardStyles } from '@/components/ui/Card'
 import { MenuLink } from '@/components/ui/MenuLink'
 import { Page, PageHeader, SectionTitle } from '@/components/ui/Page'
 import { buttonStyles } from '@/components/ui/styles'
 import { requireUser } from '@/lib/data/session'
 import { getUserSettings } from '@/lib/data/settings'
+import { DeleteAccount } from './DeleteAccount'
 import { PushReminder } from './PushReminder'
 import { RestTimerSetting } from './RestTimerSetting'
 
@@ -46,6 +47,14 @@ export default async function SettingsPage() {
             title="Change password"
             description="Pick a new password for signing in"
           />
+          <MenuLink
+            href="/api/account/export"
+            download
+            icon={<Download size={18} />}
+            title="Export my data"
+            description="Workouts, food log, weigh-ins and settings, as a JSON file"
+          />
+          <DeleteAccount />
         </nav>
       </section>
     </Page>

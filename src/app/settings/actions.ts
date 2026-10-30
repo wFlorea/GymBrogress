@@ -2,12 +2,14 @@
 
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { dbFail, fail, ok } from '@/lib/data/action-result'
 import { getSession } from '@/lib/data/session'
 import { isValidTimeZone, TIMEZONE_COOKIE } from '@/lib/date'
 import { isPushEndpoint } from '@/lib/push'
 import { isRestSeconds } from '@/lib/sets'
 import type { ActionResult } from '@/lib/types'
+import { createAdminClient } from '@/utils/supabase/admin'
 
 const BASE64URL = /^[A-Za-z0-9_-]+=*$/
 
@@ -64,4 +66,26 @@ export async function saveRestTimer(on: boolean, seconds: number): Promise<Actio
   if (error) return dbFail('saveRestTimer', error, 'Could not save the rest timer. Please try again.')
   revalidatePath('/tracker')
   return ok()
+}
+
+/**
+ * Deletes the signed-in user's account with everything in it (every table cascades from the auth user), then signs
+ * out. Only resolves when it failed; otherwise it ends on the sign-in page.
+ */
+export async function deleteAccount(): Promise<ActionResult> {
+  const { user, supabase } = await getSession()
+  let admin
+  try {
+    admin = createAdminClient()
+  } catch (error) {
+    console.error('deleteAccount:', error)
+    return fail('Deleting accounts isn’t set up yet. Please try again later.')
+  }
+  const { error } = await admin.auth.admin.deleteUser(user.id)
+  if (error) return dbFail('deleteAccount', error, 'Could not delete your account. Please try again.')
+
+  // The user is gone, so the server may refuse the sign-out; the session cookies are cleared either way.
+  await supabase.auth.signOut()
+  revalidatePath('/', 'layout')
+  redirect('/login?account=deleted')
 }
