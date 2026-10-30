@@ -1,0 +1,47 @@
+# TODO
+
+What's next for GymBrogress, most important first. Tick items off as they land; shipped work goes in `CHANGELOG.md`.
+
+## Next release: weekly weigh-in (v1.4)
+
+The weigh-in, the Monday reminder and the bigger exercise library are built but not released. The live database
+already has `weight_logs` and `push_subscriptions`.
+
+- [ ] Set the env vars on Vercel: `CRON_SECRET`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
+      `SUPABASE_SERVICE_ROLE_KEY`
+- [ ] Try the reminder on a phone: Android Chrome, and an iPhone with the app added to the Home Screen
+- [ ] Bump `version` in `package.json` to `1.4.0` and add a `CHANGELOG.md` entry
+- [ ] README: add the weigh-in, the reminder and the new env vars; say 130+ exercises; drop the shipped items
+      (BMR calculator, calorie recommendations) from Planned
+- [ ] CLAUDE.md: add `src/lib/data/weight.ts`, `src/lib/push.ts`, `src/utils/supabase/admin.ts`, `src/app/api/cron/`
+      and `public/sw.js`; move barcode scanning to v1.5 and photo scanning to v1.6
+- [ ] Commit and tag `v1.4`
+
+## Fixes
+
+- [ ] **Forgot password:** add a reset link on the login page (Supabase `resetPasswordForEmail`) and a page to set a
+      new password
+- [ ] **Theme tokens:** replace the `zinc-*` colours with tokens in `PushReminder`, `BodyForm`, `PlanClient`,
+      `loading.tsx`, `GymHistoryCalendar`, `WeightHistory` and the dashboard page
+- [ ] **Migration history:** check that `20261026170000_drop_legacy_columns.sql` is applied on the live database;
+      it's missing from its migration list
+- [ ] **Leaked passwords:** turn on leaked password protection in Supabase (Auth settings), if the plan allows it
+- [ ] **Reminder time:** the reminder goes out at 07:00 UTC for everyone; send it in the morning of each user's own
+      time zone
+
+## Planned features
+
+- [ ] **Barcode scanning** (v1.5): scan a packaged food and look it up on Open Food Facts
+- [ ] **Photo scanning of meals** (v1.6): recognise the food in a photo, with grams you can correct
+- [ ] **Weight goals with a deadline:** reach the goal weight by a date, and the pace follows from it
+
+## Upgrades
+
+- [ ] **Rest timer:** pick the rest time per exercise instead of a fixed 90 s
+- [ ] **Offline tracker:** keep logging sets without signal and sync them when back online
+- [ ] **Account:** delete your account and export your data
+- [ ] **Weight trend:** a chart of the weigh-ins and how far you are from the goal weight, on the dashboard
+- [ ] **Progress:** estimated 1RM, volume per muscle group, and a celebration for a new PR
+- [ ] **Food:** copy yesterday's meals, saved meals, water tracking
+- [ ] **Units:** a kg/lbs toggle
+- [ ] **Tests:** start with the maths in `nutrition.ts`, `body.ts`, `streak.ts` and `date.ts`
