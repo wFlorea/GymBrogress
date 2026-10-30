@@ -11,6 +11,9 @@ import { getSession, getToday } from '@/lib/data/session'
 import { SET_COLUMNS, getLastPerformance, sortSets, toWorkoutSet } from '@/lib/data/workouts'
 import type { ActionResult, IsoDate, PlannedExercise, SetValues, WorkoutSet, WorkoutSplit } from '@/lib/types'
 
+/** Postgres' error code for a duplicate key. */
+const UNIQUE_VIOLATION = '23505'
+
 /** The tracker keeps its own state after sync/finish, so it only needs a refresh on start. */
 function revalidateWorkout({ tracker = false } = {}) {
   if (tracker) revalidatePath('/tracker')
@@ -101,10 +104,21 @@ function validatePatch(patch: SetPatch): SetPatch | string {
   return Object.keys(clean).length > 0 ? clean : 'Nothing to save.'
 }
 
-/** Adds a set to an exercise with the reps and weight the app shows for it. */
-export async function addSet(logId: string, exerciseId: string, values: SetValues): Promise<ActionResult<WorkoutSet>> {
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Adds a set to an exercise with the reps and weight the app shows for it. The device picks the set's id, so the
+ * same set sent again (after an answer lost to a bad connection) is found instead of added twice.
+ */
+export async function addSet(
+  logId: string,
+  setId: string,
+  exerciseId: string,
+  values: SetValues
+): Promise<ActionResult<WorkoutSet>> {
   const exercise = getExercise(exerciseId)
   if (typeof logId !== 'string' || !exercise) return fail('Unknown exercise.')
+  if (typeof setId !== 'string' || !UUID.test(setId)) return fail('Invalid set.')
   const clean = validatePatch({
     actual_reps: values?.actual_reps ?? DEFAULT_REPS,
     actual_weight: values?.actual_weight ?? 0,
@@ -125,6 +139,7 @@ export async function addSet(logId: string, exerciseId: string, values: SetValue
   const { data, error } = await supabase
     .from('workout_sets')
     .insert({
+      id: setId,
       workout_log_id: logId,
       exercise_id: exercise.id,
       exercise_name: exercise.name,
@@ -135,6 +150,11 @@ export async function addSet(logId: string, exerciseId: string, values: SetValue
     })
     .select(SET_COLUMNS)
     .single()
+  if (error?.code === UNIQUE_VIOLATION) {
+    // Row-level security hides a set with this id that belongs to someone else, so it reads as missing.
+    const { data: saved } = await supabase.from('workout_sets').select(SET_COLUMNS).eq('id', setId).maybeSingle()
+    return saved ? ok(toWorkoutSet(saved)) : fail('Could not add the set. Please try again.')
+  }
   // Row-level security rejects logs that belong to someone else.
   if (error) return dbFail('addSet', error, 'Could not add the set. Please try again.')
 

@@ -1,25 +1,44 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { ActionResult, SetValues, WorkoutSet } from '@/lib/types'
-import { addSet, removeSet, updateSet, type SetPatch } from './actions'
+import type { SetPatch } from './actions'
+import {
+  enqueue,
+  isOffline,
+  onRejected,
+  pendingChanges,
+  pendingCount,
+  sendChanges,
+  subscribe,
+  type SetChange,
+} from './outbox'
 
 const SAVE_DELAY_MS = 600
-const OFFLINE_MESSAGE = 'Could not reach the server. Check your connection; your last change may not be saved.'
-
-/** Temporary ids for sets that are still being created on the server. */
-export const isTempId = (id: string) => id.startsWith('temp-')
+const OFFLINE_MESSAGE = 'Could not reach the server. Check your connection and try again.'
 
 /**
- * Saves set changes in the background: typing is debounced, sets added on the spot get their
- * real id later, and anything still waiting is sent when the page is hidden or left.
+ * Saves set changes through the outbox, so they survive a lost connection: typing is debounced, and anything still
+ * being typed is queued when the page is hidden or left. On mount, `onUnsent` gets the changes to this workout that
+ * the server doesn't have yet (e.g. logged without signal before the app was closed), to show them.
  */
-export function useSetPersistence(logId: string, onError: (message: string) => void) {
-  const pendingCreates = useRef(new Map<string, Promise<string | null>>())
-  const resolvedIds = useRef(new Map<string, string>())
+export function useSetPersistence(
+  logId: string,
+  onError: (message: string) => void,
+  onUnsent: (changes: SetChange[]) => void
+) {
   const queuedSaves = useRef(new Map<string, { timer: ReturnType<typeof setTimeout>; run: () => void }>())
+  const pending = useSyncExternalStore(subscribe, pendingCount, () => 0)
+  const offline = useSyncExternalStore(subscribe, isOffline, () => false)
 
-  /** Calls a server action and reports any failure through `onError`. */
+  useEffect(() => onRejected(onError), [onError])
+
+  useEffect(() => {
+    const unsent = pendingChanges(logId)
+    if (unsent.length > 0) onUnsent(unsent)
+  }, [logId, onUnsent])
+
+  /** Calls a server action that needs a connection and reports any failure through `onError`. */
   const run = useCallback(
     async <T>(action: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> => {
       try {
@@ -34,35 +53,13 @@ export function useSetPersistence(logId: string, onError: (message: string) => v
     [onError]
   )
 
-  /**
-   * Runs `action` with the set's database id, waiting for the set to be created if needed.
-   * Resolves to false only when the action itself failed.
-   */
-  const withRealId = useCallback(
-    async (setId: string, action: (id: string) => Promise<ActionResult<unknown>>): Promise<boolean> => {
-      const realId = !isTempId(setId)
-        ? setId
-        : (resolvedIds.current.get(setId) ?? (await pendingCreates.current.get(setId)) ?? null)
-      // A set whose creation failed is already gone, so there is nothing left to do.
-      if (!realId) return true
-      return (await run(() => action(realId))).ok
-    },
-    [run]
-  )
-
+  /** Creates a set with an id made here; resolves to the saved set, or null if the server turned it down. */
   const createSet = useCallback(
-    async (tempId: string, exerciseId: string, values: SetValues): Promise<WorkoutSet | null> => {
-      const creation = run(() => addSet(logId, exerciseId, values)).then((result) => (result.ok ? result.data : null))
-      pendingCreates.current.set(
-        tempId,
-        creation.then((set) => set?.id ?? null)
-      )
-      const set = await creation
-      pendingCreates.current.delete(tempId)
-      if (set) resolvedIds.current.set(tempId, set.id)
-      return set
+    async (setId: string, exerciseId: string, values: SetValues): Promise<WorkoutSet | null> => {
+      const result = await enqueue({ kind: 'create', logId, setId, exerciseId, values })
+      return result.ok ? (result.data ?? null) : null
     },
-    [run, logId]
+    [logId]
   )
 
   const cancelQueued = useCallback((setId: string) => {
@@ -82,49 +79,56 @@ export function useSetPersistence(logId: string, onError: (message: string) => v
       clearTimeout(queued.get(key)?.timer)
       const save = () => {
         queued.delete(key)
-        void withRealId(setId, (id) => updateSet(id, { [field]: value }))
+        void enqueue({ kind: 'update', logId, setId, patch: { [field]: value } })
       }
       queued.set(key, { timer: setTimeout(save, SAVE_DELAY_MS), run: save })
     },
-    [withRealId]
+    [logId]
   )
 
+  /** Resolves to false only when the server turned the change down. */
   const saveNow = useCallback(
-    (setId: string, patch: SetPatch) => withRealId(setId, (id) => updateSet(id, patch)),
-    [withRealId]
+    async (setId: string, patch: SetPatch) => (await enqueue({ kind: 'update', logId, setId, patch })).ok,
+    [logId]
   )
 
   const deleteSet = useCallback(
-    (setId: string) => {
+    async (setId: string) => {
       cancelQueued(setId)
-      return withRealId(setId, removeSet)
+      return (await enqueue({ kind: 'delete', logId, setId })).ok
     },
-    [cancelQueued, withRealId]
+    [cancelQueued, logId]
   )
 
-  /** Sends every queued save right away and waits for sets that are still being created. */
-  const flush = useCallback(async () => {
+  /** Queues what is still being typed right away. */
+  const queueTyping = useCallback(() => {
     const saves = [...queuedSaves.current.values()]
     for (const entry of saves) clearTimeout(entry.timer)
     for (const entry of saves) entry.run()
-    await Promise.all(pendingCreates.current.values())
   }, [])
+
+  /** Sends every change now; resolves to false when some could not reach the server. */
+  const flush = useCallback(async () => {
+    queueTyping()
+    return sendChanges()
+  }, [queueTyping])
 
   useEffect(() => {
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') void flush()
+      if (document.visibilityState === 'hidden') queueTyping()
     }
-    const onPageHide = () => void flush()
     document.addEventListener('visibilitychange', onVisibilityChange)
-    window.addEventListener('pagehide', onPageHide)
+    window.addEventListener('pagehide', queueTyping)
+    // Sends what is left from before, including other days' workouts.
+    void sendChanges()
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange)
-      window.removeEventListener('pagehide', onPageHide)
-      void flush()
+      window.removeEventListener('pagehide', queueTyping)
+      queueTyping()
     }
-  }, [flush])
+  }, [queueTyping])
 
-  return { run, createSet, saveLater, saveNow, deleteSet, flush }
+  return { pending, offline, run, createSet, saveLater, saveNow, deleteSet, flush }
 }
 
 type AudioContextConstructor = typeof AudioContext

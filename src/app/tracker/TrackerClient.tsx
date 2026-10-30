@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useCallback, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { Check, Dumbbell, Loader2, Plus, RotateCcw, Timer, Trash2, Trophy, X } from 'lucide-react'
+import { Check, CloudOff, Dumbbell, Loader2, Plus, RotateCcw, Timer, Trash2, Trophy, X } from 'lucide-react'
 import { ExerciseBrowser } from '@/components/ExerciseBrowser'
 import { Alert, EmptyState } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
@@ -14,6 +14,9 @@ import { getSplitOption } from '@/lib/splits'
 import type { Exercise, PlannedExercise, RestTimerSettings, SetValues, WorkoutDay, WorkoutSet } from '@/lib/types'
 import { addExerciseToWorkout, finishWorkout, syncWithPlan } from './actions'
 import { useRestTimer, useSetPersistence } from './hooks'
+import { applyChanges, type SetChange } from './outbox'
+
+const UNSENT_MESSAGE = 'You’re offline. Your sets are saved on this phone; try again once you’re back online.'
 
 /** Numbers an exercise's sets 1, 2, 3… in the order they are listed. */
 function renumber(sets: WorkoutSet[], exerciseId: string): WorkoutSet[] {
@@ -48,7 +51,8 @@ export function TrackerClient({
   const [addingId, setAddingId] = useState<string | null>(null)
   const [isAdding, startAdding] = useTransition()
   const timer = useRestTimer()
-  const persistence = useSetPersistence(day.id, setError)
+  const showUnsent = useCallback((unsent: SetChange[]) => setSets((prev) => applyChanges(prev, unsent)), [])
+  const persistence = useSetPersistence(day.id, setError, showUnsent)
   const split = getSplitOption(day.split)
 
   const setsByExercise = new Map<string, WorkoutSet[]>()
@@ -83,11 +87,11 @@ export function TrackerClient({
     if (!last) return addExerciseSets(exerciseId)
     setError(null)
     const values: SetValues = { actual_reps: last.actual_reps, actual_weight: last.actual_weight }
-    const tempId = `temp-${crypto.randomUUID()}`
+    const setId = crypto.randomUUID()
     setSets((prev) => [
       ...prev,
       {
-        id: tempId,
+        id: setId,
         exercise_id: exerciseId,
         exercise_name: getExercise(exerciseId)?.name ?? '',
         set_number: last.set_number + 1,
@@ -95,11 +99,11 @@ export function TrackerClient({
         ...values,
       },
     ])
-    void persistence.createSet(tempId, exerciseId, values).then((created) =>
+    void persistence.createSet(setId, exerciseId, values).then((created) =>
       setSets((prev) =>
         created
-          ? prev.map((s) => (s.id === tempId ? { ...s, id: created.id, set_number: created.set_number } : s))
-          : prev.filter((s) => s.id !== tempId)
+          ? prev.map((s) => (s.id === setId ? { ...s, set_number: created.set_number } : s))
+          : prev.filter((s) => s.id !== setId)
       )
     )
   }
@@ -138,7 +142,7 @@ export function TrackerClient({
   function sync() {
     setError(null)
     startSync(async () => {
-      await persistence.flush()
+      if (!(await persistence.flush())) return setError(UNSENT_MESSAGE)
       const result = await persistence.run(() => syncWithPlan(day.id))
       if (result.ok) setSets(result.data)
     })
@@ -147,7 +151,7 @@ export function TrackerClient({
   function finish() {
     setError(null)
     startFinish(async () => {
-      await persistence.flush()
+      if (!(await persistence.flush())) return setError(UNSENT_MESSAGE)
       const result = await persistence.run(() => finishWorkout(day.id))
       if (result.ok) {
         setFinished(true)
@@ -191,6 +195,16 @@ export function TrackerClient({
           <button type="button" onClick={sync} disabled={isSyncing} className={`${buttonStyles.chip} shrink-0`}>
             <RotateCcw size={13} className={isSyncing ? 'animate-spin' : ''} /> Sync with plan
           </button>
+        </div>
+      )}
+
+      {persistence.offline && persistence.pending > 0 && (
+        <div role="status" className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-3.5 text-xs text-foreground/80">
+          <CloudOff size={18} className="shrink-0 text-muted" />
+          <span>
+            No connection. {plural(persistence.pending, 'change')} saved on this phone, sent as soon as you’re back
+            online.
+          </span>
         </div>
       )}
 
