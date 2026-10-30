@@ -1,10 +1,14 @@
-import { LoginForm } from './LoginForm'
+import { LoginForm, type Mode } from './LoginForm'
 
-// One address for both forms, so ?mode=signup isn't listed as a separate page.
+// One address for all the forms, so ?mode=signup isn't listed as a separate page.
 export const metadata = { title: 'Sign in', alternates: { canonical: '/login' } }
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
-  // The welcome slides end with "Create account", which links here with ?mode=signup.
-  const { mode } = await searchParams
-  return <LoginForm initialMode={mode === 'signup' ? 'signup' : 'login'} />
+const MODES: readonly Mode[] = ['login', 'signup', 'forgot']
+
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ mode?: string; link?: string }> }) {
+  // The welcome slides end with "Create account", which links here with ?mode=signup; a reset link that no longer
+  // works comes back with ?mode=forgot&link=expired.
+  const { mode, link } = await searchParams
+  const initialMode = MODES.find((m) => m === mode) ?? 'login'
+  return <LoginForm initialMode={initialMode} linkExpired={link === 'expired'} />
 }

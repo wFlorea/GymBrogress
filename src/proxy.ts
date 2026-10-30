@@ -4,8 +4,11 @@ import { WELCOME_SEEN_COOKIE } from '@/lib/welcome'
 
 /** Pages that work without an account; everything else needs a session. */
 const PUBLIC_PATHS = ['/login', '/welcome']
+/** Email links, which sign the visitor in themselves: open to everyone, signed in or not. */
+const LINK_PATHS = ['/auth']
 
-const isPublic = (pathname: string) => PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))
+const isUnder = (paths: string[], pathname: string) =>
+  paths.some((path) => pathname === path || pathname.startsWith(`${path}/`))
 
 function redirectTo(request: NextRequest, pathname: string, from: NextResponse) {
   const url = request.nextUrl.clone()
@@ -38,12 +41,14 @@ export async function proxy(request: NextRequest) {
   const { data } = await supabase.auth.getClaims()
   const signedIn = Boolean(data?.claims?.sub)
   const { pathname } = request.nextUrl
+  if (isUnder(LINK_PATHS, pathname)) return response
 
-  if (!signedIn && !isPublic(pathname)) {
+  const isPublic = isUnder(PUBLIC_PATHS, pathname)
+  if (!signedIn && !isPublic) {
     const seenWelcome = request.cookies.has(WELCOME_SEEN_COOKIE)
     return redirectTo(request, seenWelcome ? '/login' : '/welcome', response)
   }
-  if (signedIn && isPublic(pathname)) return redirectTo(request, '/dashboard', response)
+  if (signedIn && isPublic) return redirectTo(request, '/dashboard', response)
   return response
 }
 

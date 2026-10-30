@@ -1,36 +1,12 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import type { AuthError } from '@supabase/supabase-js'
+import { SITE_URL } from '@/lib/site'
 import { createClient } from '@/utils/supabase/server'
-import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH, type AuthState } from './auth-state'
-
-function field(formData: FormData, name: string): string {
-  const value = formData.get(name)
-  return typeof value === 'string' ? value : ''
-}
-
-/** Turns a Supabase auth error into a message that is safe and useful to show. */
-function authErrorMessage(error: AuthError): string {
-  switch (error.code) {
-    case 'invalid_credentials':
-      return 'Wrong email or password.'
-    case 'email_not_confirmed':
-      return 'Please confirm your email first. Check your inbox for the link.'
-    case 'user_already_exists':
-    case 'email_exists':
-      return 'An account with this email already exists. Sign in instead.'
-    case 'weak_password':
-      return error.message
-    case 'over_request_rate_limit':
-    case 'over_email_send_rate_limit':
-      return 'Too many attempts. Wait a minute and try again.'
-    default:
-      console.error('[auth]', error.code, error.message)
-      return 'Something went wrong. Please try again.'
-  }
-}
+import { authErrorMessage } from './auth-errors'
+import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH, NEW_PASSWORD_PATH, field, type AuthState } from './auth-state'
 
 export async function login(_previous: AuthState, formData: FormData): Promise<AuthState> {
   const email = field(formData, 'email').trim()
@@ -69,6 +45,22 @@ export async function signup(_previous: AuthState, formData: FormData): Promise<
 
   revalidatePath('/', 'layout')
   redirect('/dashboard')
+}
+
+/** Emails a link that signs the user in and opens the new-password page. Says the same whether or not the email has an account. */
+export async function requestPasswordReset(_previous: AuthState, formData: FormData): Promise<AuthState> {
+  const email = field(formData, 'email').trim()
+  if (!email) return { error: 'Enter your email.' }
+
+  // Back to this site (localhost in development); Supabase only follows links to its allowed redirect URLs.
+  const origin = (await headers()).get('origin') ?? SITE_URL
+  const supabase = await createClient()
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/auth/confirm?next=${NEW_PASSWORD_PATH}`,
+  })
+  if (error) return { error: authErrorMessage(error) }
+
+  return { notice: `If ${email} has an account, a link to set a new password is on its way. Check your inbox.` }
 }
 
 export async function logout() {

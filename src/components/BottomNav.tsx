@@ -15,7 +15,12 @@ const NAV_ITEMS = [
 ]
 
 /** Sections (with their sub-pages) that belong to a tab without being under its path. */
-const TAB_ALIASES: Record<string, string> = { '/exercises': '/profile', '/progress': '/profile' }
+const TAB_ALIASES: Record<string, string> = {
+  '/exercises': '/profile',
+  '/progress': '/profile',
+  '/settings': '/profile',
+  '/password': '/profile',
+}
 
 export function tabPath(pathname: string): string {
   const section = `/${pathname.split('/')[1] ?? ''}`

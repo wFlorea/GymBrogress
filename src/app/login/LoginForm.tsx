@@ -5,16 +5,16 @@ import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock, Mail, User, type LucideIc
 import { Alert } from '@/components/ui/Card'
 import { PlateMark } from '@/components/ui/PlateMark'
 import { SubmitButton } from '@/components/ui/SubmitButton'
-import { login, signup } from './actions'
+import { login, requestPasswordReset, signup } from './actions'
 import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH } from './auth-state'
 
-type Mode = 'login' | 'signup'
+export type Mode = 'login' | 'signup' | 'forgot'
 
 // Pill-shaped, like the buttons.
 const pillInputStyles =
   'h-13 w-full rounded-full border border-transparent bg-black/40 pl-12 pr-5 text-sm text-white shadow-inner placeholder:text-muted transition-colors focus:border-primary focus:outline-none'
 
-export function LoginForm({ initialMode = 'login' }: { initialMode?: Mode }) {
+export function LoginForm({ initialMode = 'login', linkExpired = false }: { initialMode?: Mode; linkExpired?: boolean }) {
   const [mode, setMode] = useState<Mode>(initialMode)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -22,9 +22,12 @@ export function LoginForm({ initialMode = 'login' }: { initialMode?: Mode }) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loginState, loginAction] = useActionState(login, null)
   const [signupState, signupAction] = useActionState(signup, null)
+  const [resetState, resetAction] = useActionState(requestPasswordReset, null)
 
   const isSignup = mode === 'signup'
-  const state = isSignup ? signupState : loginState
+  const isForgot = mode === 'forgot'
+  const state = isSignup ? signupState : isForgot ? resetState : loginState
+  const action = isSignup ? signupAction : isForgot ? resetAction : loginAction
   const passwordsChecked = isSignup && confirmPassword.length > 0
   const passwordsMatch = password === confirmPassword
   const canSignUp = name.trim().length > 0 && password.length >= MIN_PASSWORD_LENGTH && passwordsMatch
@@ -44,10 +47,14 @@ export function LoginForm({ initialMode = 'login' }: { initialMode?: Mode }) {
         <div className="mb-10 text-center">
           <PlateMark size={56} className="mx-auto text-primary" />
           <h1 className="mt-4 font-display text-[2rem] font-bold">GymBrogress</h1>
-          <p className="mt-1 text-sm italic text-muted">Plan your training and track every set.</p>
+          <p className="mt-1 text-sm italic text-muted">
+            {isForgot
+              ? 'Forgot your password? We’ll email you a link to set a new one.'
+              : 'Plan your training and track every set.'}
+          </p>
         </div>
 
-        <form action={isSignup ? signupAction : loginAction} className="flex flex-col gap-4">
+        <form action={action} className="flex flex-col gap-4">
           {isSignup && (
             <Field
               label="Name or nickname"
@@ -72,18 +79,30 @@ export function LoginForm({ initialMode = 'login' }: { initialMode?: Mode }) {
             required
           />
 
-          <Field
-            label="Password"
-            icon={Lock}
-            name="password"
-            secret
-            autoComplete={isSignup ? 'new-password' : 'current-password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            minLength={isSignup ? MIN_PASSWORD_LENGTH : undefined}
-            hint={isSignup ? `At least ${MIN_PASSWORD_LENGTH} characters.` : undefined}
-            required
-          />
+          {!isForgot && (
+            <Field
+              label="Password"
+              icon={Lock}
+              name="password"
+              secret
+              autoComplete={isSignup ? 'new-password' : 'current-password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              minLength={isSignup ? MIN_PASSWORD_LENGTH : undefined}
+              hint={isSignup ? `At least ${MIN_PASSWORD_LENGTH} characters.` : undefined}
+              required
+            />
+          )}
+
+          {mode === 'login' && (
+            <button
+              type="button"
+              onClick={() => switchMode('forgot')}
+              className="-mt-1 self-end px-5 text-xs font-semibold text-muted transition-colors hover:text-primary"
+            >
+              Forgot password?
+            </button>
+          )}
 
           {isSignup && (
             <Field
@@ -111,12 +130,17 @@ export function LoginForm({ initialMode = 'login' }: { initialMode?: Mode }) {
             />
           )}
 
+          {isForgot && linkExpired && !resetState && (
+            <Alert>That link has expired or was already used. Send yourself a new one.</Alert>
+          )}
           {state?.error && <Alert>{state.error}</Alert>}
           {state?.notice && <Alert tone="success">{state.notice}</Alert>}
 
           <div className="mt-4">
             {isSignup ? (
               <SignupButton disabled={!canSignUp} />
+            ) : isForgot ? (
+              <SubmitButton pendingLabel="Sending…">Send reset link</SubmitButton>
             ) : (
               <SubmitButton pendingLabel="Signing in…">
                 Sign in
@@ -126,13 +150,13 @@ export function LoginForm({ initialMode = 'login' }: { initialMode?: Mode }) {
         </form>
 
         <p className="mt-10 text-center text-sm text-muted">
-          {isSignup ? 'Have an account? ' : 'New here? '}
+          {isSignup ? 'Have an account? ' : isForgot ? 'Remembered it? ' : 'New here? '}
           <button
             type="button"
-            onClick={() => switchMode(isSignup ? 'login' : 'signup')}
+            onClick={() => switchMode(mode === 'login' ? 'signup' : 'login')}
             className="font-semibold text-primary hover:underline"
           >
-            {isSignup ? 'Sign in' : 'Create account'}
+            {mode === 'login' ? 'Create account' : 'Sign in'}
           </button>
         </p>
       </div>

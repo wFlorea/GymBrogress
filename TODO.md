@@ -9,6 +9,11 @@ already has `weight_logs` and `push_subscriptions`.
 
 - [ ] Set the env vars on Vercel: `CRON_SECRET`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
       `SUPABASE_SERVICE_ROLE_KEY`
+- [ ] Supabase Auth → URL Configuration: add `https://gym.florea.lol/**` and `http://localhost:3000/**` to the
+      redirect URLs (password reset links)
+- [ ] Supabase Auth → Email Templates → Reset Password: link to
+      `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/password`, so the link also works
+      when the email opens in another browser than the app
 - [ ] Try the reminder on a phone: Android Chrome, and an iPhone with the app added to the Home Screen
 - [ ] Bump `version` in `package.json` to `1.4.0` and add a `CHANGELOG.md` entry
 - [ ] README: add the weigh-in, the reminder and the new env vars; say 130+ exercises; drop the shipped items
@@ -19,7 +24,7 @@ already has `weight_logs` and `push_subscriptions`.
 
 ## Fixes
 
-- [ ] **Forgot password:** add a reset link on the login page (Supabase `resetPasswordForEmail`) and a page to set a
+- [x] **Forgot password:** add a reset link on the login page (Supabase `resetPasswordForEmail`) and a page to set a
       new password
 - [ ] **Theme tokens:** replace the `zinc-*` colours with tokens in `PushReminder`, `BodyForm`, `PlanClient`,
       `loading.tsx`, `GymHistoryCalendar`, `WeightHistory` and the dashboard page
