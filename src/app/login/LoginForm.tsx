@@ -5,10 +5,13 @@ import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock, Mail, User, type LucideIc
 import { Alert } from '@/components/ui/Card'
 import { PlateMark } from '@/components/ui/PlateMark'
 import { SubmitButton } from '@/components/ui/SubmitButton'
-import { login, requestPasswordReset, signup } from './actions'
+import { login, requestPasswordReset, resendConfirmation, signup } from './actions'
 import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH } from './auth-state'
 
 export type Mode = 'login' | 'signup' | 'forgot'
+
+/** What happened to a link from one of our emails that couldn't sign the user in. */
+export type LinkResult = 'expired' | 'confirmed'
 
 // Pill-shaped, like the buttons.
 const pillInputStyles =
@@ -16,11 +19,11 @@ const pillInputStyles =
 
 export function LoginForm({
   initialMode = 'login',
-  linkExpired = false,
+  link,
   accountDeleted = false,
 }: {
   initialMode?: Mode
-  linkExpired?: boolean
+  link?: LinkResult
   accountDeleted?: boolean
 }) {
   const [mode, setMode] = useState<Mode>(initialMode)
@@ -31,6 +34,7 @@ export function LoginForm({
   const [loginState, loginAction] = useActionState(login, null)
   const [signupState, signupAction] = useActionState(signup, null)
   const [resetState, resetAction] = useActionState(requestPasswordReset, null)
+  const [resendState, resendAction] = useActionState(resendConfirmation, null)
 
   const isSignup = mode === 'signup'
   const isForgot = mode === 'forgot'
@@ -138,14 +142,40 @@ export function LoginForm({
             />
           )}
 
-          {isForgot && linkExpired && !resetState && (
-            <Alert>That link has expired or was already used. Send yourself a new one.</Alert>
+          {isForgot && link === 'expired' && !resetState && (
+            <Alert>
+              That link has expired, was already used, or was opened in another browser. Send yourself a new one.
+            </Alert>
+          )}
+          {mode === 'login' && link === 'expired' && !state && (
+            <Alert>That link has expired or was already used. Sign in, and you can get a new one if you need it.</Alert>
+          )}
+          {mode === 'login' && link === 'confirmed' && !state && (
+            <Alert tone="success">Your email is confirmed. Sign in to start.</Alert>
           )}
           {mode === 'login' && accountDeleted && !state && (
             <Alert tone="success">Your account and everything in it were deleted.</Alert>
           )}
           {state?.error && <Alert>{state.error}</Alert>}
           {state?.notice && <Alert tone="success">{state.notice}</Alert>}
+          {mode === 'login' &&
+            loginState?.unconfirmed &&
+            (resendState?.notice ? (
+              <Alert tone="success">{resendState.notice}</Alert>
+            ) : (
+              <>
+                {resendState?.error && <Alert>{resendState.error}</Alert>}
+                {/* Sends this form's email to resendConfirmation instead of signing in. */}
+                <button
+                  type="submit"
+                  formAction={resendAction}
+                  formNoValidate
+                  className="self-center text-xs font-semibold text-primary hover:underline"
+                >
+                  Send the confirmation link again
+                </button>
+              </>
+            ))}
 
           <div className="mt-4">
             {isSignup ? (

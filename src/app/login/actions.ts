@@ -1,12 +1,18 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { SITE_URL } from '@/lib/site'
 import { createClient } from '@/utils/supabase/server'
 import { authErrorMessage } from './auth-errors'
-import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH, NEW_PASSWORD_PATH, field, type AuthState } from './auth-state'
+import {
+  CONFIRMED_PATH,
+  MAX_NAME_LENGTH,
+  MIN_PASSWORD_LENGTH,
+  NEW_PASSWORD_PATH,
+  field,
+  type AuthState,
+} from './auth-state'
+import { emailLinkTo } from './email-link'
 
 export async function login(_previous: AuthState, formData: FormData): Promise<AuthState> {
   const email = field(formData, 'email').trim()
@@ -15,7 +21,7 @@ export async function login(_previous: AuthState, formData: FormData): Promise<A
 
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithPassword({ email, password })
-  if (error) return { error: authErrorMessage(error) }
+  if (error) return { error: authErrorMessage(error), unconfirmed: error.code === 'email_not_confirmed' }
 
   revalidatePath('/', 'layout')
   redirect('/dashboard')
@@ -35,16 +41,36 @@ export async function signup(_previous: AuthState, formData: FormData): Promise<
   if (password !== field(formData, 'confirmPassword')) return { error: 'The passwords don’t match.' }
 
   const supabase = await createClient()
-  const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name } } })
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { name }, emailRedirectTo: await emailLinkTo(CONFIRMED_PATH) },
+  })
   if (error) return { error: authErrorMessage(error) }
 
-  // With email confirmation on, Supabase creates the user but no session yet.
+  // With email confirmation on, Supabase creates the user but no session until the link in the email is opened.
   if (!data.session) {
-    return { notice: `Almost there! We sent a confirmation link to ${email}. Open it, then sign in.` }
+    return { notice: `Almost there! We sent a confirmation link to ${email}. Open it to start.` }
   }
 
   revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  redirect(CONFIRMED_PATH)
+}
+
+/** Sends the sign-up confirmation link again, for an account that can't sign in until its email is confirmed. */
+export async function resendConfirmation(_previous: AuthState, formData: FormData): Promise<AuthState> {
+  const email = field(formData, 'email').trim()
+  if (!email) return { error: 'Enter your email.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+    options: { emailRedirectTo: await emailLinkTo(CONFIRMED_PATH) },
+  })
+  if (error) return { error: authErrorMessage(error) }
+
+  return { notice: `We sent a new confirmation link to ${email}. Open it to start.` }
 }
 
 /** Emails a link that signs the user in and opens the new-password page. Says the same whether or not the email has an account. */
@@ -52,12 +78,8 @@ export async function requestPasswordReset(_previous: AuthState, formData: FormD
   const email = field(formData, 'email').trim()
   if (!email) return { error: 'Enter your email.' }
 
-  // Back to this site (localhost in development); Supabase only follows links to its allowed redirect URLs.
-  const origin = (await headers()).get('origin') ?? SITE_URL
   const supabase = await createClient()
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/confirm?next=${NEW_PASSWORD_PATH}`,
-  })
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: await emailLinkTo(NEW_PASSWORD_PATH) })
   if (error) return { error: authErrorMessage(error) }
 
   return { notice: `If ${email} has an account, a link to set a new password is on its way. Check your inbox.` }

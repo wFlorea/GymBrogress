@@ -25,6 +25,19 @@ already has `weight_logs` and `push_subscriptions`.
       and `public/sw.js`; move barcode scanning to v1.5 and photo scanning to v1.6
 - [x] Commit and tag `v1.4` (local; push once the env vars and Auth settings above are done)
 
+## Email confirmation and password links
+
+Built: sign-up waits for the email confirmation (with a "send it again" link), and Settings → Change password emails a
+link; the new-password page only takes a password within 30 minutes of opening one. Deploy only after these:
+
+- [ ] Custom SMTP (e.g. Resend with a verified `florea.lol` domain) in Supabase Auth → Emails → SMTP Settings. The
+      built-in sender only emails the Supabase team's own addresses, so without it other users get no emails at all
+- [ ] Supabase Auth → Sign In / Providers → Email: turn on **Confirm email** and **Secure password change**
+- [ ] Email templates (editable once SMTP is set), so links work in any browser:
+      Confirm signup → `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/dashboard`,
+      Reset password → `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/password`
+- [ ] Try it: sign up with a new email, change the password from Settings, and the forgot-password link
+
 ## Fixes
 
 - [x] **Forgot password:** add a reset link on the login page (Supabase `resetPasswordForEmail`) and a page to set a

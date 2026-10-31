@@ -1,11 +1,12 @@
 import Link from 'next/link'
-import { ChevronLeft, Download, KeyRound } from 'lucide-react'
+import { ChevronLeft, Download } from 'lucide-react'
 import { cardStyles } from '@/components/ui/Card'
 import { MenuLink } from '@/components/ui/MenuLink'
 import { Page, PageHeader, SectionTitle } from '@/components/ui/Page'
 import { buttonStyles } from '@/components/ui/styles'
 import { requireUser } from '@/lib/data/session'
 import { getUserSettings } from '@/lib/data/settings'
+import { SendPasswordLink } from '@/app/password/SendPasswordLink'
 import { DeleteAccount } from './DeleteAccount'
 import { PushReminder } from './PushReminder'
 import { RestTimerSetting } from './RestTimerSetting'
@@ -47,12 +48,7 @@ export default async function SettingsPage() {
       <section className="mb-8">
         <SectionTitle subtitle={user.email}>Account</SectionTitle>
         <nav aria-label="Account" className={`${cardStyles} divide-y divide-white/5 overflow-hidden`}>
-          <MenuLink
-            href="/password"
-            icon={<KeyRound size={18} />}
-            title="Change password"
-            description="Pick a new password for signing in"
-          />
+          <SendPasswordLink email={user.email} />
           <MenuLink
             href="/api/account/export"
             download

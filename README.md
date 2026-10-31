@@ -60,11 +60,13 @@ as a PWA and works like a native app.
 
 ### Settings
 - Turn the rest timer off or change its length, show weights in kg or lb, and turn on the Monday weigh-in reminder.
-- Change your password, download all your data as a JSON file, or delete your account.
+- Change your password through a link sent to your email, download all your data as a JSON file, or delete your
+  account.
 
 ### Getting started in the app
 - New visitors see a few welcome slides before they create an account or sign in.
-- Accounts use email and password; a forgotten password can be reset by email.
+- Accounts use email and password. A new account confirms its email with a link, and a new password can only be set
+  from a link sent by email (which also signs you out on your other devices).
 
 ## Planned
 - Barcode scanning for packaged foods
@@ -135,7 +137,7 @@ src/
 ├── app/                 # One folder per screen: page.tsx (server), *Client.tsx (interactive UI), actions.ts (server actions)
 │   ├── welcome/         # Welcome slides for new visitors
 │   ├── login/           # Sign in, sign up and forgotten passwords
-│   ├── password/        # Set a new password
+│   ├── password/        # Set a new password, from a link sent by email
 │   ├── auth/confirm/    # Opens the links in Supabase's emails
 │   ├── dashboard/       # Home: streak, weekly chart, today's workout, BMI and goals
 │   ├── schedule/        # Which split you train on each day
