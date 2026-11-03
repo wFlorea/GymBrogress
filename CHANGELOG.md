@@ -7,6 +7,14 @@ bottom of the Profile page.
 - **Fixes only** raise the last number: v1.1.1, v1.1.2, …
 - **A big overhaul** raises the first number: v2.0
 
+## v1.4.1 (2026-11-03)
+
+- **Email confirmation:** a new account confirms its email with a link before it can sign in. The sign-in page can
+  send the link again, and the sign-up page says what to do when no email arrives.
+- **Change password by email:** Settings → Change password emails you a link, and the new password can only be set
+  within 30 minutes of opening it. Setting it signs you out on your other devices.
+- **Emails:** sign-up and password emails come from `no-reply@florea.lol`.
+
 ## v1.4 (2026-10-30)
 
 A weekly weigh-in, a Settings page, a tracker that works without signal, and more for your food log and progress.

@@ -10,7 +10,7 @@ already has `weight_logs` and `push_subscriptions`.
 - [x] Apply the new migrations to the live database, in order, before deploying (the app's code needs them):
       `20261030120000_push_time_zone.sql`, `20261030130000_rest_timer.sql`,
       `20261030140000_saved_meals_water.sql`, `20261030150000_weight_unit.sql`
-- [ ] Set the env vars on Vercel: `CRON_SECRET`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
+- [x] Set the env vars on Vercel: `CRON_SECRET`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
       `SUPABASE_SERVICE_ROLE_KEY`
 - [ ] Supabase Auth → URL Configuration: add `https://gym.florea.lol/**` and `http://localhost:3000/**` to the
       redirect URLs (password reset links)
@@ -27,16 +27,18 @@ already has `weight_logs` and `push_subscriptions`.
 
 ## Email confirmation and password links
 
-Built: sign-up waits for the email confirmation (with a "send it again" link), and Settings → Change password emails a
-link; the new-password page only takes a password within 30 minutes of opening one. Deploy only after these:
+Released in v1.4.1: sign-up waits for the email confirmation (with a "send it again" link), and Settings → Change
+password emails a link; the new-password page only takes a password within 30 minutes of opening one.
 
-- [ ] Custom SMTP (e.g. Resend with a verified `florea.lol` domain) in Supabase Auth → Emails → SMTP Settings. The
-      built-in sender only emails the Supabase team's own addresses, so without it other users get no emails at all
-- [ ] Supabase Auth → Sign In / Providers → Email: turn on **Confirm email** and **Secure password change**
-- [ ] Email templates (editable once SMTP is set), so links work in any browser:
-      Confirm signup → `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/dashboard`,
-      Reset password → `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/password`
-- [ ] Try it: sign up with a new email, change the password from Settings, and the forgot-password link
+- [x] Custom SMTP: Resend with a verified `florea.lol` domain, in Supabase Auth → Emails → SMTP Settings
+- [x] Supabase Auth → Sign In / Providers → Email: turn on **Confirm email**
+- [ ] Same place: turn on **Secure password change**
+- [x] Confirm signup template → `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/dashboard`
+- [ ] Reset password template → `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/password`
+      (so the link also works when the email opens in another browser)
+- [x] Try signing up with a new email
+- [ ] Try Settings → Change password and the forgot-password link
+- [ ] Add a DMARC record (`_dmarc` TXT `v=DMARC1; p=none;`) on `florea.lol`, so the emails stay out of spam
 
 ## Fixes
 
