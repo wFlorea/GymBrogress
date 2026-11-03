@@ -158,6 +158,28 @@ export function LoginForm({
           )}
           {state?.error && <Alert>{state.error}</Alert>}
           {state?.notice && <Alert tone="success">{state.notice}</Alert>}
+          {/* Supabase answers a sign-up for an existing account the same way, but sends no email. */}
+          {isSignup && signupState?.notice && (
+            <p className="text-center text-xs text-muted">
+              No email after a few minutes? Check your spam folder. If you already have an account with this email,{' '}
+              <button
+                type="button"
+                onClick={() => switchMode('login')}
+                className="font-semibold text-primary hover:underline"
+              >
+                sign in
+              </button>{' '}
+              or{' '}
+              <button
+                type="button"
+                onClick={() => switchMode('forgot')}
+                className="font-semibold text-primary hover:underline"
+              >
+                reset your password
+              </button>{' '}
+              instead.
+            </p>
+          )}
           {mode === 'login' &&
             loginState?.unconfirmed &&
             (resendState?.notice ? (
