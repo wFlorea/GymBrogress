@@ -33,6 +33,8 @@ as a PWA and works like a native app.
   filled in. Everyday foods (160+ staples like oats, rice, chicken and eggs) come built in from
   [USDA FoodData Central](https://fdc.nal.usda.gov/); packaged and branded products come from
   [Open Food Facts](https://world.openfoodfacts.org/).
+- **Barcode scanning:** point your camera at a packaged food, or type the number under the barcode, and pick how much
+  you had. Works on Android and iPhone, and products come from Open Food Facts.
 - **Food log:** add foods to breakfast, lunch, dinner or snacks, or type one in by hand with its calories, protein,
   carbs and fat (leave the calories empty and they're worked out from the macros). Recent foods can be added again
   in a tap, and earlier days can be filled in later.
@@ -69,7 +71,6 @@ as a PWA and works like a native app.
   from a link sent by email (which also signs you out on your other devices).
 
 ## Planned
-- Barcode scanning for packaged foods
 - Photo scanning of meals, with grams you can correct
 - Weight goals with a deadline
 

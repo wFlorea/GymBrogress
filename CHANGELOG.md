@@ -7,6 +7,15 @@ bottom of the Profile page.
 - **Fixes only** raise the last number: v1.1.1, v1.1.2, …
 - **A big overhaul** raises the first number: v2.0
 
+## v1.5 (2026-11-09)
+
+- **Barcode scanning:** the new button next to the food search opens your camera. Point it at a packaged food and it
+  goes straight to "how much did you eat", with the calories and macros filled in. Products come from Open Food Facts.
+- **When a product is missing:** you can search by name or enter it by hand. If the product is listed without its
+  nutrition, the name is filled in for you to copy the numbers from the label.
+- **No camera, no problem:** type the number printed under the barcode instead.
+- **Long product names:** a product with a very long name no longer fails to save.
+
 ## v1.4.1 (2026-11-03)
 
 - **Email confirmation:** a new account confirms its email with a link before it can sign in. The sign-in page can

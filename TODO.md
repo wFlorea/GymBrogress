@@ -55,7 +55,8 @@ password emails a link; the new-password page only takes a password within 30 mi
 
 ## Planned features
 
-- [ ] **Barcode scanning** (v1.5): scan a packaged food and look it up on Open Food Facts
+- [x] **Barcode scanning** (v1.5): scan a packaged food and look it up on Open Food Facts
+- [ ] **Shared products:** when a barcode isn't found, people send the product with photos; approved ones work for everyone
 - [ ] **Photo scanning of meals** (v1.6): recognise the food in a photo, with grams you can correct
 - [ ] **Weight goals with a deadline:** reach the goal weight by a date, and the pace follows from it
 
