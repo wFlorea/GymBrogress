@@ -209,6 +209,12 @@ export interface CatalogFood {
   per100g: Nutrition
 }
 
+/** What a barcode turned up: a food to log, a product without full nutrition details, or nothing. */
+export type BarcodeLookup =
+  | { status: 'found'; food: CatalogFood }
+  | { status: 'incomplete'; name: string }
+  | { status: 'unknown' }
+
 /** One food in the food log. */
 export interface FoodEntry extends FoodItem {
   id: string

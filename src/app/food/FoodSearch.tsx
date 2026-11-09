@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { Loader2, PenLine, Search } from 'lucide-react'
+import { Loader2, PenLine, ScanBarcode, Search } from 'lucide-react'
 import { buttonStyles, inputStyles } from '@/components/ui/styles'
 import { searchCommonFoods } from '@/lib/foods-data'
 import { formatGrams } from '@/lib/format'
@@ -23,6 +23,7 @@ export function FoodSearch({
   onPick,
   onPickRecent,
   onManual,
+  onScan,
 }: {
   query: string
   onQueryChange: (query: string) => void
@@ -32,6 +33,7 @@ export function FoodSearch({
   onPick: (food: CatalogFood) => void
   onPickRecent: (food: FoodItem) => void
   onManual: () => void
+  onScan: () => void
 }) {
   const text = query.trim()
   const commonFoods = searchCommonFoods(text)
@@ -68,21 +70,32 @@ export function FoodSearch({
 
   return (
     <div className="flex h-[min(70vh,36rem)] min-h-0 flex-col pt-4">
-      <label className="relative block shrink-0">
-        <span className="sr-only">Search foods</span>
-        <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          placeholder="Search foods, like oats or Greek yogurt"
-          enterKeyHint="search"
-          autoComplete="off"
-          autoFocus
-          maxLength={60}
-          className={`${inputStyles} pl-10`}
-        />
-      </label>
+      <div className="flex shrink-0 gap-2">
+        <label className="relative block min-w-0 flex-1">
+          <span className="sr-only">Search foods</span>
+          <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => onQueryChange(e.target.value)}
+            placeholder="Search foods, like oats"
+            enterKeyHint="search"
+            autoComplete="off"
+            autoFocus
+            maxLength={60}
+            className={`${inputStyles} pl-10`}
+          />
+        </label>
+        <button
+          type="button"
+          onClick={onScan}
+          aria-label="Scan a barcode"
+          title="Scan a barcode"
+          className="press flex w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-sunken text-primary hover:border-primary [--press-scale:0.88]"
+        >
+          <ScanBarcode size={20} />
+        </button>
+      </div>
 
       <div className="-mx-2 mt-3 min-h-0 flex-1 space-y-4 overflow-y-auto px-2 pb-1">
         {!text && saved}

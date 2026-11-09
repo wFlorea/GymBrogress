@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { normalizeBarcode } from '@/lib/barcode'
 import { isIsoDate } from '@/lib/date'
 import { formatMl } from '@/lib/format'
 import {
@@ -15,9 +16,9 @@ import {
   isMeal,
 } from '@/lib/nutrition'
 import { dbFail, fail, ok } from '@/lib/data/action-result'
-import { searchProducts } from '@/lib/data/open-food-facts'
+import { lookupBarcode, searchProducts } from '@/lib/data/open-food-facts'
 import { getSession, getToday, requireUser } from '@/lib/data/session'
-import type { ActionResult, CatalogFood, FoodItem, IsoDate, Meal } from '@/lib/types'
+import type { ActionResult, BarcodeLookup, CatalogFood, FoodItem, IsoDate, Meal } from '@/lib/types'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -74,6 +75,20 @@ export async function searchFoodProducts(query: string): Promise<ActionResult<Ca
     return ok(await searchProducts(text))
   } catch (error) {
     console.error('searchFoodProducts:', error instanceof Error ? error.message : error)
+    return fail("Couldn't reach the product database. Check your connection and try again.")
+  }
+}
+
+/** What Open Food Facts knows about the product with this barcode. */
+export async function lookupFoodBarcode(barcode: string): Promise<ActionResult<BarcodeLookup>> {
+  const code = typeof barcode === 'string' ? normalizeBarcode(barcode) : null
+  if (!code) return fail("That doesn't look like a barcode. Check the digits and try again.")
+  await requireUser()
+
+  try {
+    return ok(await lookupBarcode(code))
+  } catch (error) {
+    console.error('lookupFoodBarcode:', error instanceof Error ? error.message : error)
     return fail("Couldn't reach the product database. Check your connection and try again.")
   }
 }

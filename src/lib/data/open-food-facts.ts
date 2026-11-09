@@ -1,11 +1,18 @@
 import 'server-only'
+import { MAX_FOOD_NAME_LENGTH } from '@/lib/nutrition'
 import { APP_VERSION } from '@/lib/version'
-import type { CatalogFood } from '@/lib/types'
+import type { BarcodeLookup, CatalogFood } from '@/lib/types'
 
 // Packaged and branded foods from Open Food Facts (openfoodfacts.org), an open database (ODbL) that needs no key.
 // It asks apps to name themselves in the User-Agent.
 const SEARCH_URL = 'https://search.openfoodfacts.org/search'
-const USER_AGENT = `GymBrogress/${APP_VERSION} (https://github.com/wFlorea/GymBrogress)`
+const PRODUCT_URL = 'https://world.openfoodfacts.org/api/v2/product'
+const HEADERS = {
+  'User-Agent': `GymBrogress/${APP_VERSION} (https://github.com/wFlorea/GymBrogress)`,
+  Accept: 'application/json',
+}
+const FIELDS = 'code,product_name,product_name_en,brands,nutriments'
+const TIMEOUT = 6000
 /** How many products a search returns. */
 const MAX_PRODUCTS = 15
 
@@ -22,9 +29,14 @@ function amount(value: unknown): number | null {
   return typeof number === 'number' && Number.isFinite(number) && number >= 0 ? number : null
 }
 
+/** The product's name, short enough for the food log. */
+function productName(product: Product): string | undefined {
+  return (product.product_name_en || product.product_name)?.trim().slice(0, MAX_FOOD_NAME_LENGTH).trimEnd()
+}
+
 /** The product with its nutrition per 100 g, or null when that's missing or can't be right. */
 function toCatalogFood(product: Product): CatalogFood | null {
-  const name = (product.product_name_en || product.product_name)?.trim()
+  const name = productName(product)
   if (!product.code || !name) return null
 
   const nutriments = product.nutriments ?? {}
@@ -53,12 +65,9 @@ export async function searchProducts(query: string): Promise<CatalogFood[]> {
     q: query,
     langs: 'en',
     page_size: '30',
-    fields: 'code,product_name,product_name_en,brands,nutriments',
+    fields: FIELDS,
   })
-  const response = await fetch(`${SEARCH_URL}?${params}`, {
-    headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
-    signal: AbortSignal.timeout(6000),
-  })
+  const response = await fetch(`${SEARCH_URL}?${params}`, { headers: HEADERS, signal: AbortSignal.timeout(TIMEOUT) })
   if (!response.ok) throw new Error(`Open Food Facts answered ${response.status}`)
   const { hits } = (await response.json()) as { hits?: Product[] }
 
@@ -73,4 +82,22 @@ export async function searchProducts(query: string): Promise<CatalogFood[]> {
     if (foods.length === MAX_PRODUCTS) break
   }
   return foods
+}
+
+/** What Open Food Facts knows about a normalized barcode. Throws when it can't be reached. */
+export async function lookupBarcode(code: string): Promise<BarcodeLookup> {
+  const response = await fetch(`${PRODUCT_URL}/${code}.json?fields=${FIELDS}`, {
+    headers: HEADERS,
+    signal: AbortSignal.timeout(TIMEOUT),
+  })
+  // A barcode it doesn't know comes back as a 404.
+  if (response.status === 404) return { status: 'unknown' }
+  if (!response.ok) throw new Error(`Open Food Facts answered ${response.status}`)
+  const { product } = (await response.json()) as { product?: Product }
+  if (!product) return { status: 'unknown' }
+
+  const food = toCatalogFood({ ...product, code })
+  if (food) return { status: 'found', food }
+  const name = productName(product)
+  return name ? { status: 'incomplete', name } : { status: 'unknown' }
 }

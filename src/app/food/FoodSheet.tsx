@@ -4,14 +4,16 @@ import { useState } from 'react'
 import { findCommonFood } from '@/lib/foods-data'
 import { nutritionFor, per100gOf } from '@/lib/nutrition'
 import type { CatalogFood, FoodEntry, FoodItem, IsoDate, Meal, SavedMeal } from '@/lib/types'
+import { BarcodeScan } from './BarcodeScan'
 import { FoodForm } from './FoodForm'
 import { FoodSearch } from './FoodSearch'
 import { PortionForm } from './PortionForm'
 import { SavedMealList } from './SavedMealList'
 
-/** Where the sheet is: searching, picking an amount of a database food, or typing a food in by hand. */
+/** Where the sheet is: searching, scanning a barcode, picking an amount of a database food, or typing a food in by hand. */
 type View =
   | { step: 'search' }
+  | { step: 'scan' }
   | { step: 'portion'; food: CatalogFood; grams?: number }
   | { step: 'manual'; prefill?: FoodItem; name?: string }
 
@@ -81,6 +83,16 @@ export function FoodSheet({
     )
   }
 
+  if (view.step === 'scan') {
+    return (
+      <BarcodeScan
+        onBack={() => setView({ step: 'search' })}
+        onFound={(food) => setView({ step: 'portion', food })}
+        onManual={(name) => setView({ step: 'manual', name })}
+      />
+    )
+  }
+
   return (
     <FoodSearch
       query={query}
@@ -90,6 +102,7 @@ export function FoodSheet({
       onPick={(food) => setView({ step: 'portion', food })}
       onPickRecent={(food) => setView(viewOf(food))}
       onManual={() => setView({ step: 'manual', name: query.trim() })}
+      onScan={() => setView({ step: 'scan' })}
     />
   )
 }

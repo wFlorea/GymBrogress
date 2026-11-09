@@ -1,10 +1,10 @@
 # GymBrogress
 
 Fitness PWA: a workout schedule, a routine per workout type (split), a set-by-set workout tracker
-with a rest timer, streaks, gym history, a food log with calorie and macro goals, and body stats (BMI, body fat, sex, activity level)
+with a rest timer, streaks, gym history, a food log with barcode scanning and calorie and macro goals, and body stats (BMI, body fat, sex, activity level)
 with a goal weight and weekly weigh-ins; the body stats set the daily calorie and macro goals (Mifflin–St Jeor BMR × activity level).
 Settings: rest timer on/off and length, kg or lb (weights are always stored in kg), a Monday weigh-in push reminder, data export, account deletion.
-Planned: barcode scanning (v1.5), photo scanning of meals (v1.6), weight goals with a deadline.
+Planned: photo scanning of meals (v1.6), weight goals with a deadline.
 
 ## Stack
 - Next.js 16 (App Router) + React 19 + TypeScript
@@ -21,11 +21,12 @@ Planned: barcode scanning (v1.5), photo scanning of meals (v1.6), weight goals w
 - Routes: dashboard, schedule, plan, tracker, food, exercises, progress, profile, settings, password, login, welcome,
   auth/confirm (email links), api/account/export, api/cron/weight-reminder
 - `src/app/tracker/outbox.ts` = queues set changes in localStorage so the tracker works offline; `hooks.ts` = rest timer and set saving
+- `src/app/food/BarcodeScan.tsx` = barcode screen; `scanner.ts` = camera + barcode-detector (the phone's own reader, or ZXing WebAssembly loaded from jsDelivr)
 - `src/lib/types.ts` = shared types; feature constants and helpers sit next to it:
   `splits.ts`, `routines.ts`, `exercises-data.ts` (static exercise list), `date.ts`, `schedule.ts`, `streak.ts`, `sets.ts` (set limits, rest timer options, 1RM), `format.ts`, `site.ts` (the live URL),
   `units.ts` (kg/lb conversion), `push.ts` (push endpoints, reminder timing),
-  `nutrition.ts` (meals, macros, calorie maths, macro split from calories, weight plans and paces), `body.ts` (BMI, body stat limits, sex, activity levels, BMR and daily calories), `foods-data.ts` (built-in common foods per 100 g, from USDA FoodData Central)
-- `src/lib/data/` = server-only data access (session, plans, workouts, food, settings, weight, progress, `open-food-facts.ts` product search)
+  `nutrition.ts` (meals, macros, calorie maths, macro split from calories, weight plans and paces), `body.ts` (BMI, body stat limits, sex, activity levels, BMR and daily calories), `foods-data.ts` (built-in common foods per 100 g, from USDA FoodData Central), `barcode.ts` (barcode validation)
+- `src/lib/data/` = server-only data access (session, plans, workouts, food, settings, weight, progress, `open-food-facts.ts` product search and barcode lookup)
   and `ActionResult` helpers for server actions
 - `src/components/ui/` = shared UI (Page, Card, Alert, Modal, SubmitButton, Switch, MenuLink, LineChart, Meter, button/input styles);
   `WeightForm.tsx` = weigh-in form;
