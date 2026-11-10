@@ -3,6 +3,7 @@
 import { useState, useTransition, type FormEvent } from 'react'
 import { Check, Loader2, Pencil } from 'lucide-react'
 import { logWeeklyWeight } from '@/app/dashboard/actions'
+import { HealthConsent } from '@/components/HealthConsent'
 import { AmountField } from '@/components/ui/AmountField'
 import { Alert } from '@/components/ui/Card'
 import { SubmitButton } from '@/components/ui/SubmitButton'
@@ -20,22 +21,26 @@ export function WeightForm({
   lastWeight,
   editing = false,
   unit,
+  healthConsent,
   onSaved,
 }: {
   lastWeight: number | null
   editing?: boolean
   unit: WeightUnit
+  /** Whether the user has already agreed that we keep their body details. */
+  healthConsent: boolean
   onSaved?: () => void
 }) {
   const [typing, setTyping] = useState(editing || lastWeight === null)
   const [text, setText] = useState(weightText(lastWeight, unit))
+  const [consent, setConsent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   function save(weight: number) {
     setError(null)
     startTransition(async () => {
-      const result = await logWeeklyWeight(weight)
+      const result = await logWeeklyWeight(weight, consent)
       if (!result.ok) return setError(result.error)
       onSaved?.()
     })
@@ -50,6 +55,7 @@ export function WeightForm({
 
   return (
     <div className="space-y-3">
+      {!healthConsent && <HealthConsent checked={consent} onChange={setConsent} />}
       {typing || lastWeight === null ? (
         <form onSubmit={submit} className="space-y-3">
           <AmountField label="Your weight this week" unit={unit} value={text} onChange={setText} placeholder={unit === 'kg' ? '72.5' : '160'} />

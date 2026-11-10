@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { dbFail, fail, ok } from '@/lib/data/action-result'
+import { setHealthConsent } from '@/lib/data/consent'
+import { removeUserProductPhotos } from '@/lib/data/products'
 import { getSession } from '@/lib/data/session'
 import { isValidTimeZone, TIMEZONE_COOKIE } from '@/lib/date'
 import { isPushEndpoint } from '@/lib/push'
@@ -82,9 +84,40 @@ export async function saveWeightUnit(unit: WeightUnit): Promise<ActionResult> {
   return ok()
 }
 
+/** Deletes the body details and every weigh-in, and withdraws the consent to keep them; workouts and food stay. */
+export async function removeBodyData(): Promise<ActionResult> {
+  const { user, supabase } = await getSession()
+  const message = 'Could not remove your body data. Please try again.'
+
+  const { error: logsError } = await supabase.from('weight_logs').delete().eq('user_id', user.id)
+  if (logsError) return dbFail('removeBodyData', logsError, message)
+
+  const { error } = await supabase
+    .from('user_settings')
+    .update({
+      weight_kg: null,
+      height_cm: null,
+      age: null,
+      sex: null,
+      body_fat: null,
+      activity_level: null,
+      goal_weight_kg: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', user.id)
+  if (error) return dbFail('removeBodyData', error, message)
+
+  const consentError = await setHealthConsent(supabase, null)
+  if (consentError) return dbFail('removeBodyData', consentError, message)
+
+  revalidatePath('/', 'layout')
+  return ok()
+}
+
 /**
- * Deletes the signed-in user's account with everything in it (every table cascades from the auth user), then signs
- * out. Only resolves when it failed; otherwise it ends on the sign-in page.
+ * Deletes the signed-in user's account with everything in it (every table cascades from the auth user, the photos of
+ * products they sent are removed first), then signs out. Only resolves when it failed; otherwise it ends on the
+ * sign-in page.
  */
 export async function deleteAccount(): Promise<ActionResult> {
   const { user, supabase } = await getSession()
@@ -95,6 +128,10 @@ export async function deleteAccount(): Promise<ActionResult> {
     console.error('deleteAccount:', error)
     return fail('Deleting accounts isn’t set up yet. Please try again later.')
   }
+  // Files aren't rows, so nothing cascades to them, and afterwards no row would say whose they were.
+  const photosError = await removeUserProductPhotos(admin, user.id)
+  if (photosError) return dbFail('deleteAccount', photosError, 'Could not delete your account. Please try again.')
+
   const { error } = await admin.auth.admin.deleteUser(user.id)
   if (error) return dbFail('deleteAccount', error, 'Could not delete your account. Please try again.')
 

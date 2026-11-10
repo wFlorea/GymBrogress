@@ -59,7 +59,7 @@ export function GymHistoryCalendar({ today, gymDates }: { today: IsoDate; gymDat
               aria-label={`${formatDate(date, { day: 'numeric', month: 'long' })}${wentToGym ? ', trained' : ''}`}
               className={`flex aspect-square items-center justify-center rounded-full text-xs font-semibold ${
                 wentToGym
-                  ? 'bg-primary text-white shadow-[0_0_12px_-3px_var(--color-primary)]'
+                  ? 'bg-primary-solid text-white shadow-[0_0_12px_-3px_var(--color-primary)]'
                   : date > today
                     ? 'text-white/20'
                     : 'bg-white/5 text-foreground/60'

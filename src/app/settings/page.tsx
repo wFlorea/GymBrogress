@@ -1,14 +1,16 @@
 import Link from 'next/link'
-import { ChevronLeft, Download } from 'lucide-react'
+import { ChevronLeft, Download, FileText, Mail, ShieldCheck } from 'lucide-react'
 import { cardStyles } from '@/components/ui/Card'
 import { MenuLink } from '@/components/ui/MenuLink'
 import { Page, PageHeader, SectionTitle } from '@/components/ui/Page'
 import { buttonStyles } from '@/components/ui/styles'
 import { requireUser } from '@/lib/data/session'
 import { getUserSettings } from '@/lib/data/settings'
+import { OPERATOR } from '@/lib/legal'
 import { SendPasswordLink } from '@/app/password/SendPasswordLink'
 import { DeleteAccount } from './DeleteAccount'
 import { PushReminder } from './PushReminder'
+import { RemoveBodyData } from './RemoveBodyData'
 import { RestTimerSetting } from './RestTimerSetting'
 import { WeightUnitSetting } from './WeightUnitSetting'
 
@@ -56,7 +58,17 @@ export default async function SettingsPage() {
             title="Export my data"
             description="Workouts, food log, weigh-ins and settings, as a JSON file"
           />
+          <RemoveBodyData />
           <DeleteAccount />
+        </nav>
+      </section>
+
+      <section className="mb-8">
+        <SectionTitle>Legal</SectionTitle>
+        <nav aria-label="Legal" className={`${cardStyles} divide-y divide-white/5 overflow-hidden`}>
+          <MenuLink href="/privacy" icon={<ShieldCheck size={18} />} title="Privacy Policy" description="What we keep and why" />
+          <MenuLink href="/terms" icon={<FileText size={18} />} title="Terms of Service" description="The rules for using the app" />
+          <MenuLink href={`mailto:${OPERATOR.email}`} icon={<Mail size={18} />} title="Contact" description={OPERATOR.email} />
         </nav>
       </section>
     </Page>

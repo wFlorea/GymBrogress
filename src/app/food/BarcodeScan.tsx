@@ -12,8 +12,8 @@ import { useBarcodeCamera, type CameraProblem } from './scanner'
 type Phase =
   | { step: 'scanning' }
   | { step: 'looking'; code: string }
-  | { step: 'unknown' }
-  | { step: 'incomplete'; name: string }
+  | { step: 'unknown'; code: string }
+  | { step: 'incomplete'; code: string; name: string }
   | { step: 'failed'; code: string; error: string }
 
 const CAMERA_PROBLEMS: Record<CameraProblem, string> = {
@@ -27,11 +27,14 @@ export function BarcodeScan({
   onBack,
   onFound,
   onManual,
+  onAddProduct,
 }: {
   onBack: () => void
   onFound: (food: CatalogFood) => void
   /** Opens the manual form, starting from this name. */
   onManual: (name: string) => void
+  /** Opens the form that adds this barcode to the database, starting from this name. */
+  onAddProduct: (barcode: string, name: string) => void
 }) {
   const [phase, setPhase] = useState<Phase>({ step: 'scanning' })
   const [typed, setTyped] = useState('')
@@ -49,8 +52,8 @@ export function BarcodeScan({
         if (cancelled) return
         if (!result.ok) setPhase({ step: 'failed', code: lookingFor, error: result.error })
         else if (result.data.status === 'found') onFound(result.data.food)
-        else if (result.data.status === 'incomplete') setPhase({ step: 'incomplete', name: result.data.name })
-        else setPhase({ step: 'unknown' })
+        else if (result.data.status === 'incomplete') setPhase({ step: 'incomplete', code: lookingFor, name: result.data.name })
+        else setPhase({ step: 'unknown', code: lookingFor })
       })
       .catch(() => {
         if (!cancelled) {
@@ -137,9 +140,9 @@ export function BarcodeScan({
         )}
 
         {phase.step === 'unknown' && (
-          <Outcome title="Not in the database yet" text="Try finding it by name, or copy the numbers from the label.">
-            <button type="button" onClick={onBack} className={`${buttonStyles.primary} w-full`}>
-              Search by name
+          <Outcome title="Not in the database yet" text="Add it with two photos of the pack, and once we've checked it, it works for everyone.">
+            <button type="button" onClick={() => onAddProduct(phase.code, '')} className={`${buttonStyles.primary} w-full`}>
+              Add this product
             </button>
             <button type="button" onClick={() => onManual('')} className={`${buttonStyles.secondary} w-full text-sm`}>
               Enter it manually
@@ -149,9 +152,12 @@ export function BarcodeScan({
         )}
 
         {phase.step === 'incomplete' && (
-          <Outcome title={phase.name} text="We found this product, but not its full nutrition details. Copy them from the label.">
-            <button type="button" onClick={() => onManual(phase.name)} className={`${buttonStyles.primary} w-full`}>
-              Enter from the label
+          <Outcome title={phase.name} text="We found this product, but not its full nutrition details. Add them with two photos of the pack.">
+            <button type="button" onClick={() => onAddProduct(phase.code, phase.name)} className={`${buttonStyles.primary} w-full`}>
+              Add this product
+            </button>
+            <button type="button" onClick={() => onManual(phase.name)} className={`${buttonStyles.secondary} w-full text-sm`}>
+              Enter it manually
             </button>
             {scanAgain}
           </Outcome>

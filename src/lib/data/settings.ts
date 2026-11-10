@@ -1,6 +1,7 @@
 import 'server-only'
 import { cache } from 'react'
 import { isActivityLevel, isSex } from '@/lib/body'
+import { hasHealthConsent } from '@/lib/legal'
 import { DEFAULT_PLAN_PACE, isPlanPace, isWeightPlan } from '@/lib/nutrition'
 import { DEFAULT_REST_SECONDS, isRestSeconds } from '@/lib/sets'
 import { isWorkoutSplit } from '@/lib/splits'
@@ -47,5 +48,6 @@ export const getUserSettings = cache(async (): Promise<UserSettings> => {
       seconds: isRestSeconds(data?.rest_timer_seconds) ? data.rest_timer_seconds : DEFAULT_REST_SECONDS,
     },
     weightUnit: isWeightUnit(data?.weight_unit) ? data.weight_unit : DEFAULT_WEIGHT_UNIT,
+    healthConsent: hasHealthConsent(user.user_metadata),
   }
 })

@@ -5,6 +5,7 @@ import { Loader2, Trash2 } from 'lucide-react'
 import { Alert } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { buttonStyles, inputStyles } from '@/components/ui/styles'
+import { clearOutbox } from '@/app/tracker/outbox'
 import { deleteAccount } from './actions'
 
 const CONFIRM_WORD = 'DELETE'
@@ -28,6 +29,8 @@ export function DeleteAccount() {
     setError(null)
     startDeleting(async () => {
       try {
+        // Before the call: on success it redirects, and nothing after it runs.
+        clearOutbox()
         // Only answers when it failed; otherwise it redirects to the sign-in page and there's no result to read.
         const result = await deleteAccount()
         if (result && !result.ok) setError(result.error)
@@ -56,8 +59,12 @@ export function DeleteAccount() {
       <Modal open={open} onClose={close} title="Delete your account?">
         <div className="space-y-4 pt-4">
           <p className="text-sm text-muted">
-            This deletes your workouts, routines, food log, weigh-ins and settings, and you can’t undo it. Export your
-            data first if you want to keep a copy.
+            This deletes your workouts, routines, food log, weigh-ins, settings and reminders, and any products and photos
+            still waiting to be checked. You can’t undo it. Export your data first if you want to keep a copy.
+          </p>
+          <p className="text-xs text-muted">
+            Products already approved stay in the shared list, with nothing linking them to you. Our providers’ backups and
+            logs expire on their own.
           </p>
           <label className="block space-y-1.5">
             <span className="text-xs font-semibold text-muted">Type {CONFIRM_WORD} to confirm</span>

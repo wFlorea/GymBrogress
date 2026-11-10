@@ -2,6 +2,52 @@
 
 What's next for GymBrogress, most important first. Tick items off as they land; shipped work goes in `CHANGELOG.md`.
 
+## When I get home
+
+Everything left that only I can do or decide, written 2026-11-09. Some of these also appear in the older lists below.
+
+**1. Launch the new version, in this order**
+
+- [x] Remove the extra permissions on the two new tables, `shared_products` and `product_submissions` (done on the live
+      database 2026-11-09)
+- [ ] Vercel → Settings → Environment Variables: add `ADMIN_EMAIL` with the email of my own account (needed to review
+      products). Add it to `.env.local` too if I want to review while running it on my computer.
+- [ ] Tell Claude to release it: all the work is still uncommitted. Needs a version bump, a `CHANGELOG.md` entry, a tag and
+      a push. `.claude/launch.json` and `public/muscle-map.svg` stay out unless I say otherwise.
+- [ ] After it's live, test on the phone while signed in (Claude can't sign in, so these are untested):
+  - [ ] Tracker: log a set
+  - [ ] Food: add a food, scan a barcode
+  - [ ] Send in an unknown product, then approve it at `/admin/products`
+  - [ ] Settings: remove body data, and open the delete-account dialog
+  - [ ] Sign out
+  - [ ] Do I like the slightly changed orange?
+
+**2. Before real people use it**
+
+- [ ] Have a lawyer read the Privacy and Terms pages
+- [ ] Replace the Gemini-generated app icons
+
+**3. Supabase settings (Auth section of the dashboard)**
+
+- [ ] URL Configuration: add `https://gym.florea.lol/**` and `http://localhost:3000/**` to the redirect URLs
+- [ ] Email Templates → Reset Password: link to
+      `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/password`
+- [ ] Sign In / Providers → Email: turn on **Secure password change**
+- [ ] Then try Settings → Change password, and the forgot-password link
+- [ ] Optional, needs the Pro plan: leaked password protection
+- [x] Remove the permissions logged-out visitors had on four older tables (`routine_templates`, `weekly_plans`,
+      `workout_logs`, `workout_sets`) (done on the live database 2026-11-09)
+
+**4. Domain and Google**
+
+- [ ] DNS for `florea.lol`: add TXT record `_dmarc` = `v=DMARC1; p=none;`, so emails stay out of spam
+- [ ] Google Search Console: verify `gym.florea.lol`, submit `sitemap.xml`, request indexing for
+      `https://gym.florea.lol/welcome`
+
+**5. Reminder test**
+
+- [ ] Try the Monday reminder on Android Chrome, and on an iPhone with the app on the Home Screen
+
 ## Next release: weekly weigh-in (v1.4)
 
 The weigh-in, the Monday reminder and the bigger exercise library are built but not released. The live database
@@ -56,7 +102,15 @@ password emails a link; the new-password page only takes a password within 30 mi
 ## Planned features
 
 - [x] **Barcode scanning** (v1.5): scan a packaged food and look it up on Open Food Facts
-- [ ] **Shared products:** when a barcode isn't found, people send the product with photos; approved ones work for everyone
+- [ ] **Shared products:** when a barcode isn't found, people send the product with photos; approved ones work for everyone.
+      Built, not released; `20261109120000_shared_products.sql` is applied to the live database. Before deploying: set
+      `ADMIN_EMAIL` on Vercel.
+- [ ] **Legal pages and consents:** Privacy and Terms pages, sign-up consent with a minimum age of 16, consent for body
+      details and "Remove my body data" in Settings. Built, not released; a lawyer should read the pages before launch.
+- [ ] **Launch fixes:** a weekly cleanup of old unused data (`api/cron/cleanup`, which needs the shared-products
+      migration above), a lower limit on the calories a cut suggests, readable colours, keyboard use in dialogs, credits
+      in the Terms. Built, not released.
+- [ ] **App icons:** replace the Gemini-generated ones
 - [ ] **Photo scanning of meals** (v1.6): recognise the food in a photo, with grams you can correct
 - [ ] **Weight goals with a deadline:** reach the goal weight by a date, and the pace follows from it
 

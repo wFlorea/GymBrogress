@@ -78,6 +78,8 @@ export interface UserSettings {
   planPace: PlanPace
   restTimer: RestTimerSettings
   weightUnit: WeightUnit
+  /** Whether the user has agreed that we keep their body details. */
+  healthConsent: boolean
 }
 
 /** How weights are shown and typed; they're always kept in kg. */
@@ -207,6 +209,26 @@ export interface CatalogFood {
   name: string
   brand?: string
   per100g: Nutrition
+}
+
+/** A packaged food someone sends in when its barcode isn't found: nutrition per 100 g and the paths of its two photos. */
+export interface NewProduct {
+  barcode: string
+  name: string
+  per100g: Nutrition
+  frontPhoto: string
+  labelPhoto: string
+}
+
+/** A sent-in product on the review page, with short-lived links to its photos. */
+export interface ProductSubmission {
+  id: string
+  barcode: string
+  name: string
+  per100g: Nutrition
+  frontPhotoUrl: string | null
+  labelPhotoUrl: string | null
+  submittedAt: string
 }
 
 /** What a barcode turned up: a food to log, a product without full nutrition details, or nothing. */

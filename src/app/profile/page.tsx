@@ -1,20 +1,20 @@
 import Link from 'next/link'
-import { BookOpen, LogOut, Settings, TrendingUp } from 'lucide-react'
-import { logout } from '@/app/login/actions'
+import { BookOpen, PackageCheck, Settings, TrendingUp } from 'lucide-react'
 import { Card, StatItem, cardStyles } from '@/components/ui/Card'
 import { MenuLink } from '@/components/ui/MenuLink'
 import { Page, SectionTitle } from '@/components/ui/Page'
-import { SubmitButton } from '@/components/ui/SubmitButton'
 import { buttonStyles } from '@/components/ui/styles'
 import { mondayOf, monthOf } from '@/lib/date'
 import { EXERCISES } from '@/lib/exercises-data'
 import { plural } from '@/lib/format'
+import { countWaitingProducts, isAdmin } from '@/lib/data/products'
 import { getDisplayName, getToday, requireUser } from '@/lib/data/session'
 import { getUserSettings } from '@/lib/data/settings'
 import { getWeightLog } from '@/lib/data/weight'
 import { getWorkoutHistory } from '@/lib/data/workouts'
 import { APP_VERSION } from '@/lib/version'
 import { GymHistoryCalendar } from './GymHistoryCalendar'
+import { SignOutForm } from './SignOutForm'
 import { WeightHistory } from './WeightHistory'
 
 export default async function ProfilePage() {
@@ -26,6 +26,8 @@ export default async function ProfilePage() {
     getUserSettings(),
   ])
 
+  const reviewer = isAdmin(user)
+  const waitingProducts = reviewer ? await countWaitingProducts() : 0
   const name = getDisplayName(user)
   const gymDates = history.filter((day) => day.completedSets > 0).map((day) => day.date)
   const thisMonth = gymDates.filter((date) => monthOf(date) === monthOf(today)).length
@@ -37,7 +39,7 @@ export default async function ProfilePage() {
         <Link href="/settings" aria-label="Settings" className={`${buttonStyles.icon} absolute right-0 top-0`}>
           <Settings size={18} />
         </Link>
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary font-display text-[2rem] font-bold text-white shadow-[0_0_40px_-8px_var(--color-primary)] ring-4 ring-primary/25">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary-solid font-display text-[2rem] font-bold text-white shadow-[0_0_40px_-8px_var(--color-primary)] ring-4 ring-primary/25">
           {name.charAt(0).toUpperCase()}
         </div>
         <h1 className="mt-4 max-w-full truncate font-display text-[1.75rem] font-bold leading-tight">{name}</h1>
@@ -54,7 +56,13 @@ export default async function ProfilePage() {
 
       <section className="mb-8">
         <SectionTitle subtitle="Your weekly check-ins">Weight history</SectionTitle>
-        <WeightHistory entries={weightLog} thisWeek={mondayOf(today)} currentWeight={settings.body.weight} unit={settings.weightUnit} />
+        <WeightHistory
+          entries={weightLog}
+          thisWeek={mondayOf(today)}
+          currentWeight={settings.body.weight}
+          unit={settings.weightUnit}
+          healthConsent={settings.healthConsent}
+        />
       </section>
 
       <section className="mb-8">
@@ -75,13 +83,17 @@ export default async function ProfilePage() {
           title="Exercise library"
           description={`${plural(EXERCISES.length, 'exercise')} with technique tips`}
         />
+        {reviewer && (
+          <MenuLink
+            href="/admin/products"
+            icon={<PackageCheck size={18} />}
+            title="Products to check"
+            description={`${plural(waitingProducts, 'product')} waiting`}
+          />
+        )}
       </nav>
 
-      <form action={logout}>
-        <SubmitButton className={buttonStyles.danger} pendingLabel="Signing out…">
-          <LogOut size={20} /> Sign out
-        </SubmitButton>
-      </form>
+      <SignOutForm />
 
       <p className="mt-6 text-center text-xs text-muted">GymBrogress {APP_VERSION}</p>
     </Page>

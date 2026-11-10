@@ -6,6 +6,8 @@ import { WELCOME_SEEN_COOKIE } from '@/lib/welcome'
 const PUBLIC_PATHS = ['/login', '/welcome']
 /** Email links, which sign the visitor in themselves: open to everyone, signed in or not. */
 const LINK_PATHS = ['/auth']
+/** The legal pages: open to everyone too, including from an app that's signed in. */
+const LEGAL_PATHS = ['/privacy', '/terms']
 
 const isUnder = (paths: string[], pathname: string) =>
   paths.some((path) => pathname === path || pathname.startsWith(`${path}/`))
@@ -41,7 +43,7 @@ export async function proxy(request: NextRequest) {
   const { data } = await supabase.auth.getClaims()
   const signedIn = Boolean(data?.claims?.sub)
   const { pathname } = request.nextUrl
-  if (isUnder(LINK_PATHS, pathname)) return response
+  if (isUnder(LINK_PATHS, pathname) || isUnder(LEGAL_PATHS, pathname)) return response
 
   const isPublic = isUnder(PUBLIC_PATHS, pathname)
   if (!signedIn && !isPublic) {

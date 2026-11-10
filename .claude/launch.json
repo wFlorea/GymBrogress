@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "gymbrogress-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"],
+      "port": 3000
+    },
+    {
+      "name": "gymbrogress-phone",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["start", "-H", "0.0.0.0", "-p", "3000"],
+      "port": 3000
+    }
+  ]
+}

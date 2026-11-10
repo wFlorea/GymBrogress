@@ -84,7 +84,7 @@ export function ScheduleClient({
               setOpenKey(null)
             }}
             className={`rounded-xl py-2 text-xs font-bold transition-colors ${
-              mode === value ? 'bg-primary text-white' : 'text-foreground/60 hover:text-white'
+              mode === value ? 'bg-primary-solid text-white' : 'text-foreground/60 hover:text-white'
             }`}
           >
             {label}
@@ -271,7 +271,7 @@ function DayRow({
               <span className="text-base font-extrabold text-white">{title}</span>
               {detail && <span className="text-xs font-semibold text-muted">{detail}</span>}
               {isToday && (
-                <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-black uppercase text-white">Today</span>
+                <span className="rounded-full bg-primary-solid px-2 py-0.5 text-[10px] font-black uppercase text-white">Today</span>
               )}
               {isCustom && (
                 <span className="rounded-full border border-foreground/25 px-2 py-0.5 text-[10px] font-bold uppercase text-foreground/80">

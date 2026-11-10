@@ -86,7 +86,13 @@ export default async function DashboardPage() {
         )}
       </header>
 
-      {showCheckIn && <WeeklyCheckIn lastWeight={settings.body.weight ?? weightLog.at(-1)?.weight ?? null} unit={settings.weightUnit} />}
+      {showCheckIn && (
+        <WeeklyCheckIn
+          lastWeight={settings.body.weight ?? weightLog.at(-1)?.weight ?? null}
+          unit={settings.weightUnit}
+          healthConsent={settings.healthConsent}
+        />
+      )}
 
       <Card className="mb-8">
         <h2 className="font-semibold">This week</h2>
@@ -154,6 +160,7 @@ export default async function DashboardPage() {
         weightPlan={settings.weightPlan}
         planPace={settings.planPace}
         unit={settings.weightUnit}
+        healthConsent={settings.healthConsent}
       />
 
       <SectionTitle subtitle="Set up your training">Shortcuts</SectionTitle>
@@ -226,7 +233,15 @@ function WorkoutStatus({ day }: { day: DaySummary | undefined }) {
  * Asks for this week's weight until it's logged or closed (closing skips the week); the history is on the Profile
  * page.
  */
-function WeeklyCheckIn({ lastWeight, unit }: { lastWeight: number | null; unit: WeightUnit }) {
+function WeeklyCheckIn({
+  lastWeight,
+  unit,
+  healthConsent,
+}: {
+  lastWeight: number | null
+  unit: WeightUnit
+  healthConsent: boolean
+}) {
   return (
     <Card className="mb-8">
       <div className="mb-4 flex items-start gap-3">
@@ -247,7 +262,7 @@ function WeeklyCheckIn({ lastWeight, unit }: { lastWeight: number | null; unit: 
           </button>
         </form>
       </div>
-      <WeightForm lastWeight={lastWeight} unit={unit} />
+      <WeightForm lastWeight={lastWeight} unit={unit} healthConsent={healthConsent} />
     </Card>
   )
 }

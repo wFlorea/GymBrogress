@@ -17,8 +17,10 @@ import {
 } from '@/lib/nutrition'
 import { dbFail, fail, ok } from '@/lib/data/action-result'
 import { lookupBarcode, searchProducts } from '@/lib/data/open-food-facts'
+import { findAddedProduct, removeProductPhotos } from '@/lib/data/products'
 import { getSession, getToday, requireUser } from '@/lib/data/session'
-import type { ActionResult, BarcodeLookup, CatalogFood, FoodItem, IsoDate, Meal } from '@/lib/types'
+import { MAX_WAITING_PRODUCTS, cleanProduct, isOwnProductPhoto } from '@/lib/products'
+import type { ActionResult, BarcodeLookup, CatalogFood, FoodItem, IsoDate, Meal, NewProduct } from '@/lib/types'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -79,18 +81,68 @@ export async function searchFoodProducts(query: string): Promise<ActionResult<Ca
   }
 }
 
-/** What Open Food Facts knows about the product with this barcode. */
+/** The product with this barcode: one added through the app first, otherwise what Open Food Facts knows. */
 export async function lookupFoodBarcode(barcode: string): Promise<ActionResult<BarcodeLookup>> {
   const code = typeof barcode === 'string' ? normalizeBarcode(barcode) : null
   if (!code) return fail("That doesn't look like a barcode. Check the digits and try again.")
-  await requireUser()
+  const { user, supabase } = await getSession()
 
   try {
-    return ok(await lookupBarcode(code))
+    const added = await findAddedProduct(supabase, user.id, code)
+    return ok(added ? { status: 'found', food: added } : await lookupBarcode(code))
   } catch (error) {
     console.error('lookupFoodBarcode:', error instanceof Error ? error.message : error)
     return fail("Couldn't reach the product database. Check your connection and try again.")
   }
+}
+
+/**
+ * Sends in a product whose barcode wasn't found, with its two already-uploaded photos. The sender can log it right
+ * away; everyone else can once it's approved. Returns it as a food to log.
+ */
+export async function submitProduct(product: NewProduct): Promise<ActionResult<CatalogFood>> {
+  if (typeof product !== 'object' || product === null) return fail('Invalid product.')
+  const { user, supabase } = await getSession()
+  const { frontPhoto, labelPhoto } = product
+  if (!isOwnProductPhoto(frontPhoto, user.id) || !isOwnProductPhoto(labelPhoto, user.id)) return fail('Add both photos, so we can check the product.')
+
+  // Past this point the photos are the user's own, and nothing keeps them unless the product is saved.
+  const refuse = async (message: string) => {
+    await removeProductPhotos([frontPhoto, labelPhoto])
+    return fail(message)
+  }
+
+  const barcode = typeof product.barcode === 'string' ? normalizeBarcode(product.barcode) : null
+  if (!barcode) return refuse("That doesn't look like a barcode. Check the digits and try again.")
+  const details = cleanProduct(product)
+  if (typeof details === 'string') return refuse(details)
+
+  const { count, error: countError } = await supabase
+    .from('product_submissions')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+  if (countError) {
+    console.error('submitProduct:', countError.message)
+    return refuse('Could not send the product. Please try again.')
+  }
+  if ((count ?? 0) >= MAX_WAITING_PRODUCTS) {
+    return refuse(`You already have ${MAX_WAITING_PRODUCTS} products waiting to be checked. Try again once they're done.`)
+  }
+
+  const { name, per100g } = details
+  const { error } = await supabase.from('product_submissions').insert({
+    user_id: user.id,
+    barcode,
+    name,
+    ...per100g,
+    front_photo: frontPhoto,
+    label_photo: labelPhoto,
+  })
+  if (error) {
+    console.error('submitProduct:', error.message)
+    return refuse(error.code === '23505' ? "You've already sent this product." : 'Could not send the product. Please try again.')
+  }
+  return ok({ id: `product-${barcode}`, name, per100g })
 }
 
 /** Logs a food on `date` (today or an earlier day). Returns the new entry's id. */

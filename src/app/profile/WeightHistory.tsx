@@ -23,6 +23,7 @@ export function WeightHistory({
   thisWeek,
   currentWeight,
   unit,
+  healthConsent,
 }: {
   /** Oldest first. */
   entries: WeightEntry[]
@@ -31,6 +32,7 @@ export function WeightHistory({
   /** The weight in the body stats, offered for a first check-in. */
   currentWeight: number | null
   unit: WeightUnit
+  healthConsent: boolean
 }) {
   const [open, setOpen] = useState(false)
   // Bumped on every open, so the form starts fresh.
@@ -104,6 +106,7 @@ export function WeightHistory({
             lastWeight={(checkedIn ? latest?.weight : (currentWeight ?? latest?.weight)) ?? null}
             editing={checkedIn}
             unit={unit}
+            healthConsent={healthConsent}
             onSaved={() => setOpen(false)}
           />
         </div>

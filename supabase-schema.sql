@@ -151,6 +151,35 @@ CREATE TABLE push_subscriptions (
   UNIQUE (user_id, endpoint)
 );
 
+-- Approved packaged foods (per 100 g), used by everyone. They hold no personal data, so they outlive the account that
+-- sent them. Only the review page writes here, with the service role key.
+CREATE TABLE shared_products (
+  barcode TEXT PRIMARY KEY CHECK (barcode ~ '^([0-9]{8}|[0-9]{13})$'),
+  name TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 80),
+  calories NUMERIC NOT NULL CHECK (calories BETWEEN 0 AND 900),
+  protein NUMERIC NOT NULL CHECK (protein BETWEEN 0 AND 100),
+  carbs NUMERIC NOT NULL CHECK (carbs BETWEEN 0 AND 100),
+  fat NUMERIC NOT NULL CHECK (fat BETWEEN 0 AND 100),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+-- Products waiting for review. Reviewing removes the row and its photos, so everything here is still waiting.
+CREATE TABLE product_submissions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  barcode TEXT NOT NULL CHECK (barcode ~ '^([0-9]{8}|[0-9]{13})$'),
+  name TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 80),
+  calories NUMERIC NOT NULL CHECK (calories BETWEEN 0 AND 900),
+  protein NUMERIC NOT NULL CHECK (protein BETWEEN 0 AND 100),
+  carbs NUMERIC NOT NULL CHECK (carbs BETWEEN 0 AND 100),
+  fat NUMERIC NOT NULL CHECK (fat BETWEEN 0 AND 100),
+  -- Paths in the product-photos bucket.
+  front_photo TEXT NOT NULL,
+  label_photo TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  UNIQUE (user_id, barcode)
+);
+
 ALTER TABLE weekly_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE routine_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workout_logs ENABLE ROW LEVEL SECURITY;
@@ -161,6 +190,8 @@ ALTER TABLE weight_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE saved_meals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE water_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shared_products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_submissions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can manage their own weekly plans" ON weekly_plans
   FOR ALL TO authenticated
@@ -206,8 +237,33 @@ CREATE POLICY "Users can manage their own water logs" ON water_logs
   USING ((SELECT auth.uid()) = user_id) WITH CHECK ((SELECT auth.uid()) = user_id);
 
 REVOKE ALL ON user_settings, food_entries, weight_logs, push_subscriptions, saved_meals, water_logs FROM anon;
+REVOKE ALL ON routine_templates, weekly_plans, workout_logs, workout_sets FROM anon;
 GRANT SELECT, INSERT, UPDATE, DELETE
   ON user_settings, food_entries, weight_logs, push_subscriptions, saved_meals, water_logs TO authenticated;
+
+CREATE POLICY "Signed-in users can read shared products" ON shared_products
+  FOR SELECT TO authenticated
+  USING (true);
+
+CREATE POLICY "Users can read their own product submissions" ON product_submissions
+  FOR SELECT TO authenticated
+  USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Users can add their own product submissions" ON product_submissions
+  FOR INSERT TO authenticated
+  WITH CHECK ((SELECT auth.uid()) = user_id);
+
+REVOKE ALL ON shared_products, product_submissions FROM anon, authenticated;
+GRANT SELECT ON shared_products TO authenticated;
+GRANT SELECT, INSERT ON product_submissions TO authenticated;
+
+-- Product photos: private, and only read through short-lived links on the review page.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('product-photos', 'product-photos', false, 1048576, ARRAY['image/jpeg']);
+
+CREATE POLICY "Users can upload product photos to their own folder" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'product-photos' AND (storage.foldername(name))[1] = (SELECT auth.uid())::text);
 
 -- Progress page. security_invoker keeps the RLS of the underlying tables.
 -- Heaviest completed set of each exercise per month.

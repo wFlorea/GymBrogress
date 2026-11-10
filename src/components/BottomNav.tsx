@@ -31,7 +31,7 @@ export function BottomNav() {
   const pathname = usePathname()
   // The tab the user tapped last; its icon jumps when that tab opens.
   const [tapped, setTapped] = useState<string | null>(null)
-  if (pathname === '/login' || pathname === '/welcome') return null
+  if (['/login', '/welcome', '/privacy', '/terms'].includes(pathname)) return null
 
   const current = tabPath(pathname)
 

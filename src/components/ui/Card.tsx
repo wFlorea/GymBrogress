@@ -44,7 +44,7 @@ export function EmptyState({
 const ALERT_TONES = {
   error: 'border-error/40 bg-error/10 text-red-300',
   success: 'border-success/40 bg-success/10 text-emerald-200',
-  info: 'border-primary/40 bg-primary/15 text-primary',
+  info: 'border-primary/40 bg-primary/10 text-primary',
 } as const
 
 export function Alert({

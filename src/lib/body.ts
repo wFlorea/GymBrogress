@@ -6,7 +6,8 @@ export const MIN_WEIGHT_KG = 20
 export const MAX_WEIGHT_KG = 400
 export const MIN_HEIGHT_CM = 100
 export const MAX_HEIGHT_CM = 250
-export const MIN_AGE = 13
+/** Also the minimum age for an account: the GDPR's age of consent, which Romania keeps at 16. */
+export const MIN_AGE = 16
 export const MAX_AGE = 120
 /** Body fat, in %. */
 export const MIN_BODY_FAT = 5

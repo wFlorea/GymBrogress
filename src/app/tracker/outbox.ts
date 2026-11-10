@@ -61,6 +61,18 @@ function save() {
   listeners.forEach((listener) => listener())
 }
 
+/** Forgets the waiting changes when the user leaves, so their sets don't stay on a device someone else may use. */
+export function clearOutbox() {
+  // Emptied in place: a send in progress works on this same array.
+  load().length = 0
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // Blocked storage has nothing to remove.
+  }
+  listeners.forEach((listener) => listener())
+}
+
 function setOffline(value: boolean) {
   if (offline === value) return
   offline = value

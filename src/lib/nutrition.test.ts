@@ -8,6 +8,7 @@ import {
   per100gOf,
   planCalories,
   recommendedGoals,
+  safePlanCalories,
   sumNutrition,
   waterGoalMl,
   weeklyWeightChange,
@@ -54,6 +55,27 @@ describe('planCalories', () => {
   })
 })
 
+describe('safePlanCalories', () => {
+  it('leaves an ordinary cut alone', () => {
+    expect(safePlanCalories(2800, 'cut', 10, 'male')).toBe(2500)
+  })
+
+  it('stops a cut at the lower limit', () => {
+    expect(safePlanCalories(1700, 'cut', 20, 'male')).toBe(1500)
+    expect(safePlanCalories(1400, 'cut', 20, 'female')).toBe(1200)
+    expect(safePlanCalories(1400, 'cut', 20, null)).toBe(1200)
+  })
+
+  it('never suggests more than the maintenance for a cut', () => {
+    expect(safePlanCalories(1100, 'cut', 10, 'female')).toBe(1100)
+  })
+
+  it('leaves maintaining and bulking alone', () => {
+    expect(safePlanCalories(1100, 'maintain', 10, 'male')).toBe(1100)
+    expect(safePlanCalories(1200, 'bulk', 10, 'male')).toBe(1300)
+  })
+})
+
 describe('weeklyWeightChange', () => {
   it('is the weekly calorie difference over 7700 kcal a kg', () => {
     expect(weeklyWeightChange(2300, 2850)).toBeCloseTo(-0.5)
@@ -81,6 +103,12 @@ describe('recommendedGoals', () => {
 
   it('is null until the stats are all there', () => {
     expect(recommendedGoals({ ...body, weight: null }, 'cut', 10)).toBeNull()
+  })
+
+  it('stops a steep cut at the lower limit', () => {
+    // Maintenance 1400 kcal; a 20% cut would be 1100.
+    const small: BodyStats = { weight: 55, height: 160, age: 40, sex: 'female', bodyFat: null, activity: 'sedentary' }
+    expect(recommendedGoals(small, 'cut', 20)?.calories).toBe(1200)
   })
 })
 

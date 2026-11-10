@@ -4,16 +4,18 @@ import { useState } from 'react'
 import { findCommonFood } from '@/lib/foods-data'
 import { nutritionFor, per100gOf } from '@/lib/nutrition'
 import type { CatalogFood, FoodEntry, FoodItem, IsoDate, Meal, SavedMeal } from '@/lib/types'
+import { AddProductForm } from './AddProductForm'
 import { BarcodeScan } from './BarcodeScan'
 import { FoodForm } from './FoodForm'
 import { FoodSearch } from './FoodSearch'
 import { PortionForm } from './PortionForm'
 import { SavedMealList } from './SavedMealList'
 
-/** Where the sheet is: searching, scanning a barcode, picking an amount of a database food, or typing a food in by hand. */
+/** Where the sheet is: searching, scanning a barcode, adding a product, picking an amount of a database food, or typing a food in by hand. */
 type View =
   | { step: 'search' }
   | { step: 'scan' }
+  | { step: 'add-product'; barcode: string; name: string }
   | { step: 'portion'; food: CatalogFood; grams?: number }
   | { step: 'manual'; prefill?: FoodItem; name?: string }
 
@@ -89,6 +91,18 @@ export function FoodSheet({
         onBack={() => setView({ step: 'search' })}
         onFound={(food) => setView({ step: 'portion', food })}
         onManual={(name) => setView({ step: 'manual', name })}
+        onAddProduct={(barcode, name) => setView({ step: 'add-product', barcode, name })}
+      />
+    )
+  }
+
+  if (view.step === 'add-product') {
+    return (
+      <AddProductForm
+        barcode={view.barcode}
+        initialName={view.name}
+        onBack={() => setView({ step: 'scan' })}
+        onSubmitted={(food) => setView({ step: 'portion', food })}
       />
     )
   }

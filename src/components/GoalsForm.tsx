@@ -21,6 +21,7 @@ import {
   macrosForCalories,
   parseAmount,
   planCalories,
+  safePlanCalories,
   weeklyWeightChange,
 } from '@/lib/nutrition'
 import type { BodyStats, Nutrition, NutritionGoals, PlanPace, WeightPlan, WeightUnit } from '@/lib/types'
@@ -75,14 +76,15 @@ export function GoalsForm({
   // Typed in the user's unit, kept in kg.
   const target = typedTarget === null || Number.isNaN(typedTarget) ? typedTarget : toKg(typedTarget, unit)
   const maintenance = maintenanceCaloriesFor(body)
-  const planned = maintenance === null ? null : planCalories(maintenance, plan, pace)
+  const planned = maintenance === null ? null : safePlanCalories(maintenance, plan, pace, body.sex)
+  const heldAtLimit = maintenance !== null && planned !== null && planned > planCalories(maintenance, plan, pace)
 
   /** Switches to a plan and pace, and fills in the calories and macros they give when the maintenance is known. */
   function choosePlan(nextPlan: WeightPlan, nextPace: PlanPace) {
     setPlan(nextPlan)
     setPace(nextPace)
     if (maintenance === null || weight === null) return
-    const next = goalsForCalories(planCalories(maintenance, nextPlan, nextPace), weight)
+    const next = goalsForCalories(safePlanCalories(maintenance, nextPlan, nextPace, body.sex), weight)
     setFields((f) => ({
       ...f,
       calories: String(next.calories),
@@ -180,13 +182,15 @@ export function GoalsForm({
                   maximumFractionDigits: 1,
                 })}{' '}
                 {unit} a week {plan === 'cut' ? 'off' : 'on'}.
+                {heldAtLimit && ' A faster cut would be too low, so this is as far as a plan goes.'}
               </p>
             )}
           </PaceDial>
         )}
         {maintenance !== null && (
           <p className="text-[11px] leading-relaxed text-muted">
-            Your maintenance is {formatKcal(maintenance)} a day. Your plan fills in the calories below.
+            Your maintenance is {formatKcal(maintenance)} a day. Your plan fills in the calories below. These are estimates
+            from a formula, not medical advice.
           </p>
         )}
       </div>

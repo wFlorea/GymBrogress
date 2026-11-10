@@ -1,10 +1,13 @@
 'use client'
 
 import { useActionState, useState, type ComponentProps, type ReactNode } from 'react'
+import Link from 'next/link'
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock, Mail, User, type LucideIcon } from 'lucide-react'
+import { LegalLinks } from '@/components/LegalPage'
 import { Alert } from '@/components/ui/Card'
 import { PlateMark } from '@/components/ui/PlateMark'
 import { SubmitButton } from '@/components/ui/SubmitButton'
+import { MIN_AGE } from '@/lib/body'
 import { login, requestPasswordReset, resendConfirmation, signup } from './actions'
 import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH } from './auth-state'
 
@@ -15,7 +18,7 @@ export type LinkResult = 'expired' | 'confirmed'
 
 // Pill-shaped, like the buttons.
 const pillInputStyles =
-  'h-13 w-full rounded-full border border-transparent bg-black/40 pl-12 pr-5 text-sm text-white shadow-inner placeholder:text-muted transition-colors focus:border-primary focus:outline-none'
+  'h-13 w-full rounded-full border border-control bg-black/40 pl-12 pr-5 text-sm text-white shadow-inner placeholder:text-muted transition-colors focus:border-primary focus:outline-none'
 
 export function LoginForm({
   initialMode = 'login',
@@ -31,6 +34,7 @@ export function LoginForm({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [accepted, setAccepted] = useState(false)
   const [loginState, loginAction] = useActionState(login, null)
   const [signupState, signupAction] = useActionState(signup, null)
   const [resetState, resetAction] = useActionState(requestPasswordReset, null)
@@ -42,7 +46,7 @@ export function LoginForm({
   const action = isSignup ? signupAction : isForgot ? resetAction : loginAction
   const passwordsChecked = isSignup && confirmPassword.length > 0
   const passwordsMatch = password === confirmPassword
-  const canSignUp = name.trim().length > 0 && password.length >= MIN_PASSWORD_LENGTH && passwordsMatch
+  const canSignUp = name.trim().length > 0 && password.length >= MIN_PASSWORD_LENGTH && passwordsMatch && accepted
 
   function switchMode(next: Mode) {
     setMode(next)
@@ -142,6 +146,31 @@ export function LoginForm({
             />
           )}
 
+          {isSignup && (
+            <label className="flex cursor-pointer items-start gap-3 px-5 text-xs leading-relaxed text-muted">
+              <input
+                type="checkbox"
+                name="accepted"
+                value="yes"
+                checked={accepted}
+                onChange={(e) => setAccepted(e.target.checked)}
+                required
+                className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+              />
+              <span>
+                I’m {MIN_AGE} or older and I accept the{' '}
+                <Link href="/terms" target="_blank" className="font-semibold text-primary hover:underline">
+                  Terms
+                </Link>
+                . I’ve read the{' '}
+                <Link href="/privacy" target="_blank" className="font-semibold text-primary hover:underline">
+                  Privacy Policy
+                </Link>
+                .
+              </span>
+            </label>
+          )}
+
           {isForgot && link === 'expired' && !resetState && (
             <Alert>
               That link has expired, was already used, or was opened in another browser. Send yourself a new one.
@@ -222,6 +251,9 @@ export function LoginForm({
             {mode === 'login' ? 'Create account' : 'Sign in'}
           </button>
         </p>
+        <div className="mt-6">
+          <LegalLinks />
+        </div>
       </div>
     </div>
   )

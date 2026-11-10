@@ -103,7 +103,7 @@ export function PlanSlider({ value, onChange }: { value: WeightPlan; onChange: (
               )
             })}
             <span
-              className="absolute top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/30 transition-[left] duration-500 ease-spring"
+              className="absolute top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary-solid text-white shadow-lg shadow-primary/30 transition-[left] duration-500 ease-spring"
               style={{ left: `${thumb}%` }}
               aria-hidden
             >

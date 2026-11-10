@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
+import { LegalLinks } from '@/components/LegalPage'
 import { markWelcomeSeen } from '@/lib/welcome'
 import { WelcomePlate } from './WelcomePlate'
 
@@ -102,7 +103,7 @@ export function WelcomeClient() {
           <Link
             href="/login?mode=signup"
             onClick={markWelcomeSeen}
-            className="press flex h-13 w-full items-center justify-center rounded-full bg-primary font-semibold text-white shadow-lg shadow-primary/30 hover:bg-primary-hover"
+            className="press flex h-13 w-full items-center justify-center rounded-full bg-primary-solid font-semibold text-white shadow-lg shadow-primary/30 hover:bg-primary-hover"
           >
             Create account
           </Link>
@@ -115,6 +116,9 @@ export function WelcomeClient() {
             Next
           </button>
         )}
+        <div className="mt-4">
+          <LegalLinks />
+        </div>
       </footer>
     </div>
   )

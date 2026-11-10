@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { MIN_AGE } from '@/lib/body'
+import { LEGAL_VERSION } from '@/lib/legal'
 import { createClient } from '@/utils/supabase/server'
 import { authErrorMessage } from './auth-errors'
 import {
@@ -39,12 +41,18 @@ export async function signup(_previous: AuthState, formData: FormData): Promise<
     return { error: `Your password needs at least ${MIN_PASSWORD_LENGTH} characters.` }
   }
   if (password !== field(formData, 'confirmPassword')) return { error: 'The passwords don’t match.' }
+  if (field(formData, 'accepted') !== 'yes') {
+    return { error: `Confirm you’re ${MIN_AGE} or older and accept the Terms to create an account.` }
+  }
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { name }, emailRedirectTo: await emailLinkTo(CONFIRMED_PATH) },
+    options: {
+      data: { name, terms_accepted_at: new Date().toISOString(), terms_version: LEGAL_VERSION },
+      emailRedirectTo: await emailLinkTo(CONFIRMED_PATH),
+    },
   })
   if (error) return { error: authErrorMessage(error) }
 

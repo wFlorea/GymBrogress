@@ -30,9 +30,10 @@ as a PWA and works like a native app.
 
 ### Track what you eat
 - **Food search:** search for what you ate, type in how many grams you had, and the calories and macros are
-  filled in. Everyday foods (160+ staples like oats, rice, chicken and eggs) come built in from
-  [USDA FoodData Central](https://fdc.nal.usda.gov/); packaged and branded products come from
-  [Open Food Facts](https://world.openfoodfacts.org/).
+  filled in. Everyday foods (440+ staples like oats, chicken and eggs, plus meals like pizza and curry) come built in from
+  [USDA FoodData Central](https://fdc.nal.usda.gov/); store brands come from
+  [Open Food Facts](https://world.openfoodfacts.org/) and show when you tap "Show store brands", or when nothing built in matches.
+- **Shared products:** when a barcode isn't found, send the product with two photos; once it's checked, it works for everyone
 - **Barcode scanning:** point your camera at a packaged food, or type the number under the barcode, and pick how much
   you had. Works on Android and iPhone, and products come from Open Food Facts.
 - **Food log:** add foods to breakfast, lunch, dinner or snacks, or type one in by hand with its calories, protein,
@@ -103,12 +104,14 @@ as a PWA and works like a native app.
    ```
    These are optional; without them the app still runs:
    ```
-   # Deleting an account and the weekly reminder (Supabase → Project Settings → API keys). Server-only.
+   # Deleting an account, the weekly reminder and the weekly cleanup (Supabase → Project Settings → API keys). Server-only.
    SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   # The account that reviews products people add (needs the service role key too)
+   ADMIN_EMAIL=you@example.com
    # The Monday weigh-in reminder: keys from `pnpm exec web-push generate-vapid-keys`
    NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key
    VAPID_PRIVATE_KEY=your-vapid-private-key
-   # Any long random string; Vercel sends it to the cron route
+   # Any long random string; Vercel sends it to the cron routes
    CRON_SECRET=your-cron-secret
    ```
 
@@ -148,8 +151,9 @@ src/
 │   ├── progress/        # Per-exercise progress charts
 │   ├── food/            # Food log, food search and daily calorie and macro goals
 │   ├── profile/         # Stats, weigh-ins, gym-history calendar, sign out
-│   ├── settings/        # Rest timer, units, reminder, password, data export, account deletion
-│   └── api/             # Data export and the weekly reminder cron
+│   ├── settings/        # Rest timer, units, reminder, password, data export, removing body data, account deletion
+│   ├── privacy/, terms/ # Privacy Policy and Terms of Service
+│   └── api/             # Data export and the weekly crons (the reminder, and deleting old unused data)
 ├── components/          # Bottom navigation, exercise browser and shared UI (cards, modals, buttons, sortable lists)
 ├── lib/                 # Shared types and logic (dates, streaks, splits, routines, exercise list)
 │   └── data/            # Server-only data access

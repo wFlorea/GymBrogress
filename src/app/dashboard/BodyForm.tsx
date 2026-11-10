@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, type FormEvent } from 'react'
+import { HealthConsent } from '@/components/HealthConsent'
 import { AmountField } from '@/components/ui/AmountField'
 import { Alert } from '@/components/ui/Card'
 import { SubmitButton } from '@/components/ui/SubmitButton'
@@ -19,7 +20,7 @@ import {
   missingForCalories,
 } from '@/lib/body'
 import { formatKcal } from '@/lib/format'
-import { MACROS, WEIGHT_PLANS, parseAmount, recommendedGoals } from '@/lib/nutrition'
+import { MACROS, WEIGHT_PLANS, parseAmount, planCalories, recommendedGoals } from '@/lib/nutrition'
 import type { ActivityLevel, BodyStats, Nutrition, PlanPace, Sex, WeightPlan, WeightUnit } from '@/lib/types'
 import { toKg, weightText } from '@/lib/units'
 import { saveBodyStats } from './actions'
@@ -43,6 +44,7 @@ export function BodyForm({
   weightPlan,
   planPace,
   unit,
+  healthConsent,
   onSaved,
 }: {
   body: BodyStats
@@ -50,12 +52,15 @@ export function BodyForm({
   weightPlan: WeightPlan
   planPace: PlanPace
   unit: WeightUnit
+  /** Whether the user has already agreed that we keep their body details. */
+  healthConsent: boolean
   onSaved: () => void
 }) {
   const [fields, setFields] = useState<Fields>({ weight: weightText(body.weight, unit), height: textOf(body.height), age: textOf(body.age) })
   const [sex, setSex] = useState(body.sex)
   const [bodyFat, setBodyFat] = useState(body.bodyFat)
   const [activity, setActivity] = useState(body.activity)
+  const [consent, setConsent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -80,7 +85,7 @@ export function BodyForm({
 
     setError(null)
     startTransition(async () => {
-      const result = await saveBodyStats({ weight, height, age, sex, bodyFat, activity })
+      const result = await saveBodyStats({ weight, height, age, sex, bodyFat, activity }, consent)
       if (!result.ok) return setError(result.error)
       onSaved()
     })
@@ -120,6 +125,7 @@ export function BodyForm({
       <ActivityPicker activity={activity} onChange={setActivity} />
       <DailyCalories goals={goals} maintenance={maintenance} weightPlan={weightPlan} planPace={planPace} missing={missing} />
 
+      {!healthConsent && <HealthConsent checked={consent} onChange={setConsent} />}
       {error && <Alert>{error}</Alert>}
 
       <SubmitButton pending={pending} pendingLabel="Saving…">
@@ -168,6 +174,7 @@ function DailyCalories({
   missing: string[]
 }) {
   const plan = WEIGHT_PLANS.find((option) => option.key === weightPlan)
+  const heldAtLimit = goals !== null && maintenance !== null && goals.calories > planCalories(maintenance, weightPlan, planPace)
   return (
     <div className="rounded-2xl border border-border bg-sunken p-4" aria-live="polite">
       {goals === null ? (
@@ -194,7 +201,9 @@ function DailyCalories({
             {weightPlan === 'maintain' || maintenance === null
               ? 'Your maintenance: your BMR times your activity level, to the nearest 100 kcal.'
               : `Your ${plan?.label.toLowerCase()}: your maintenance of ${formatKcal(maintenance)} ${weightPlan === 'cut' ? 'less' : 'plus'} ${planPace}%, to the nearest 100 kcal.`}{' '}
-            Saving sets these as your daily goals; you can change them and your plan under Goal.
+            {heldAtLimit && 'That would be too low, so this is as far as a plan goes. '}
+            Saving sets these as your daily goals; you can change them and your plan under Goal. These are estimates from a
+            formula, not medical advice.
           </p>
         </>
       )}

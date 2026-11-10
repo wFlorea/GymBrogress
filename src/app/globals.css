@@ -10,13 +10,17 @@
   /* Rows, list items and inputs that sit inside a card */
   --color-sunken: #171717;
 
-  /* Accent */
-  --color-primary: #FF4500;
-  --color-primary-hover: #e63e00;
+  /* Accent. `primary` is bright enough to read as text on the dark surfaces; anything with white text on it
+     (buttons, badges) uses `primary-solid`, which is dark enough for that. */
+  --color-primary: #FF6B35;
+  --color-primary-solid: #D93A00;
+  --color-primary-hover: #C23400;
 
-  --color-muted: #888888;
+  --color-muted: #A0A0A0;
   --color-border: #333333;
-  --color-error: #ef4444;
+  /* The edge of something you can use, like an input: must stand out from what's behind it. */
+  --color-control: #767676;
+  --color-error: #F87171;
   --color-success: #22c55e;
 
   /* Macros in the food log */

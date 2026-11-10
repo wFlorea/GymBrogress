@@ -26,6 +26,7 @@ import {
   recommendedGoals,
 } from '@/lib/nutrition'
 import { dbFail, fail, ok } from '@/lib/data/action-result'
+import { requireHealthConsent } from '@/lib/data/consent'
 import { getSession, getToday } from '@/lib/data/session'
 import { getUserSettings } from '@/lib/data/settings'
 import { CHECK_IN_DISMISSED_COOKIE } from '@/lib/data/weight'
@@ -63,7 +64,7 @@ const goalColumns = (goals: Nutrition | null) =>
  * the daily calories are all there, the calorie and macro goals are set to the ones they and the user's weight plan
  * give (see `recommendedGoals`).
  */
-export async function saveBodyStats(body: BodyStats): Promise<ActionResult> {
+export async function saveBodyStats(body: BodyStats, consent: boolean): Promise<ActionResult> {
   if (typeof body !== 'object' || body === null) return fail('Invalid details.')
   if (!isOptionalAmount(body.weight, MIN_WEIGHT_KG, MAX_WEIGHT_KG)) {
     return fail(`Enter a weight between ${await weightRange()}, or leave it empty.`)
@@ -84,7 +85,13 @@ export async function saveBodyStats(body: BodyStats): Promise<ActionResult> {
   const height = tenth(body.height)
   const { weightPlan, planPace } = await getUserSettings()
   const goals = recommendedGoals({ ...body, weight, height }, weightPlan, planPace)
-  const { user, supabase } = await getSession()
+  const session = await getSession()
+  // Clearing every field stores nothing, so it needs no consent.
+  if (Object.values(body).some((value) => value !== null)) {
+    const refused = await requireHealthConsent(session, consent)
+    if (refused) return refused
+  }
+  const { user, supabase } = session
   const { error } = await supabase.from('user_settings').upsert(
     {
       user_id: user.id,
@@ -109,7 +116,7 @@ export async function saveBodyStats(body: BodyStats): Promise<ActionResult> {
  * Logs this week's weigh-in (checking in again the same week replaces it) and makes it the current weight, so the
  * BMI and the daily goals follow it as they do in `saveBodyStats`.
  */
-export async function logWeeklyWeight(weight: number): Promise<ActionResult> {
+export async function logWeeklyWeight(weight: number, consent: boolean): Promise<ActionResult> {
   if (!isAmount(weight, MIN_WEIGHT_KG, MAX_WEIGHT_KG)) {
     return fail(`Enter a weight between ${await weightRange()}.`)
   }
@@ -117,7 +124,10 @@ export async function logWeeklyWeight(weight: number): Promise<ActionResult> {
   const kg = Math.round(weight * 100) / 100
   const [{ body, weightPlan, planPace }, today] = await Promise.all([getUserSettings(), getToday()])
   const goals = recommendedGoals({ ...body, weight: kg }, weightPlan, planPace)
-  const { user, supabase } = await getSession()
+  const session = await getSession()
+  const refused = await requireHealthConsent(session, consent)
+  if (refused) return refused
+  const { user, supabase } = session
   const updatedAt = new Date().toISOString()
   const { error: logError } = await supabase
     .from('weight_logs')

@@ -115,7 +115,7 @@ export function ExerciseBrowser({
                     className={`press flex h-9 w-9 shrink-0 items-center justify-center rounded-xl [--press-scale:0.85] ${
                       added
                         ? 'cursor-default bg-success/20 text-success'
-                        : 'bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary-hover'
+                        : 'bg-primary-solid text-white shadow-md shadow-primary/20 hover:bg-primary-hover'
                     }`}
                   >
                     {added ? (

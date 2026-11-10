@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { Loader2, PenLine, ScanBarcode, Search } from 'lucide-react'
+import { Loader2, PenLine, ScanBarcode, Search, Store } from 'lucide-react'
 import { buttonStyles, inputStyles } from '@/components/ui/styles'
 import { searchCommonFoods } from '@/lib/foods-data'
 import { formatGrams } from '@/lib/format'
@@ -14,7 +14,7 @@ const PRODUCT_SEARCH_DELAY = 350
 
 type ProductResult = { foods: CatalogFood[]; error: null } | { foods: null; error: string }
 
-/** Finds a food to log: recent foods, the built-in common foods, and packaged products from Open Food Facts. */
+/** Finds a food to log: recent foods, the built-in common foods and, when asked for, store brands from Open Food Facts. */
 export function FoodSearch({
   query,
   onQueryChange,
@@ -39,11 +39,14 @@ export function FoodSearch({
   const commonFoods = searchCommonFoods(text)
   // Product results by search text, so going back to an earlier search doesn't ask again.
   const [products, setProducts] = useState<Record<string, ProductResult>>({})
-  const searchesProducts = text.length >= 2
-  const productResult = searchesProducts ? products[text] : undefined
+  // The search the store brands were opened for, so a new search starts without them.
+  const [brandsFor, setBrandsFor] = useState<string | null>(null)
+  const canSearchBrands = text.length >= 2
+  const showsBrands = canSearchBrands && (commonFoods.length === 0 || brandsFor === text)
+  const productResult = showsBrands ? products[text] : undefined
 
   useEffect(() => {
-    if (!searchesProducts || products[text]) return
+    if (!showsBrands || products[text]) return
     // A newer search cancels this one, so slow answers can't replace newer results.
     let cancelled = false
     const timer = setTimeout(async () => {
@@ -58,7 +61,7 @@ export function FoodSearch({
       cancelled = true
       clearTimeout(timer)
     }
-  }, [text, searchesProducts, products])
+  }, [text, showsBrands, products])
 
   function retry() {
     setProducts((all) => {
@@ -126,11 +129,17 @@ export function FoodSearch({
           </Section>
         )}
 
-        {searchesProducts && (
-          <Section title="Products">
+        {canSearchBrands && !showsBrands && (
+          <button type="button" onClick={() => setBrandsFor(text)} className={`${buttonStyles.secondary} w-full text-sm`}>
+            <Store size={16} /> Show store brands
+          </button>
+        )}
+
+        {showsBrands && (
+          <Section title="Store brands">
             {!productResult ? (
               <p className="flex items-center gap-2 px-3 py-2 text-xs text-muted" role="status">
-                <Loader2 size={14} className="animate-spin" /> Searching products…
+                <Loader2 size={14} className="animate-spin" /> Searching store brands…
               </p>
             ) : productResult.error !== null ? (
               <div className="flex items-center justify-between gap-3 px-3 py-2 text-xs text-error" role="alert">
@@ -140,7 +149,7 @@ export function FoodSearch({
                 </button>
               </div>
             ) : productResult.foods.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-muted">No products found for “{text}”.</p>
+              <p className="px-3 py-2 text-xs text-muted">No store brands found for “{text}”.</p>
             ) : (
               productResult.foods.map((food) => <CatalogRow key={food.id} food={food} onClick={() => onPick(food)} />)
             )}
@@ -152,7 +161,7 @@ export function FoodSearch({
         </button>
 
         <p className="px-1 text-[10px] leading-relaxed text-muted">
-          Common foods from USDA FoodData Central. Products from{' '}
+          Common foods from USDA FoodData Central. Store brands from{' '}
           <a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer" className="underline">
             Open Food Facts
           </a>{' '}

@@ -466,7 +466,7 @@ function ExerciseCard({
 }
 
 const numberInput =
-  'w-full rounded-lg border border-border bg-surface-hover/60 py-2 text-center text-sm font-bold text-white transition-colors placeholder:text-muted/60 focus:border-primary focus:outline-none'
+  'w-full rounded-lg border border-control bg-surface-hover/60 py-2 text-center text-sm font-bold text-white transition-colors placeholder:text-muted focus:border-primary focus:outline-none'
 
 function SetRow({
   number,
@@ -534,7 +534,7 @@ function SetRow({
           aria-label={`Set ${number} done`}
           className={`press flex h-9 w-9 items-center justify-center rounded-xl [--press-scale:0.82] ${
             set.is_completed
-              ? 'bg-success text-white shadow-md shadow-success/30'
+              ? 'bg-success text-background shadow-md shadow-success/30'
               : 'bg-surface text-foreground/60 hover:bg-surface-hover hover:text-white'
           }`}
         >

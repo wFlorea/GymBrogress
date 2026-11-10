@@ -27,6 +27,7 @@ export function BodyCard({
   weightPlan,
   planPace,
   unit,
+  healthConsent,
 }: {
   body: BodyStats
   goalWeight: number | null
@@ -34,6 +35,7 @@ export function BodyCard({
   weightPlan: WeightPlan
   planPace: PlanPace
   unit: WeightUnit
+  healthConsent: boolean
 }) {
   const [sheet, setSheet] = useState<'body' | 'goals' | null>(null)
   // Bumped on every open, so the forms start fresh.
@@ -103,7 +105,15 @@ export function BodyCard({
       </Card>
 
       <Modal open={sheet === 'body'} onClose={() => setSheet(null)} title="Your details">
-        <BodyForm key={formKey} body={body} weightPlan={weightPlan} planPace={planPace} unit={unit} onSaved={() => setSheet(null)} />
+        <BodyForm
+          key={formKey}
+          body={body}
+          weightPlan={weightPlan}
+          planPace={planPace}
+          unit={unit}
+          healthConsent={healthConsent}
+          onSaved={() => setSheet(null)}
+        />
       </Modal>
       <Modal open={sheet === 'goals'} onClose={() => setSheet(null)} title="Your goals">
         <GoalsForm

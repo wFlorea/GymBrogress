@@ -95,7 +95,7 @@ export function SavedMealList({
                 onBlur={() => setConfirming((id) => (id === saved.id ? null : id))}
                 aria-label={confirming === saved.id ? `Tap again to delete ${saved.name}` : `Delete ${saved.name}`}
                 className={`press flex h-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold transition-colors [--press-scale:0.88] ${
-                  confirming === saved.id ? 'bg-error/15 px-3 text-error' : 'w-9 text-muted hover:text-error'
+                  confirming === saved.id ? 'bg-error/10 px-3 text-error' : 'w-9 text-muted hover:text-error'
                 }`}
               >
                 {confirming === saved.id ? 'Delete?' : <Trash2 size={16} />}

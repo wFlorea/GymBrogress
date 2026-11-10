@@ -109,6 +109,16 @@ export function planCalories(maintenance: number, plan: WeightPlan, pace: PlanPa
   return Math.round((maintenance * (1 + change / 100)) / 100) * 100
 }
 
+/**
+ * `planCalories`, except a cut stops at a commonly used lower limit for adults: 1500 kcal for men, 1200 otherwise
+ * (or the maintenance itself, if that's lower). Only what a plan suggests stops there; a goal typed by hand doesn't.
+ */
+export function safePlanCalories(maintenance: number, plan: WeightPlan, pace: PlanPace, sex: BodyStats['sex']): number {
+  const calories = planCalories(maintenance, plan, pace)
+  if (plan !== 'cut') return calories
+  return Math.max(calories, Math.min(sex === 'male' ? 1500 : 1200, maintenance))
+}
+
 /** About how many kg a week eating `calories` a day instead of `maintenance` takes off (negative) or puts on. */
 export function weeklyWeightChange(calories: number, maintenance: number): number {
   return ((calories - maintenance) * 7) / KCAL_PER_KG
@@ -129,7 +139,7 @@ export function goalsForCalories(calories: number, weightKg: number): Nutrition 
 export function recommendedGoals(body: BodyStats, plan: WeightPlan, pace: PlanPace): Nutrition | null {
   const maintenance = maintenanceCaloriesFor(body)
   if (maintenance === null || body.weight === null) return null
-  return goalsForCalories(planCalories(maintenance, plan, pace), body.weight)
+  return goalsForCalories(safePlanCalories(maintenance, plan, pace, body.sex), body.weight)
 }
 
 export function sumNutrition(items: Nutrition[]): Nutrition {
