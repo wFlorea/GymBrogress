@@ -7,6 +7,26 @@ bottom of the Profile page.
 - **Fixes only** raise the last number: v1.1.1, v1.1.2, …
 - **A big overhaul** raises the first number: v2.0
 
+## v1.6 (2026-11-11)
+
+Ready for real people: privacy and terms, your say over your body data, a much bigger food list, and an easier-to-read app.
+
+- **Privacy and Terms:** new Privacy Policy and Terms pages, linked from the welcome page, the sign-in page and
+  Settings → Legal, with an email to contact us. Signing up asks you to confirm you're 16 or older and accept the Terms.
+- **Your body data, your choice:** before your body stats or a weigh-in are saved, the app asks if it may keep this
+  health data. Settings → Remove body data deletes your body stats and every weigh-in; your workouts and food stay.
+- **Your data:** the export now also holds the products you sent in, the devices that get reminders, and when you
+  accepted the Terms. Deleting your account also deletes your product photos, and signing out clears sets that were
+  still waiting to be saved on that device.
+- **Send in a missing product:** when a barcode isn't found, send the product with a photo of the front and of the
+  nutrition label. Once it's checked, everyone's scan finds it.
+- **A simpler food search:** 440+ everyday foods are built in, now with meals, takeaway, desserts and drinks. Store
+  brands only show when you tap "Show store brands", or when nothing built in matches.
+- **Easier to read:** brighter orange text, lighter grey text and clearer input borders. Pop-ups now work with a
+  keyboard and screen readers.
+- **Tidying up:** sign-ups whose email was never confirmed are removed after 7 days, and sent-in products nobody
+  checked after 30 days.
+
 ## v1.5 (2026-11-09)
 
 - **Barcode scanning:** the new button next to the food search opens your camera. Point it at a packaged food and it

@@ -12,9 +12,7 @@ Everything left that only I can do or decide, written 2026-11-09. Some of these 
       database 2026-11-09)
 - [ ] Vercel → Settings → Environment Variables: add `ADMIN_EMAIL` with the email of my own account (needed to review
       products). Add it to `.env.local` too if I want to review while running it on my computer.
-- [ ] Tell Claude to release it: all the work is committed on the `launch-prep` branch (2026-11-10), not pushed. Needs a
-      merge into `main`, a version bump, a `CHANGELOG.md` entry, a tag and a push. `public/muscle-map.svg` stays out
-      unless I say otherwise.
+- [x] Release it as v1.6 (2026-11-11). `public/muscle-map.svg` stays out unless I say otherwise.
 - [ ] Decide what to build next (I said "something different"; Claude is waiting for my idea)
 - [ ] After it's live, test on the phone while signed in (Claude can't sign in, so these are untested):
   - [ ] Tracker: log a set
@@ -113,7 +111,7 @@ password emails a link; the new-password page only takes a password within 30 mi
       migration above), a lower limit on the calories a cut suggests, readable colours, keyboard use in dialogs, credits
       in the Terms. Built, not released.
 - [ ] **App icons:** replace the Gemini-generated ones
-- [ ] **Photo scanning of meals** (v1.6): recognise the food in a photo, with grams you can correct
+- [ ] **Photo scanning of meals** (v1.7): recognise the food in a photo, with grams you can correct
 - [ ] **Weight goals with a deadline:** reach the goal weight by a date, and the pace follows from it
 
 ## Upgrades
